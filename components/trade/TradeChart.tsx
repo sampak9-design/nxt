@@ -56,12 +56,12 @@ const BINANCE_TF: Record<string, string> = {
 };
 
 const YAHOO_TF: Record<string, { interval: string; range: string }> = {
-  "1m":  { interval: "1m",  range: "7d"  },
-  "5m":  { interval: "5m",  range: "60d" },
-  "15m": { interval: "15m", range: "60d" },
-  "1h":  { interval: "1h",  range: "730d"},
-  "4h":  { interval: "1h",  range: "730d"},
-  "1d":  { interval: "1d",  range: "5y"  },
+  "1m":  { interval: "1m",  range: "1d"  },
+  "5m":  { interval: "5m",  range: "5d"  },
+  "15m": { interval: "15m", range: "5d"  },
+  "1h":  { interval: "1h",  range: "60d" },
+  "4h":  { interval: "1h",  range: "60d" },
+  "1d":  { interval: "1d",  range: "2y"  },
 };
 
 async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null> {
