@@ -898,53 +898,64 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     }
   }, [tab.id, tf]);
 
-  /* ── load candles ─────────────────────────────────────────────────── */
+  /* ── load candles + snap to real price before micro-tick starts ───── */
   useEffect(() => {
     const series = seriesRef.current;
     const chart  = chartRef.current;
     if (!series || !chart) return;
     candles.current = []; lastPrice.current = 0; lastTime.current = 0;
+    realPriceRef.current = 0;
     setPrice(null);
-    fetchCandles(tab.id, tf).then((data) => {
+
+    const load = async () => {
+      // Fetch candles and real price in parallel
+      const [data, realP] = await Promise.all([
+        fetchCandles(tab.id, tf),
+        fetchPrice(tab.id),
+      ]);
+
       if (!data || seriesRef.current !== series) return;
-      candles.current = data;
-      series.setData(data);
+
+      // Use real price as the starting point — snap last candle to it
+      const startPrice = realP ?? data[data.length - 1]?.close ?? seedPrice(tab.id);
+
+      // Patch the last candle to match real price so no gap/giant candle
+      const patched = [...data];
+      if (patched.length) {
+        const last = patched[patched.length - 1];
+        patched[patched.length - 1] = {
+          ...last,
+          close: startPrice,
+          high: Math.max(last.high, startPrice),
+          low:  Math.min(last.low,  startPrice),
+        };
+      }
+
+      candles.current = patched;
+      series.setData(patched);
       requestAnimationFrame(() => requestAnimationFrame(() => chart.timeScale().fitContent()));
       setTimeout(() => chart.timeScale().fitContent(), 200);
-      const last = data[data.length - 1];
+
+      const last = patched[patched.length - 1];
       if (last) {
-        lastPrice.current = last.close;
-        lastTime.current  = last.time;
-        setPrice(last.close);
-        onPriceChange(last.close, last.time);
+        lastPrice.current    = startPrice;
+        realPriceRef.current = startPrice;
+        lastTime.current     = last.time;
+        setPrice(startPrice);
+        onPriceChange(startPrice, last.time);
       }
-    });
+    };
+
+    load();
   }, [tab.id, tf]);
 
   /* ── poll real price every 2s ────────────────────────────────────── */
   useEffect(() => {
-    // Reset so old asset price doesn't bleed into new asset drift
-    realPriceRef.current = 0;
     const fetchReal = async () => {
-      let p = await fetchPrice(tab.id);
-      if (!p && lastPrice.current) return;
-      if (!p) p = seedPrice(tab.id);
-      // If real price differs from current by more than 0.5%, snap both
-      // lastPrice and the last candle in the series to avoid giant catch-up candle
-      if (lastPrice.current && Math.abs(p - lastPrice.current) / lastPrice.current > 0.005) {
-        lastPrice.current = p;
-        const list = candles.current;
-        const series = seriesRef.current;
-        if (list.length && series) {
-          const last = list[list.length - 1];
-          const snapped = { ...last, close: p, open: p, high: p, low: p };
-          list[list.length - 1] = snapped;
-          series.update(snapped);
-        }
-      }
+      const p = await fetchPrice(tab.id);
+      if (!p) return;
       realPriceRef.current = p;
     };
-    fetchReal();
     const iv = setInterval(fetchReal, 2000);
     return () => clearInterval(iv);
   }, [tab.id]);
@@ -962,10 +973,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const real    = realPriceRef.current || current; // don't drift if real not loaded yet
 
       // Drift toward real price + small noise
-      // Clamp drift to max 0.02% of price per tick to avoid giant catch-up candles
-      const rawDrift = (real - current) * 0.08;
-      const maxDrift = current * 0.0002;
-      const drift = Math.sign(rawDrift) * Math.min(Math.abs(rawDrift), maxDrift);
+      const drift = (real - current) * 0.15;
       const noise = current * (Math.random() - 0.5) * 0.00008;
       const p     = +(current + drift + noise).toFixed(5);
 
