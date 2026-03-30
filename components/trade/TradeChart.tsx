@@ -929,10 +929,18 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       let p = await fetchPrice(tab.id);
       if (!p && lastPrice.current) return;
       if (!p) p = seedPrice(tab.id);
-      // If gap between current and real price is > 0.5%, snap immediately
-      // to avoid the giant catch-up candle on page load
+      // If real price differs from current by more than 0.5%, snap both
+      // lastPrice and the last candle in the series to avoid giant catch-up candle
       if (lastPrice.current && Math.abs(p - lastPrice.current) / lastPrice.current > 0.005) {
         lastPrice.current = p;
+        const list = candles.current;
+        const series = seriesRef.current;
+        if (list.length && series) {
+          const last = list[list.length - 1];
+          const snapped = { ...last, close: p, open: p, high: p, low: p };
+          list[list.length - 1] = snapped;
+          series.update(snapped);
+        }
       }
       realPriceRef.current = p;
     };
@@ -954,7 +962,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const real    = realPriceRef.current || current; // don't drift if real not loaded yet
 
       // Drift toward real price + small noise
-      const drift = (real - current) * 0.15;
+      // Clamp drift to max 0.02% of price per tick to avoid giant catch-up candles
+      const rawDrift = (real - current) * 0.08;
+      const maxDrift = current * 0.0002;
+      const drift = Math.sign(rawDrift) * Math.min(Math.abs(rawDrift), maxDrift);
       const noise = current * (Math.random() - 0.5) * 0.00008;
       const p     = +(current + drift + noise).toFixed(5);
 
