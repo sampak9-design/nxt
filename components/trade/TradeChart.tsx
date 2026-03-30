@@ -87,13 +87,22 @@ async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null
     } catch { /* fall through */ }
   }
 
-  // Forex → Yahoo Finance directly from browser
+  // Forex → try server proxy first (handles CORS), then fallback to browser
   if (base.length === 6) {
+    try {
+      const r = await fetch(`/api/candles?symbol=${symbol}&tf=${tf}`);
+      if (r.ok) {
+        const data = await r.json();
+        if (Array.isArray(data) && data.length > 1) return data;
+      }
+    } catch { /* fall through */ }
+
+    // Direct Yahoo Finance from browser as fallback
     try {
       const { interval, range } = YAHOO_TF[tf] ?? YAHOO_TF["1m"];
       const yahooSymbol = `${base}=X`;
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=${interval}&range=${range}`;
-      const r = await fetch(url);
+      const r = await fetch(url, { headers: { "Accept": "application/json" } });
       const data = await r.json();
       const result = data?.chart?.result?.[0];
       if (result) {
@@ -102,18 +111,14 @@ async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null
         const candles = timestamps
           .map((t: number, i: number) => ({
             time:  t as UTCTimestamp,
-            open:  q.open?.[i],
-            high:  q.high?.[i],
-            low:   q.low?.[i],
-            close: q.close?.[i],
+            open:  q.open?.[i],  high: q.high?.[i],
+            low:   q.low?.[i],   close: q.close?.[i],
           }))
           .filter((c) => c.open != null && c.high != null && c.low != null && c.close != null)
           .map((c) => ({
-            time:  c.time,
-            open:  +c.open.toFixed(5),
-            high:  +c.high.toFixed(5),
-            low:   +c.low.toFixed(5),
-            close: +c.close.toFixed(5),
+            time: c.time,
+            open: +c.open.toFixed(5), high: +c.high.toFixed(5),
+            low:  +c.low.toFixed(5),  close: +c.close.toFixed(5),
           }))
           .filter((c) => {
             if (c.open <= 0 || c.close <= 0) return false;
@@ -141,13 +146,27 @@ async function fetchPrice(symbol: string): Promise<number | null> {
     } catch { /* fall through */ }
   }
 
-  // Forex → server proxy
+  // Forex → try server proxy, then Yahoo Finance directly
   try {
     const r = await fetch(`/api/quote?symbol=${symbol}`);
-    if (!r.ok) return null;
-    const d = await r.json();
-    return typeof d.price === "number" ? d.price : null;
-  } catch { return null; }
+    if (r.ok) {
+      const d = await r.json();
+      if (typeof d.price === "number") return d.price;
+    }
+  } catch { /* fall through */ }
+
+  // Yahoo Finance last price from browser
+  if (base.length === 6) {
+    try {
+      const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${base}=X?interval=1m&range=1d`, { headers: { "Accept": "application/json" } });
+      const data = await r.json();
+      const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+      const last = closes.filter((v: number | null) => v != null).pop();
+      if (last) return +last.toFixed(5);
+    } catch { /* fall through */ }
+  }
+
+  return null;
 }
 
 /* ── coordToTime: handles future area beyond last candle ─────────────── */

@@ -117,10 +117,27 @@ function applyPayoutOverrides(assets: ApiAsset[]): ApiAsset[] {
 
 export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] }) {
   const assets = applyPayoutOverrides(rawAssets);
-  const tabs = assets.slice(0, 6).map(toTab);
+  const defaultTabs = assets.slice(0, 6).map(toTab);
 
-  const [activeTab, setActiveTab]     = useState<Tab>(tabs[0]);
-  const [openTabs, setOpenTabs]       = useState<Tab[]>(tabs);
+  const [openTabs, setOpenTabs] = useState<Tab[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("xd_open_tabs") ?? "null");
+      if (Array.isArray(saved) && saved.length > 0) return saved;
+    } catch {}
+    return defaultTabs;
+  });
+
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    try {
+      const savedId = localStorage.getItem("xd_active_tab");
+      const saved = JSON.parse(localStorage.getItem("xd_open_tabs") ?? "null");
+      if (Array.isArray(saved) && savedId) {
+        const found = saved.find((t: Tab) => t.id === savedId);
+        if (found) return found;
+      }
+    } catch {}
+    return defaultTabs[0];
+  });
   const [accountType, setAccountType] = useState<AccountType>("practice");
   const [demoBalance, setDemoBalance] = useState(10000);
   const [realBalance, setRealBalance] = useState(0);
@@ -146,6 +163,14 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
   useEffect(() => {
     try { localStorage.setItem("xd_active_trades", JSON.stringify(activeTrades)); } catch {}
   }, [activeTrades]);
+
+  useEffect(() => {
+    try { localStorage.setItem("xd_open_tabs", JSON.stringify(openTabs)); } catch {}
+  }, [openTabs]);
+
+  useEffect(() => {
+    try { localStorage.setItem("xd_active_tab", activeTab.id); } catch {}
+  }, [activeTab.id]);
 
   const balance    = accountType === "practice" ? demoBalance : realBalance;
   const setBalance = accountType === "practice" ? setDemoBalance : setRealBalance;
