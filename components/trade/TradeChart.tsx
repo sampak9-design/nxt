@@ -46,15 +46,70 @@ const COLORS = ["#f97316","#ffffff","#22c55e","#ef4444","#3b82f6","#facc15","#a8
 
 function seedPrice(id: string) { return FOREX_SEED[id.replace("-OTC", "")] ?? 1.0; }
 
+const BINANCE_MAP: Record<string, string> = {
+  BTCUSD: "BTCUSDT", ETHUSD: "ETHUSDT", SOLUSD: "SOLUSDT",
+  BNBUSD: "BNBUSDT", ADAUSD: "ADAUSDT", XRPUSD: "XRPUSDT",
+};
+
+const BINANCE_TF: Record<string, string> = {
+  "1m": "1m", "5m": "5m", "15m": "15m", "1h": "1h", "4h": "4h", "1d": "1d",
+};
+
+const YAHOO_TF: Record<string, { interval: string; range: string }> = {
+  "1m":  { interval: "1m",  range: "7d"  },
+  "5m":  { interval: "5m",  range: "60d" },
+  "15m": { interval: "15m", range: "60d" },
+  "1h":  { interval: "1h",  range: "730d"},
+  "4h":  { interval: "1h",  range: "730d"},
+  "1d":  { interval: "1d",  range: "5y"  },
+};
+
 async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null> {
+  const base = symbol.replace("-OTC", "");
+  const binanceSym = BINANCE_MAP[base];
+
+  // Crypto → Binance directly from browser (no server proxy)
+  if (binanceSym) {
+    try {
+      const limit = tf === "4h" ? 500 : 1000;
+      const interval = BINANCE_TF[tf] ?? "1m";
+      const r = await fetch(
+        `https://api.binance.com/api/v3/klines?symbol=${binanceSym}&interval=${interval}&limit=${limit}`
+      );
+      const raw: any[][] = await r.json();
+      return raw.map((k) => ({
+        time:  Math.floor(k[0] / 1000) as UTCTimestamp,
+        open:  parseFloat(k[1]),
+        high:  parseFloat(k[2]),
+        low:   parseFloat(k[3]),
+        close: parseFloat(k[4]),
+      }));
+    } catch { /* fall through */ }
+  }
+
+  // Forex → server proxy (Yahoo Finance needs server-side headers)
   try {
     const r = await fetch(`/api/candles?symbol=${symbol}&tf=${tf}`);
-    if (!r.ok) return null;
-    return await r.json();
-  } catch { return null; }
+    if (r.ok) return await r.json();
+  } catch { /* fall through */ }
+
+  return null;
 }
 
 async function fetchPrice(symbol: string): Promise<number | null> {
+  const base = symbol.replace("-OTC", "");
+  const binanceSym = BINANCE_MAP[base];
+
+  // Crypto → Binance directly from browser
+  if (binanceSym) {
+    try {
+      const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSym}`);
+      const d = await r.json();
+      return typeof d.price === "string" ? parseFloat(d.price) : null;
+    } catch { /* fall through */ }
+  }
+
+  // Forex → server proxy
   try {
     const r = await fetch(`/api/quote?symbol=${symbol}`);
     if (!r.ok) return null;
@@ -933,8 +988,25 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
       candles.current = patched;
       series.setData(patched);
-      requestAnimationFrame(() => requestAnimationFrame(() => chart.timeScale().fitContent()));
-      setTimeout(() => chart.timeScale().fitContent(), 200);
+
+      // Restore saved zoom range, or fitContent if none saved
+      const rangeKey = `xd_range:${tab.id}:${tf}`;
+      const savedRange = (() => { try { return JSON.parse(localStorage.getItem(rangeKey) ?? "null"); } catch { return null; } })();
+      const applyView = () => {
+        if (savedRange) {
+          chart.timeScale().setVisibleLogicalRange(savedRange);
+        } else {
+          const total = patched.length;
+          chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 100), to: total + 5 });
+        }
+      };
+      requestAnimationFrame(() => requestAnimationFrame(applyView));
+      setTimeout(applyView, 200);
+
+      // Save range on scroll/zoom
+      chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+        if (range) try { localStorage.setItem(rangeKey, JSON.stringify(range)); } catch {}
+      });
 
       const last = patched[patched.length - 1];
       if (last) {
