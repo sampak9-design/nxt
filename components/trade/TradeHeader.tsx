@@ -74,8 +74,22 @@ export default function TradeHeader({
           XD Broker
         </span>
 
-        {/* Asset Tabs */}
-        <div className="flex items-center gap-1 flex-1 min-w-0 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-hide h-full py-1.5">
+        {/* Mobile: active asset button */}
+        <button
+          onClick={() => setShowPicker(true)}
+          className="flex md:hidden items-center gap-2 px-2 py-1 rounded-lg flex-shrink-0"
+          style={{ background: "rgba(255,255,255,0.06)" }}
+        >
+          {activeTab.icon_url
+            ? <img src={activeTab.icon_url} alt={activeTab.name} className="w-5 h-5 object-contain" />
+            : <span className="text-[10px] font-bold text-gray-400">{activeTab.id.replace("-OTC","").slice(0,3)}</span>
+          }
+          <span className="text-xs font-semibold text-white">{activeTab.name}</span>
+          <ChevronDown className="w-3 h-3 text-gray-400" />
+        </button>
+
+        {/* Desktop: Asset Tabs */}
+        <div className="hidden md:flex items-center gap-1 flex-1 min-w-0 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-hide h-full py-1.5">
           {tabs.map((tab) => {
             const isActive = tab.id === activeTab.id;
             return (
@@ -126,7 +140,7 @@ export default function TradeHeader({
         </div>
 
         {/* Right */}
-        <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
           {/* Balance button + dropdown */}
           <div className="relative">
             <button
@@ -231,7 +245,7 @@ export default function TradeHeader({
           </div>
 
           <button
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+            className="hidden md:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
             style={{ background: "rgba(255,255,255,0.06)" }}
           >
             <Bell className="w-4 h-4 text-gray-400" />

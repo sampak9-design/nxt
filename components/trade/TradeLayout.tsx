@@ -280,7 +280,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
 
   return (
     <div
-      className="h-screen flex flex-col overflow-hidden"
+      className="h-[100dvh] flex flex-col overflow-hidden"
       style={{ background: "var(--color-background)", color: "var(--color-text)" }}
     >
       <TradeHeader
@@ -297,24 +297,19 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         onDepositClick={() => setShowDeposit(true)}
         onReloadDemo={() => setDemoBalance(10000)}
       />
-      <div className="flex flex-1 overflow-hidden">
+
+      {/* ── Desktop layout ── */}
+      <div className="hidden md:flex flex-1 overflow-hidden min-h-0">
         <TradeSidebar
           activePanel={sidebarPanel}
           setActivePanel={setSidebarPanel}
           openTradeCount={activeTrades.filter((t) => !t.result).length}
         />
         {sidebarPanel === "portfolio" && (
-          <PortfolioPanel
-            activeTrades={activeTrades}
-            onClose={() => setSidebarPanel(null)}
-          />
+          <PortfolioPanel activeTrades={activeTrades} onClose={() => setSidebarPanel(null)} />
         )}
         {sidebarPanel === "history" && (
-          <HistoryPanel
-            history={tradeHistory}
-            accountType={accountType}
-            onClose={() => setSidebarPanel(null)}
-          />
+          <HistoryPanel history={tradeHistory} accountType={accountType} onClose={() => setSidebarPanel(null)} />
         )}
         <div className="flex-1 flex overflow-hidden">
           <TradeChart
@@ -333,15 +328,89 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
             onTrade={handleTrade}
             expiryMs={selectedExpMs}
             onExpiryChange={setSelectedExpMs}
-            onSwitchAccount={() =>
-              accountType === "practice"
-                ? setAccountType("real")
-                : setAccountType("practice")
-            }
+            onSwitchAccount={() => accountType === "practice" ? setAccountType("real") : setAccountType("practice")}
             onDepositClick={() => setShowDeposit(true)}
             onHoverChange={setHoverDirection}
           />
         </div>
+      </div>
+
+      {/* ── Mobile layout ── */}
+      <div className="relative flex md:hidden flex-col flex-1 overflow-hidden min-h-0">
+        {/* Chart — takes remaining space */}
+        <div className="flex-1 overflow-hidden min-h-0">
+          <TradeChart
+            tab={activeTab}
+            activeTrades={activeTabTrades}
+            onPriceChange={handlePriceChange}
+            expiryMs={selectedExpMs}
+            hoverDirection={hoverDirection}
+          />
+        </div>
+
+        {/* Mobile trade panel — compact bottom section */}
+        <TradePanel
+          tab={activeTab}
+          accountType={accountType}
+          balance={balance}
+          currentPrice={livePrice}
+          activeTrades={activeTabTrades}
+          onTrade={handleTrade}
+          expiryMs={selectedExpMs}
+          onExpiryChange={setSelectedExpMs}
+          onSwitchAccount={() => accountType === "practice" ? setAccountType("real") : setAccountType("practice")}
+          onDepositClick={() => setShowDeposit(true)}
+          onHoverChange={setHoverDirection}
+          mobile
+        />
+
+        {/* Mobile bottom nav */}
+        <div
+          className="flex items-center justify-around border-t flex-shrink-0"
+          style={{ background: "var(--color-third)", borderColor: "var(--color-border)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        >
+          <button
+            onClick={() => setSidebarPanel(sidebarPanel === "portfolio" ? null : "portfolio")}
+            className="flex flex-col items-center gap-0.5 py-2 px-4 relative"
+            style={{ color: sidebarPanel === "portfolio" ? "var(--color-primary)" : "var(--color-icons)" }}
+          >
+            {activeTrades.filter(t => !t.result).length > 0 && (
+              <span className="absolute top-1 right-2 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ background: "var(--color-primary)" }}>
+                {activeTrades.filter(t => !t.result).length}
+              </span>
+            )}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0H8m8 0a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2" /></svg>
+            <span className="text-[9px] font-medium">Portfólio</span>
+          </button>
+          <button
+            onClick={() => setSidebarPanel(sidebarPanel === "history" ? null : "history")}
+            className="flex flex-col items-center gap-0.5 py-2 px-4"
+            style={{ color: sidebarPanel === "history" ? "var(--color-primary)" : "var(--color-icons)" }}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            <span className="text-[9px] font-medium">Histórico</span>
+          </button>
+          <button
+            onClick={() => setShowDeposit(true)}
+            className="flex flex-col items-center gap-0.5 py-2 px-4"
+            style={{ color: "var(--color-icons)" }}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            <span className="text-[9px] font-medium">Depósito</span>
+          </button>
+        </div>
+
+        {/* Mobile panels overlay */}
+        {sidebarPanel === "portfolio" && (
+          <div className="absolute inset-0 z-50" style={{ top: 56 }}>
+            <PortfolioPanel activeTrades={activeTrades} onClose={() => setSidebarPanel(null)} />
+          </div>
+        )}
+        {sidebarPanel === "history" && (
+          <div className="absolute inset-0 z-50" style={{ top: 56 }}>
+            <HistoryPanel history={tradeHistory} accountType={accountType} onClose={() => setSidebarPanel(null)} />
+          </div>
+        )}
       </div>
 
       {showDeposit && (

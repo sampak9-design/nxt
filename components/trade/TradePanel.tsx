@@ -42,6 +42,7 @@ interface Props {
   expiryMs: number;
   onExpiryChange: (ms: number) => void;
   onHoverChange?: (dir: "up" | "down" | null) => void;
+  mobile?: boolean;
 }
 
 export default function TradePanel({
@@ -49,6 +50,7 @@ export default function TradePanel({
   activeTrades, onTrade,
   expiryMs, onExpiryChange,
   onHoverChange,
+  mobile,
 }: Props) {
   const [amount, setAmount] = useState(10);
 
@@ -63,6 +65,93 @@ export default function TradePanel({
   const incExp    = () => onExpiryChange(EXPIRATIONS[Math.min(EXPIRATIONS.length - 1, safeExpIdx + 1)].ms);
   const decExp    = () => onExpiryChange(EXPIRATIONS[Math.max(0, safeExpIdx - 1)].ms);
 
+  // ── Mobile compact layout ───────────────────────────────────────────
+  if (mobile) {
+    return (
+      <div
+        className="flex-shrink-0 border-t"
+        style={{ borderColor: "var(--color-border)", background: "var(--color-third)" }}
+      >
+        {/* Row 1: Expiry + Amount */}
+        <div className="flex gap-2 px-3 pt-3 pb-2">
+          {/* Expiry */}
+          <div className="flex-1 flex flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Tempo</span>
+            <div
+              className="flex items-center rounded-lg overflow-hidden"
+              style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }}
+            >
+              <button onClick={decExp} className="w-9 h-9 flex items-center justify-center hover:bg-white/10">
+                <span className="text-gray-400 text-lg leading-none">−</span>
+              </button>
+              <div className="flex-1 flex items-center justify-center">
+                <span className="text-white font-bold text-sm font-mono">{selectedExp.label}</span>
+              </div>
+              <button onClick={incExp} className="w-9 h-9 flex items-center justify-center hover:bg-white/10">
+                <span className="text-gray-400 text-lg leading-none">+</span>
+              </button>
+            </div>
+          </div>
+          {/* Amount */}
+          <div className="flex-1 flex flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Valor</span>
+            <div
+              className="flex items-center rounded-lg overflow-hidden"
+              style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }}
+            >
+              <button onClick={decAmount} className="w-9 h-9 flex items-center justify-center hover:bg-white/10">
+                <span className="text-gray-400 text-lg leading-none">−</span>
+              </button>
+              <div className="flex-1 flex items-center justify-center">
+                <span className="text-white font-bold text-sm">R${amount}</span>
+              </div>
+              <button onClick={incAmount} className="w-9 h-9 flex items-center justify-center hover:bg-white/10">
+                <span className="text-gray-400 text-lg leading-none">+</span>
+              </button>
+            </div>
+          </div>
+          {/* Payout badge */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Lucro</span>
+            <div
+              className="h-9 flex items-center justify-center rounded-lg px-2"
+              style={{ background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.2)" }}
+            >
+              <span className="text-[13px] font-bold" style={{ color: "#4ade80" }}>+{tab.payout}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: Trade buttons */}
+        <div className="flex gap-2 px-3 pb-3">
+          <button
+            onClick={() => onTrade("up", amount, selectedExp.ms)}
+            onMouseEnter={() => onHoverChange?.("up")}
+            onMouseLeave={() => onHoverChange?.(null)}
+            disabled={!canTrade}
+            className="flex-1 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-40"
+            style={{ background: "linear-gradient(180deg,#2ecc71,#219a52)", height: 48 }}
+          >
+            <TrendingUp className="w-5 h-5" strokeWidth={2.5} />
+            <span className="text-[15px] tracking-widest">ACIMA</span>
+          </button>
+          <button
+            onClick={() => onTrade("down", amount, selectedExp.ms)}
+            onMouseEnter={() => onHoverChange?.("down")}
+            onMouseLeave={() => onHoverChange?.(null)}
+            disabled={!canTrade}
+            className="flex-1 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-40"
+            style={{ background: "linear-gradient(180deg,#e74c3c,#a93226)", height: 48 }}
+          >
+            <TrendingDown className="w-5 h-5" strokeWidth={2.5} />
+            <span className="text-[15px] tracking-widest">ABAIXO</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Desktop layout ───────────────────────────────────────────────────
   return (
     <aside
       className="w-[240px] flex-shrink-0 flex flex-col border-l overflow-y-auto"
