@@ -87,11 +87,43 @@ async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null
     } catch { /* fall through */ }
   }
 
-  // Forex → server proxy (Yahoo Finance needs server-side headers)
-  try {
-    const r = await fetch(`/api/candles?symbol=${symbol}&tf=${tf}`);
-    if (r.ok) return await r.json();
-  } catch { /* fall through */ }
+  // Forex → Yahoo Finance directly from browser
+  if (base.length === 6) {
+    try {
+      const { interval, range } = YAHOO_TF[tf] ?? YAHOO_TF["1m"];
+      const yahooSymbol = `${base}=X`;
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=${interval}&range=${range}`;
+      const r = await fetch(url);
+      const data = await r.json();
+      const result = data?.chart?.result?.[0];
+      if (result) {
+        const timestamps: number[] = result.timestamp ?? [];
+        const q = result.indicators?.quote?.[0] ?? {};
+        const candles = timestamps
+          .map((t: number, i: number) => ({
+            time:  t as UTCTimestamp,
+            open:  q.open?.[i],
+            high:  q.high?.[i],
+            low:   q.low?.[i],
+            close: q.close?.[i],
+          }))
+          .filter((c) => c.open != null && c.high != null && c.low != null && c.close != null)
+          .map((c) => ({
+            time:  c.time,
+            open:  +c.open.toFixed(5),
+            high:  +c.high.toFixed(5),
+            low:   +c.low.toFixed(5),
+            close: +c.close.toFixed(5),
+          }))
+          .filter((c) => {
+            if (c.open <= 0 || c.close <= 0) return false;
+            const body = Math.abs(c.close - c.open) || c.open * 0.0001;
+            return (c.high - c.low) <= body * 100;
+          });
+        if (candles.length) return candles;
+      }
+    } catch { /* fall through */ }
+  }
 
   return null;
 }
