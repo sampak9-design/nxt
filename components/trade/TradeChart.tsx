@@ -909,13 +909,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       if (!data || seriesRef.current !== series) return;
       candles.current = data;
       series.setData(data);
-      // Show only last 100 candles on load
-      const total = data.length;
-      const from  = Math.max(0, total - 100);
-      const to    = total + 5;
-      const applyRange = () => chart.timeScale().setVisibleLogicalRange({ from, to });
-      requestAnimationFrame(() => requestAnimationFrame(applyRange));
-      setTimeout(applyRange, 200);
+      requestAnimationFrame(() => requestAnimationFrame(() => chart.timeScale().fitContent()));
+      setTimeout(() => chart.timeScale().fitContent(), 200);
       const last = data[data.length - 1];
       if (last) {
         lastPrice.current = last.close;

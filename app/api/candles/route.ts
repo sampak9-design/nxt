@@ -189,8 +189,16 @@ export async function GET(req: NextRequest) {
     } catch { /* fall through */ }
   }
 
-  // Fallback simulation
-  const seed   = FOREX_SEED[base] ?? 1.0;
+  // Fallback simulation — try to get real price first so simulation matches live quote
+  let seed = FOREX_SEED[base] ?? 1.0;
+  try {
+    const binanceSym = BINANCE_MAP[base];
+    if (binanceSym) {
+      const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSym}`, { cache: "no-store" });
+      const d = await r.json();
+      if (d?.price) seed = parseFloat(d.price);
+    }
+  } catch { /* keep seed */ }
   const period = TF_SEC[tf] ?? 60;
   return NextResponse.json(simulateCandles(seed, 500, period));
 }
