@@ -929,6 +929,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       let p = await fetchPrice(tab.id);
       if (!p && lastPrice.current) return;
       if (!p) p = seedPrice(tab.id);
+      // If gap between current and real price is > 0.5%, snap immediately
+      // to avoid the giant catch-up candle on page load
+      if (lastPrice.current && Math.abs(p - lastPrice.current) / lastPrice.current > 0.005) {
+        lastPrice.current = p;
+      }
       realPriceRef.current = p;
     };
     fetchReal();
