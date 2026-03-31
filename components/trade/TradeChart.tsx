@@ -1048,14 +1048,15 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     load();
   }, [tab.id, tf]);
 
-  /* ── poll real price every 2s ────────────────────────────────────── */
+  /* ── poll real price every 1s ────────────────────────────────────── */
   useEffect(() => {
     const fetchReal = async () => {
       const p = await fetchPrice(tab.id);
       if (!p) return;
       realPriceRef.current = p;
     };
-    const iv = setInterval(fetchReal, 2000);
+    fetchReal(); // fetch immediately on mount
+    const iv = setInterval(fetchReal, 1000);
     return () => clearInterval(iv);
   }, [tab.id]);
 
@@ -1071,9 +1072,9 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const current = lastPrice.current;
       const real    = realPriceRef.current || current; // don't drift if real not loaded yet
 
-      // Drift toward real price + small noise
-      const drift = (real - current) * 0.06;
-      const noise = current * (Math.random() - 0.5) * 0.00004;
+      // Drift strongly toward real price, minimal noise just for visual smoothness
+      const drift = (real - current) * 0.25;
+      const noise = current * (Math.random() - 0.5) * 0.000008;
       const p     = +(current + drift + noise).toFixed(5);
 
       setUp(p >= lastPrice.current);
