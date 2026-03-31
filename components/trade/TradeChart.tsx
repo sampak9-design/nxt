@@ -1083,7 +1083,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     return () => clearInterval(iv);
   }, [tab.id]);
 
-  /* ── micro-tick every 500ms for fluid movement ───────────────────── */
+  /* ── micro-tick every 200ms for fluid movement ───────────────────── */
   useEffect(() => {
     const period = TF_SEC[tf] ?? 60;
 
@@ -1123,7 +1123,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
     };
 
-    const iv = setInterval(microTick, 500);
+    const iv = setInterval(microTick, 200);
     return () => clearInterval(iv);
   }, [tab.id, tf]);
 
