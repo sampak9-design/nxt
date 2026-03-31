@@ -138,7 +138,7 @@ export default function PortfolioPanel({ activeTrades, onClose }: Props) {
           </div>
         ) : (
           openTrades.map((t) => {
-            const totalMs = t.expiresAt - t.entryTime;
+            const totalMs = t.expiresAt - t.entryTime * 1000;
             return (
               <div
                 key={t.id}

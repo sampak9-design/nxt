@@ -34,10 +34,6 @@ export type ActiveTrade = {
   result?: "win" | "lose";
 };
 
-export type TradeEntry = {
-  id: string; time: number; price: number;
-  direction: "up" | "down"; amount: string;
-};
 
 export type AccountType = "practice" | "real";
 
@@ -149,7 +145,6 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
       return saved.filter((t) => !t.result && t.expiresAt > Date.now());
     } catch { return []; }
   });
-  const [, setEntries]                = useState<TradeEntry[]>([]);
   const openTabsRef = useRef(openTabs);
   openTabsRef.current = openTabs;
   const [selectedExpMs, setSelectedExpMs] = useState(60_000);
@@ -259,10 +254,6 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
     // Remove resolved trades after 3s
     setTimeout(() => {
       setActiveTrades((prev) => prev.filter((t) => !t.result));
-      setEntries((prev) => {
-        const activeIds = new Set(activeTrades.filter((t) => !t.result).map((t) => t.id));
-        return prev.filter((e) => activeIds.has(e.id));
-      });
     }, 5000);
   }, [activeTrades]);
 
@@ -288,10 +279,6 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
     };
 
     setActiveTrades((prev) => [...prev, trade]);
-    setEntries((prev) => [
-      ...prev,
-      { id, time: liveTime, price: livePrice, direction, amount: String(amount) },
-    ]);
 
   };
 
