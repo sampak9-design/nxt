@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     try {
       const tdSymbol = `${base.slice(0, 3)}/${base.slice(3, 6)}`;
       const url = `https://api.twelvedata.com/price?symbol=${tdSymbol}&apikey=${process.env.TWELVE_DATA_KEY}`;
-      const res  = await fetch(url, { cache: "no-store" });
+      const res  = await fetch(url, { next: { revalidate: 10 } });
       const data = await res.json();
       const price = parseFloat(data.price);
       if (!isNaN(price) && price > 0) return NextResponse.json({ price });

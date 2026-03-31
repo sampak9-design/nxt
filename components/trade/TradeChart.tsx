@@ -973,20 +973,36 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     realPriceRef.current = 0;
     setPrice(null);
 
+    const cacheKey = `xd_candles:${tab.id}:${tf}`;
+
     const load = async () => {
+      // Try cache first so chart shows immediately on refresh
+      let cached: Candle[] | null = null;
+      try {
+        const raw = localStorage.getItem(cacheKey);
+        if (raw) cached = JSON.parse(raw);
+      } catch {}
+
       // Fetch candles and real price in parallel
       const [data, realP] = await Promise.all([
         fetchCandles(tab.id, tf),
         fetchPrice(tab.id),
       ]);
 
-      if (!data || seriesRef.current !== series) return;
+      // Use fresh data if available, otherwise fall back to cache
+      const source = (data && data.length > 1) ? data : cached;
+      if (!source || seriesRef.current !== series) return;
+
+      // Save to cache for next refresh
+      if (data && data.length > 1) {
+        try { localStorage.setItem(cacheKey, JSON.stringify(data.slice(-500))); } catch {}
+      }
 
       // Use real price as the starting point — snap last candle to it
-      const startPrice = realP ?? data[data.length - 1]?.close ?? seedPrice(tab.id);
+      const startPrice = realP ?? source[source.length - 1]?.close ?? seedPrice(tab.id);
 
       // Patch the last candle to match real price so no gap/giant candle
-      const patched = [...data];
+      const patched = [...source];
       if (patched.length) {
         const last = patched[patched.length - 1];
         patched[patched.length - 1] = {

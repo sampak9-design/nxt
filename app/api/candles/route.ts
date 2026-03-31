@@ -37,8 +37,10 @@ async function fetchTwelveDataCandles(base: string, tf: string) {
   const outputsize = TD_OUTPUTSIZE[tf] ?? 500;
 
   // timezone=UTC ensures datetimes come as UTC, dp=5 for forex precision
+  // Cache: 1m/5m data cached 30s, longer TFs cached longer to avoid rate limits
+  const revalidate = interval === "1min" ? 30 : interval === "5min" ? 60 : 300;
   const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputsize}&timezone=UTC&dp=5&apikey=${key}`;
-  const res  = await fetch(url, { cache: "no-store" });
+  const res  = await fetch(url, { next: { revalidate } });
   const data = await res.json();
 
   if (data.status === "error" || !Array.isArray(data.values)) return null;
