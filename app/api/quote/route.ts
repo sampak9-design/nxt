@@ -25,7 +25,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Forex → Alpha Vantage exchange rate (cached 60s to preserve quota)
+  // Forex → Twelve Data (real-time price)
+  if (base.length === 6 && process.env.TWELVE_DATA_KEY) {
+    try {
+      const tdSymbol = `${base.slice(0, 3)}/${base.slice(3, 6)}`;
+      const url = `https://api.twelvedata.com/price?symbol=${tdSymbol}&apikey=${process.env.TWELVE_DATA_KEY}`;
+      const res  = await fetch(url, { cache: "no-store" });
+      const data = await res.json();
+      const price = parseFloat(data.price);
+      if (!isNaN(price) && price > 0) return NextResponse.json({ price });
+    } catch { /* fall through */ }
+  }
+
+  // Forex → Alpha Vantage (fallback)
   if (base.length === 6 && process.env.ALPHA_VANTAGE_KEY) {
     try {
       const from = base.slice(0, 3);
