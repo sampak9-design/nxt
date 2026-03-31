@@ -1083,7 +1083,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     return () => clearInterval(iv);
   }, [tab.id]);
 
-  /* ── micro-tick every 200ms for fluid movement ───────────────────── */
+  /* ── micro-tick every 100ms for fluid movement ───────────────────── */
   useEffect(() => {
     const period = TF_SEC[tf] ?? 60;
 
@@ -1096,8 +1096,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const real    = realPriceRef.current || current; // don't drift if real not loaded yet
 
       // Drift toward real price + small noise
-      const drift = (real - current) * 0.15;
-      const noise = current * (Math.random() - 0.5) * 0.00008;
+      const drift = (real - current) * 0.06;
+      const noise = current * (Math.random() - 0.5) * 0.00004;
       const p     = +(current + drift + noise).toFixed(5);
 
       setUp(p >= lastPrice.current);
@@ -1123,7 +1123,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
     };
 
-    const iv = setInterval(microTick, 200);
+    const iv = setInterval(microTick, 100);
     return () => clearInterval(iv);
   }, [tab.id, tf]);
 
