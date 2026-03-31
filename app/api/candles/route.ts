@@ -36,7 +36,8 @@ async function fetchTwelveDataCandles(base: string, tf: string) {
   const interval   = TD_INTERVAL[tf] ?? "1min";
   const outputsize = TD_OUTPUTSIZE[tf] ?? 500;
 
-  const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputsize}&apikey=${key}`;
+  // timezone=UTC ensures datetimes come as UTC, dp=5 for forex precision
+  const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputsize}&timezone=UTC&dp=5&apikey=${key}`;
   const res  = await fetch(url, { cache: "no-store" });
   const data = await res.json();
 
@@ -44,7 +45,8 @@ async function fetchTwelveDataCandles(base: string, tf: string) {
 
   const candles = (data.values as any[])
     .map((v) => ({
-      time:  Math.floor(new Date(v.datetime).getTime() / 1000),
+      // Parse as UTC by replacing space with T and appending Z
+      time:  Math.floor(new Date(v.datetime.replace(" ", "T") + "Z").getTime() / 1000),
       open:  parseFloat(v.open),
       high:  parseFloat(v.high),
       low:   parseFloat(v.low),
