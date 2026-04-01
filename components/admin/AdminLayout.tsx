@@ -42,7 +42,7 @@ export default function AdminLayout({ children, page, setPage }: Props) {
         <div className="flex items-center gap-2 px-4 h-14 border-b flex-shrink-0"
           style={{ borderColor: "rgba(255,255,255,0.06)" }}>
           {!collapsed && (
-            <span className="font-bold text-orange-500 text-base whitespace-nowrap">XD Admin</span>
+            <span className="font-bold text-orange-500 text-base whitespace-nowrap">ZyroOption Admin</span>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}

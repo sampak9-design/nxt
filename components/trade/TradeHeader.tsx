@@ -5,6 +5,7 @@ import { X, Plus, Bell, ChevronDown } from "lucide-react";
 import type { Tab, ApiAsset, AccountType } from "./TradeLayout";
 import AssetPicker from "./AssetPicker";
 import ProfilePanel from "./ProfilePanel";
+import ZyroLogo from "@/components/ZyroLogo";
 
 interface Props {
   tabs: Tab[];
@@ -70,9 +71,10 @@ export default function TradeHeader({
         style={{ borderColor: "var(--color-border)", background: "var(--color-third)" }}
       >
         {/* Logo */}
-        <span className="text-lg font-bold text-orange-500 whitespace-nowrap flex-shrink-0 hidden md:block mr-1">
-          XD Broker
-        </span>
+        <div className="hidden md:flex items-center gap-2 flex-shrink-0 mr-1">
+          <ZyroLogo size={28} />
+          <span className="text-lg font-bold text-orange-500 whitespace-nowrap">ZyroOption</span>
+        </div>
 
         {/* Mobile: active asset button */}
         <button
@@ -277,7 +279,7 @@ export default function TradeHeader({
               className="w-full h-full flex items-center justify-center text-xs font-bold text-white"
               style={{ background: "linear-gradient(135deg,#f97316,#ea6c0a)" }}
             >
-              XD
+              Z
             </div>
           </button>
         </div>

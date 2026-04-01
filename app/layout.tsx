@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "XD Broker",
-  description: "XD Broker Trading Platform",
+  title: "ZyroOption",
+  description: "ZyroOption Trading Platform",
 };
 
 export default function RootLayout({

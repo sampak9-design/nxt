@@ -1,6 +1,7 @@
 import Link from "next/link";
 import LoginForm from "@/components/LoginForm";
 import { AlertCircle } from "lucide-react";
+import ZyroLogo from "@/components/ZyroLogo";
 
 export default function LoginPage() {
   return (
@@ -9,7 +10,8 @@ export default function LoginPage() {
       <header className="bg-white border-b border-gray-200">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-xl font-bold text-orange-500">XD Broker</span>
+            <ZyroLogo size={30} />
+            <span className="text-xl font-bold text-orange-500">ZyroOption</span>
           </div>
           <Link
             href="/register"
@@ -64,8 +66,11 @@ export default function LoginPage() {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-6">
-              <span className="text-xl font-bold text-orange-500">XD Broker</span>
-              <p className="text-sm text-gray-500">© 2025 XD Broker. Todos os direitos reservados.</p>
+              <div className="flex items-center gap-2">
+                <ZyroLogo size={24} />
+                <span className="text-xl font-bold text-orange-500">ZyroOption</span>
+              </div>
+              <p className="text-sm text-gray-500">© 2025 ZyroOption. Todos os direitos reservados.</p>
             </div>
           </div>
           <div className="mt-8 text-center text-xs text-gray-500 max-w-4xl mx-auto leading-relaxed">
@@ -73,8 +78,8 @@ export default function LoginPage() {
               <strong className="text-gray-700">AVISO DE RISCO:</strong>
             </p>
             <p className="mb-3">
-              A XD Broker fornece seus serviços exclusivamente em territórios em que é licenciada.
-              A XD Broker não está autorizada pela Comissão de Valores Mobiliários (&quot;CVM&quot;)
+              A ZyroOption fornece seus serviços exclusivamente em territórios em que é licenciada.
+              A ZyroOption não está autorizada pela Comissão de Valores Mobiliários (&quot;CVM&quot;)
               a diferença diretamente dos tipos de distribuição de valores mobiliários ou
               investidores residentes no Brasil.
             </p>

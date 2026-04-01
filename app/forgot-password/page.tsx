@@ -1,11 +1,15 @@
 import Link from "next/link";
+import ZyroLogo from "@/components/ZyroLogo";
 
 export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "#fff", color: "#111" }}>
       <header className="bg-white border-b border-gray-200">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <span className="text-xl font-bold text-orange-500">XD Broker</span>
+          <div className="flex items-center gap-2">
+            <ZyroLogo size={28} />
+            <span className="text-xl font-bold text-orange-500">ZyroOption</span>
+          </div>
         </div>
       </header>
       <main className="flex-1 flex items-center justify-center px-4 py-12">
