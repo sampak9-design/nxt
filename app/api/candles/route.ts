@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
+/* ── In-memory cache to protect API credits ──────────────────────────── */
+const memCache = new Map<string, { data: any; expiresAt: number }>();
+function memGet(key: string) {
+  const entry = memCache.get(key);
+  if (!entry || Date.now() > entry.expiresAt) return null;
+  return entry.data;
+}
+function memSet(key: string, data: any, ttlMs: number) {
+  memCache.set(key, { data, expiresAt: Date.now() + ttlMs });
+}
+
 /* ── Crypto → Binance ────────────────────────────────────────────────── */
 const BINANCE_MAP: Record<string, string> = {
   BTCUSD: "BTCUSDT", ETHUSD: "ETHUSDT",
@@ -36,18 +47,20 @@ async function fetchTwelveDataCandles(base: string, tf: string) {
   const interval   = TD_INTERVAL[tf] ?? "1min";
   const outputsize = TD_OUTPUTSIZE[tf] ?? 500;
 
-  // timezone=UTC ensures datetimes come as UTC, dp=5 for forex precision
-  // Cache: 1m/5m data cached 30s, longer TFs cached longer to avoid rate limits
-  const revalidate = interval === "1min" ? 30 : interval === "5min" ? 60 : 300;
+  // In-memory cache: 1m=60s, 5m=3min, 1h+=10min — protects daily credit limit
+  const ttlMs = interval === "1min" ? 60_000 : interval === "5min" ? 180_000 : 600_000;
+  const cacheKey = `td:${base}:${tf}`;
+  const cached = memGet(cacheKey);
+  if (cached) return cached;
+
   const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputsize}&timezone=UTC&dp=5&apikey=${key}`;
-  const res  = await fetch(url, { next: { revalidate } });
+  const res  = await fetch(url, { cache: "no-store" });
   const data = await res.json();
 
   if (data.status === "error" || !Array.isArray(data.values)) return null;
 
   const candles = (data.values as any[])
     .map((v) => ({
-      // Parse as UTC by replacing space with T and appending Z
       time:  Math.floor(new Date(v.datetime.replace(" ", "T") + "Z").getTime() / 1000),
       open:  parseFloat(v.open),
       high:  parseFloat(v.high),
@@ -57,7 +70,9 @@ async function fetchTwelveDataCandles(base: string, tf: string) {
     .filter((c) => !isNaN(c.open) && !isNaN(c.close) && c.open > 0)
     .sort((a, b) => a.time - b.time);
 
-  return candles.length ? candles : null;
+  if (!candles.length) return null;
+  memSet(cacheKey, candles, ttlMs);
+  return candles;
 }
 
 /* ── Forex → Yahoo Finance (fallback) ───────────────────────────────── */
