@@ -1019,11 +1019,15 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         try { localStorage.setItem(cacheKey, JSON.stringify(freshValid.slice(-500))); } catch {}
       }
 
+      // Adjust timestamps to BRT (UTC-3)
+      const BRT_OFFSET = -3 * 3600;
+      const adjusted = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+
       // Use real price as the starting point — snap last candle to it
-      const startPrice = realP ?? source[source.length - 1]?.close ?? seedPrice(tab.id);
+      const startPrice = realP ?? adjusted[adjusted.length - 1]?.close ?? seedPrice(tab.id);
 
       // Patch the last candle to match real price so no gap/giant candle
-      const patched = [...source];
+      const patched = [...adjusted];
       if (patched.length) {
         const last = patched[patched.length - 1];
         patched[patched.length - 1] = {
@@ -1102,7 +1106,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       lastPrice.current = p;
       setPrice(p);
 
-      const now  = Math.floor(Date.now() / 1000);
+      const now  = Math.floor(Date.now() / 1000) - 3 * 3600; // BRT UTC-3
       const ct   = (Math.floor(now / period) * period) as UTCTimestamp;
       const last = list[list.length - 1];
 
