@@ -982,51 +982,26 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     realPriceRef.current = 0;
     setPrice(null);
 
-    const cacheKey = `xd_candles_v3:${tab.id}:${tf}`;
+    const cacheKey = `xd_candles_v4:${tab.id}:${tf}`;
+    const BRT_OFFSET = -3 * 3600;
 
-    // Only reject clearly broken data: all flat candles (open=high=low=close)
-    const isValidData = (arr: Candle[]): boolean => {
-      if (!Array.isArray(arr) || arr.length < 5) return false;
-      // Check that at least 20% of candles have real body (not all flat dots)
-      const withBody = arr.filter((c) => c.open > 0 && Math.abs(c.close - c.open) > 0.000001);
-      return withBody.length >= arr.length * 0.2;
-    };
+    // Minimal validation: array with enough real candles (close > 0)
+    const isUsable = (arr: unknown): arr is Candle[] =>
+      Array.isArray(arr) && arr.length >= 5 && arr.filter((c: Candle) => c.close > 0).length >= 3;
 
-    const load = async () => {
-      // Try cache first so chart shows immediately on refresh
-      let cached: Candle[] | null = null;
-      try {
-        const raw = localStorage.getItem(cacheKey);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (isValidData(parsed)) cached = parsed;
-        }
-      } catch {}
+    const applySource = (source: Candle[], realP: number | null) => {
+      if (seriesRef.current !== series) return;
 
-      // Fetch candles and real price in parallel
-      const [data, realP] = await Promise.all([
-        fetchCandles(tab.id, tf),
-        fetchPrice(tab.id),
-      ]);
+      // Adjust timestamps to BRT (UTC-3) only if not already adjusted
+      // Detect if already BRT: last candle time should be within last 24h
+      const nowBRT = Math.floor(Date.now() / 1000) + BRT_OFFSET;
+      const lastTime = source[source.length - 1]?.time ?? 0;
+      const alreadyBRT = Math.abs(lastTime - nowBRT) < 86400 * 2;
+      const adjusted = alreadyBRT
+        ? source
+        : source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
 
-      // Use fresh data if valid, otherwise use cache
-      const freshValid = data && isValidData(data) ? data : null;
-      const source = freshValid ?? cached;
-      if (!source || seriesRef.current !== series) return;
-
-      // Save valid fresh data to cache
-      if (freshValid) {
-        try { localStorage.setItem(cacheKey, JSON.stringify(freshValid.slice(-500))); } catch {}
-      }
-
-      // Adjust timestamps to BRT (UTC-3)
-      const BRT_OFFSET = -3 * 3600;
-      const adjusted = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
-
-      // Use real price as the starting point — snap last candle to it
       const startPrice = realP ?? adjusted[adjusted.length - 1]?.close ?? seedPrice(tab.id);
-
-      // Patch the last candle to match real price so no gap/giant candle
       const patched = [...adjusted];
       if (patched.length) {
         const last = patched[patched.length - 1];
@@ -1041,37 +1016,65 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       candles.current = patched;
       series.setData(patched);
 
-      // Restore saved zoom range, or fitContent if none saved
       const rangeKey = `xd_range:${tab.id}:${tf}`;
       const savedRange = (() => { try { return JSON.parse(localStorage.getItem(rangeKey) ?? "null"); } catch { return null; } })();
       const applyView = () => {
-        if (savedRange) {
-          chart.timeScale().setVisibleLogicalRange(savedRange);
-        } else {
-          const total = patched.length;
-          chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, total - 100), to: total + 5 });
-        }
+        if (savedRange) chart.timeScale().setVisibleLogicalRange(savedRange);
+        else chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, patched.length - 100), to: patched.length + 5 });
       };
       requestAnimationFrame(() => requestAnimationFrame(applyView));
       setTimeout(applyView, 200);
 
-      // Save range on scroll/zoom
+      const lastCandle = patched[patched.length - 1];
+      if (lastCandle) {
+        lastPrice.current    = startPrice;
+        realPriceRef.current = startPrice;
+        lastTime.current     = lastCandle.time;
+        setPrice(startPrice);
+        onPriceChange(startPrice, lastCandle.time);
+      }
+    };
+
+    const load = async () => {
+      // Show cached data immediately on refresh (no waiting for API)
+      try {
+        const raw = localStorage.getItem(cacheKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (isUsable(parsed)) applySource(parsed, null);
+        }
+      } catch {}
+
+      // Fetch fresh data + real price in parallel
+      const [data, realP] = await Promise.all([
+        fetchCandles(tab.id, tf),
+        fetchPrice(tab.id),
+      ]);
+
+      const source = isUsable(data) ? data : null;
+      if (!source) {
+        // API failed — just update price on existing candles if we have them
+        if (realP && candles.current.length) {
+          realPriceRef.current = realP;
+        }
+        return;
+      }
+
+      // Save to cache (raw UTC timestamps, before BRT adjustment)
+      try { localStorage.setItem(cacheKey, JSON.stringify(source.slice(-500))); } catch {}
+
+      applySource(source, realP);
+
+      // Subscribe range changes after fresh data loaded
+      const rangeKey = `xd_range:${tab.id}:${tf}`;
       chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
         if (range) try { localStorage.setItem(rangeKey, JSON.stringify(range)); } catch {}
       });
-
-      const last = patched[patched.length - 1];
-      if (last) {
-        lastPrice.current    = startPrice;
-        realPriceRef.current = startPrice;
-        lastTime.current     = last.time;
-        setPrice(startPrice);
-        onPriceChange(startPrice, last.time);
-      }
     };
 
     load();
   }, [tab.id, tf]);
+
 
   /* ── poll real price every 1s ────────────────────────────────────── */
   useEffect(() => {
