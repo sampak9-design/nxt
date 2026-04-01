@@ -681,7 +681,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   useEffect(() => {
     try {
       Object.keys(localStorage)
-        .filter((k) => k.startsWith("xd_candles:") || k.startsWith("xd_candles_v2:"))
+        .filter((k) => k.startsWith("xd_candles:") || k.startsWith("xd_candles_v2:") || k.startsWith("xd_candles_v3:"))
         .forEach((k) => localStorage.removeItem(k));
     } catch {}
   }, []);
@@ -989,14 +989,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     const isUsable = (arr: unknown): arr is Candle[] =>
       Array.isArray(arr) && arr.length >= 5 && arr.filter((c: Candle) => c.close > 0).length >= 3;
 
-    const applySource = (source: Candle[], realP: number | null) => {
+    const applySource = (source: Candle[], realP: number | null, alreadyBRT = false) => {
       if (seriesRef.current !== series) return;
 
-      // Adjust timestamps to BRT (UTC-3) only if not already adjusted
-      // Detect if already BRT: last candle time should be within last 24h
-      const nowBRT = Math.floor(Date.now() / 1000) + BRT_OFFSET;
-      const lastTime = source[source.length - 1]?.time ?? 0;
-      const alreadyBRT = Math.abs(lastTime - nowBRT) < 86400 * 2;
+      // Apply BRT offset only if source is in UTC (fresh from API)
       const adjusted = alreadyBRT
         ? source
         : source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
@@ -1036,12 +1032,12 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     };
 
     const load = async () => {
-      // Show cached data immediately on refresh (no waiting for API)
+      // Show cached data immediately on refresh (already in BRT)
       try {
         const raw = localStorage.getItem(cacheKey);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (isUsable(parsed)) applySource(parsed, null);
+          if (isUsable(parsed)) applySource(parsed, null, true);
         }
       } catch {}
 
@@ -1060,10 +1056,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         return;
       }
 
-      // Save to cache (raw UTC timestamps, before BRT adjustment)
-      try { localStorage.setItem(cacheKey, JSON.stringify(source.slice(-500))); } catch {}
+      // Convert to BRT before saving so cache is always BRT
+      const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+      try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
 
-      applySource(source, realP);
+      applySource(source, realP, false); // fresh data is UTC, needs BRT conversion
 
       // Subscribe range changes after fresh data loaded
       const rangeKey = `xd_range:${tab.id}:${tf}`;
