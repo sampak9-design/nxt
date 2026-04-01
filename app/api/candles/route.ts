@@ -160,35 +160,6 @@ async function fetchAVDaily(base: string) {
     .sort((a, b) => a.time - b.time);
 }
 
-/* ── Simulation fallback ─────────────────────────────────────────────── */
-const FOREX_SEED: Record<string, number> = {
-  EURUSD: 1.085, GBPUSD: 1.268, USDJPY: 149.8,
-  AUDUSD: 0.643, USDCAD: 1.362, USDCHF: 0.893,
-  NZDUSD: 0.592, EURGBP: 0.855, EURJPY: 162.5,
-  EURCHF: 0.969, GBPJPY: 190.1, AUDJPY: 96.3,
-};
-
-const TF_SEC: Record<string, number> = {
-  "1m": 60, "5m": 300, "15m": 900,
-  "1h": 3600, "4h": 14400, "1d": 86400,
-};
-
-function simulateCandles(seed: number, count: number, period: number) {
-  const now = Math.floor(Date.now() / 1000);
-  let price = seed;
-  const out = [];
-  const vol = seed * 0.0005;
-  for (let i = count; i >= 0; i--) {
-    const time  = (Math.floor(now / period) - i) * period;
-    const open  = price;
-    const close = +(open + (Math.random() - 0.5) * vol * 2).toFixed(5);
-    const high  = +(Math.max(open, close) + Math.random() * vol).toFixed(5);
-    const low   = +(Math.min(open, close) - Math.random() * vol).toFixed(5);
-    out.push({ time, open, high, low, close });
-    price = close;
-  }
-  return out;
-}
 
 /* ── Route handler ───────────────────────────────────────────────────── */
 export async function GET(req: NextRequest) {
@@ -242,8 +213,6 @@ export async function GET(req: NextRequest) {
     } catch { /* fall through */ }
   }
 
-  // Simulation fallback
-  let seed = FOREX_SEED[base] ?? 1.0;
-  const period = TF_SEC[tf] ?? 60;
-  return NextResponse.json(simulateCandles(seed, 500, period));
+  // All sources failed — return empty so client uses its cache instead of simulation
+  return NextResponse.json([], { status: 200 });
 }

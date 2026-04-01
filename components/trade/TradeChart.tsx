@@ -677,11 +677,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const dragRef = useRef<{ id: string; startX: number; startY: number; handle: "p1" | "p2" | "body" } | null>(null);
 
 
-  /* ── clear old v1 cache keys on first mount ──────────────────────── */
+  /* ── clear old cache keys on first mount ─────────────────────────── */
   useEffect(() => {
     try {
       Object.keys(localStorage)
-        .filter((k) => k.startsWith("xd_candles:"))
+        .filter((k) => k.startsWith("xd_candles:") || k.startsWith("xd_candles_v2:"))
         .forEach((k) => localStorage.removeItem(k));
     } catch {}
   }, []);
@@ -982,23 +982,14 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     realPriceRef.current = 0;
     setPrice(null);
 
-    // v2 prefix busts old Yahoo Finance cache
-    const cacheKey = `xd_candles_v2:${tab.id}:${tf}`;
+    const cacheKey = `xd_candles_v3:${tab.id}:${tf}`;
 
-    // Validate candle data: rejects scattered/bad data from Yahoo Finance fallback
+    // Only reject clearly broken data: all flat candles (open=high=low=close)
     const isValidData = (arr: Candle[]): boolean => {
-      if (!Array.isArray(arr) || arr.length < 10) return false;
-      const closes = arr.map((c) => c.close).filter((v) => v > 0);
-      if (!closes.length) return false;
-      const avg = closes.reduce((a, b) => a + b, 0) / closes.length;
-      // Reject if candles span more than 10% deviation from average (bad data)
-      const maxDev = Math.max(...closes.map((c) => Math.abs(c - avg) / avg));
-      if (maxDev > 0.10) return false;
-      // Reject if timestamps are not monotonically increasing
-      for (let i = 1; i < arr.length; i++) {
-        if (arr[i].time <= arr[i - 1].time) return false;
-      }
-      return true;
+      if (!Array.isArray(arr) || arr.length < 5) return false;
+      // Check that at least 20% of candles have real body (not all flat dots)
+      const withBody = arr.filter((c) => c.open > 0 && Math.abs(c.close - c.open) > 0.000001);
+      return withBody.length >= arr.length * 0.2;
     };
 
     const load = async () => {
@@ -1009,7 +1000,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         if (raw) {
           const parsed = JSON.parse(raw);
           if (isValidData(parsed)) cached = parsed;
-          else localStorage.removeItem(cacheKey); // clear bad cache
         }
       } catch {}
 
@@ -1019,14 +1009,12 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         fetchPrice(tab.id),
       ]);
 
-      // Only use fresh data if it passes validation
+      // Use fresh data if valid, otherwise use cache
       const freshValid = data && isValidData(data) ? data : null;
-
-      // Use fresh data if available, otherwise fall back to cache
       const source = freshValid ?? cached;
       if (!source || seriesRef.current !== series) return;
 
-      // Save only validated data to cache
+      // Save valid fresh data to cache
       if (freshValid) {
         try { localStorage.setItem(cacheKey, JSON.stringify(freshValid.slice(-500))); } catch {}
       }
