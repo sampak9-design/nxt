@@ -771,7 +771,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       wickUpColor: "#22c55e", wickDownColor: "#ef4444",
       priceLineVisible: false,
       lastValueVisible: false,
-      priceFormat: { type: "price", precision: 5, minMove: 0.00001 },
+      // priceFormat set dynamically in applySource based on asset price magnitude
     });
 
 
@@ -1065,6 +1065,17 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         ? { ...clean[clean.length - 1], close: startPrice, high: Math.max(clean[clean.length - 1].high, startPrice), low: Math.min(clean[clean.length - 1].low, startPrice) }
         : clean[clean.length - 1];
       const patched = [...clean.slice(0, -1), patchedLast];
+
+      // Detect precision from price magnitude so axis looks right for all assets
+      const p0 = patchedLast.close;
+      const fmt = p0 >= 500
+        ? { type: "price" as const, precision: 2, minMove: 0.01 }   // BTC, ETH, BNB...
+        : p0 >= 10
+        ? { type: "price" as const, precision: 3, minMove: 0.001 }  // SOL, EURJPY, GBPJPY...
+        : p0 >= 1
+        ? { type: "price" as const, precision: 4, minMove: 0.0001 } // USDJPY, GBPUSD...
+        : { type: "price" as const, precision: 5, minMove: 0.00001 };// EUR/USD, ADA, XRP...
+      series.applyOptions({ priceFormat: fmt });
 
       candles.current = patched;
       series.setData(patched);
