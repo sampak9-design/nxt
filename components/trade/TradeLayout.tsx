@@ -66,19 +66,28 @@ const CRYPTO_ICONS: Record<string, string> = {
   LTCUSD: "https://assets.coingecko.com/coins/images/2/small/litecoin.png",
 };
 
-// Forex pair → two flag URLs (base / quote) using flagcdn.com
-const PAIR_FLAGS: Record<string, [string, string]> = {
-  EURUSD: ["eu", "us"], GBPUSD: ["gb", "us"], USDJPY: ["us", "jp"],
-  AUDUSD: ["au", "us"], USDCAD: ["us", "ca"], USDCHF: ["us", "ch"],
-  NZDUSD: ["nz", "us"], EURGBP: ["eu", "gb"], EURJPY: ["eu", "jp"],
-  EURCHF: ["eu", "ch"], GBPJPY: ["gb", "jp"], AUDJPY: ["au", "jp"],
+// Forex pair → base currency flag code using flagcdn.com
+const PAIR_FLAGS: Record<string, string> = {
+  EURUSD: "eu", GBPUSD: "gb", USDJPY: "us", AUDUSD: "au",
+  USDCAD: "us", USDCHF: "us", NZDUSD: "nz", EURGBP: "eu",
+  EURJPY: "eu", EURCHF: "eu", GBPJPY: "gb", AUDJPY: "au",
+  AUDCAD: "au", AUDCHF: "au", AUDNZD: "au",
+  EURAUD: "eu", EURCAD: "eu", EURNZD: "eu",
+  GBPAUD: "gb", GBPCAD: "gb", GBPCHF: "gb", GBPNOK: "gb", GBPNZD: "gb",
+  NZDJPY: "nz", USDMXN: "us", USDNOK: "us", USDPLN: "us", USDSEK: "us",
+};
+
+// Special icons for metals and key synthetic indices
+const SPECIAL_ICONS: Record<string, string> = {
+  XAUUSD: "https://assets.coingecko.com/coins/images/22587/small/logo_PNG_Transparent.png",
+  XAGUSD: "https://assets.coingecko.com/coins/images/14003/small/CACHE.png",
 };
 
 function forexIcon(pair: string): string | null {
-  const flags = PAIR_FLAGS[pair];
-  if (!flags) return null;
-  // Return base currency flag as the icon
-  return `https://flagcdn.com/48x36/${flags[0]}.png`;
+  if (SPECIAL_ICONS[pair]) return SPECIAL_ICONS[pair];
+  const flag = PAIR_FLAGS[pair];
+  if (!flag) return null;
+  return `https://flagcdn.com/48x36/${flag}.png`;
 }
 
 function toTab(a: ApiAsset): Tab {

@@ -15,25 +15,37 @@ const CRYPTO_ICONS: Record<string, string> = {
 };
 
 const PAIR_FLAGS: Record<string, string> = {
-  EURUSD: "eu", GBPUSD: "gb", USDJPY: "us",
-  AUDUSD: "au", USDCAD: "us", USDCHF: "us",
-  NZDUSD: "nz", EURGBP: "eu", EURJPY: "eu",
-  EURCHF: "eu", GBPJPY: "gb", AUDJPY: "au",
+  EURUSD: "eu", GBPUSD: "gb", USDJPY: "us", AUDUSD: "au",
+  USDCAD: "us", USDCHF: "us", NZDUSD: "nz", EURGBP: "eu",
+  EURJPY: "eu", EURCHF: "eu", GBPJPY: "gb", AUDJPY: "au",
+  AUDCAD: "au", AUDCHF: "au", AUDNZD: "au",
+  EURAUD: "eu", EURCAD: "eu", EURNZD: "eu",
+  GBPAUD: "gb", GBPCAD: "gb", GBPCHF: "gb", GBPNOK: "gb", GBPNZD: "gb",
+  NZDJPY: "nz", USDMXN: "us", USDNOK: "us", USDPLN: "us", USDSEK: "us",
+};
+
+const METAL_ICONS: Record<string, string> = {
+  XAUUSD: "https://assets.coingecko.com/coins/images/22587/small/logo_PNG_Transparent.png",
+  XAGUSD: "https://assets.coingecko.com/coins/images/14003/small/CACHE.png",
 };
 
 function getIconUrl(id: string): string | null {
   const base = id.replace("-OTC", "");
   if (CRYPTO_ICONS[base]) return CRYPTO_ICONS[base];
-  if (PAIR_FLAGS[base]) return `https://flagcdn.com/48x36/${PAIR_FLAGS[base]}.png`;
+  if (METAL_ICONS[base])  return METAL_ICONS[base];
+  if (PAIR_FLAGS[base])   return `https://flagcdn.com/48x36/${PAIR_FLAGS[base]}.png`;
   return null;
 }
 
 /* ── Category ─────────────────────────────────────────────────────────── */
-type Category = "favoritos" | "todos" | "forex" | "crypto" | "commodities" | "acoes" | "otc";
+type Category = "favoritos" | "todos" | "forex" | "crypto" | "commodities" | "sinteticos" | "acoes" | "otc";
 
-function categorize(a: ApiAsset): "crypto" | "forex" | "otc" {
-  if (a.id.includes("-OTC")) return "otc";
-  if (CRYPTO_ICONS[a.id])    return "crypto";
+function categorize(a: ApiAsset): Category {
+  const base = a.id.replace("-OTC", "");
+  if (a.id.startsWith("OTC_") || a.id.includes("-OTC")) return "otc";
+  if (CRYPTO_ICONS[base])    return "crypto";
+  if (METAL_ICONS[base])     return "commodities";
+  if (/^(R_|1HZ|JD\d)/.test(base)) return "sinteticos";
   return "forex";
 }
 
@@ -42,8 +54,8 @@ const SIDEBAR: { key: Category; label: string }[] = [
   { key: "forex",       label: "Pares de moedas" },
   { key: "crypto",      label: "Crypto" },
   { key: "commodities", label: "Commodities" },
-  { key: "acoes",       label: "Ações" },
-  { key: "otc",         label: "Pares OTC" },
+  { key: "sinteticos",  label: "Índices Sintéticos" },
+  { key: "otc",         label: "Índices OTC" },
 ];
 
 /* ── Props ────────────────────────────────────────────────────────────── */
@@ -78,9 +90,9 @@ export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: P
     const q = search.toLowerCase();
     const matchSearch = !q || a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q);
     if (!matchSearch) return false;
-    if (category === "todos")      return true;
-    if (category === "favoritos")  return favorites.has(a.id);
-    if (category === "commodities" || category === "acoes") return false;
+    if (category === "todos")     return true;
+    if (category === "favoritos") return favorites.has(a.id);
+    if (category === "acoes")     return false;
     return categorize(a) === category;
   });
 

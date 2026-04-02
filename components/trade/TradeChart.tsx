@@ -35,9 +35,28 @@ const TF_SEC: Record<string, number> = {
 };
 
 const FOREX_SEED: Record<string, number> = {
+  // Major forex
   EURUSD: 1.085, GBPUSD: 1.268, USDJPY: 149.8, AUDUSD: 0.643,
   USDCAD: 1.362, USDCHF: 0.893, NZDUSD: 0.592, EURGBP: 0.855,
   EURJPY: 162.5, EURCHF: 0.969, GBPJPY: 190.1, AUDJPY: 96.3,
+  // Minor forex
+  AUDCAD: 0.91, AUDCHF: 0.58, AUDNZD: 1.09,
+  EURAUD: 1.69, EURCAD: 1.47, EURNZD: 1.84,
+  GBPAUD: 1.97, GBPCAD: 1.74, GBPCHF: 1.13,
+  GBPNOK: 13.5, GBPNZD: 2.17, NZDJPY: 90.5,
+  USDMXN: 17.2, USDNOK: 10.7, USDPLN: 3.95, USDSEK: 10.4,
+  // Metals
+  XAUUSD: 2340, XAGUSD: 28.0,
+  // Synthetic volatility
+  R_10: 1000, R_25: 3000, R_50: 5000, R_75: 5000, R_100: 3000,
+  "1HZ10V": 1000, "1HZ25V": 3000, "1HZ50V": 5000, "1HZ75V": 5000, "1HZ100V": 3000,
+  // Jump indices
+  JD10: 1000, JD25: 3000, JD50: 5000, JD75: 7000, JD100: 9000,
+  // OTC stock indices
+  OTC_DJI: 38000, OTC_FTSE: 8200, OTC_GDAXI: 18000, OTC_NDX: 17500,
+  OTC_SPC: 5200, OTC_N225: 38000, OTC_AEX: 870, OTC_AS51: 7800,
+  OTC_FCHI: 8000, OTC_HSI: 17000, OTC_SSMI: 11500, OTC_SX5E: 4900,
+  // Crypto
   BTCUSD: 66000, ETHUSD: 3200, SOLUSD: 140,
   BNBUSD: 580, ADAUSD: 0.45, XRPUSD: 0.55,
 };
@@ -56,10 +75,29 @@ const BINANCE_TF: Record<string, string> = {
 };
 
 const DERIV_SYMBOL: Record<string, string> = {
+  // Major forex
   EURUSD: "frxEURUSD", GBPUSD: "frxGBPUSD", USDJPY: "frxUSDJPY",
   AUDUSD: "frxAUDUSD", USDCAD: "frxUSDCAD", USDCHF: "frxUSDCHF",
   NZDUSD: "frxNZDUSD", EURGBP: "frxEURGBP", EURJPY: "frxEURJPY",
   EURCHF: "frxEURCHF", GBPJPY: "frxGBPJPY", AUDJPY: "frxAUDJPY",
+  // Minor forex
+  AUDCAD: "frxAUDCAD", AUDCHF: "frxAUDCHF", AUDNZD: "frxAUDNZD",
+  EURAUD: "frxEURAUD", EURCAD: "frxEURCAD", EURNZD: "frxEURNZD",
+  GBPAUD: "frxGBPAUD", GBPCAD: "frxGBPCAD", GBPCHF: "frxGBPCHF",
+  GBPNOK: "frxGBPNOK", GBPNZD: "frxGBPNZD", NZDJPY: "frxNZDJPY",
+  USDMXN: "frxUSDMXN", USDNOK: "frxUSDNOK", USDPLN: "frxUSDPLN", USDSEK: "frxUSDSEK",
+  // Metals
+  XAUUSD: "frxXAUUSD", XAGUSD: "frxXAGUSD",
+  // Synthetic volatility indices (24/7)
+  R_10: "R_10", R_25: "R_25", R_50: "R_50", R_75: "R_75", R_100: "R_100",
+  "1HZ10V": "1HZ10V", "1HZ25V": "1HZ25V", "1HZ50V": "1HZ50V", "1HZ75V": "1HZ75V", "1HZ100V": "1HZ100V",
+  // Jump indices (24/7)
+  JD10: "JD10", JD25: "JD25", JD50: "JD50", JD75: "JD75", JD100: "JD100",
+  // OTC stock indices (market hours only)
+  OTC_DJI: "OTC_DJI", OTC_FTSE: "OTC_FTSE", OTC_GDAXI: "OTC_GDAXI",
+  OTC_NDX: "OTC_NDX", OTC_SPC: "OTC_SPC", OTC_N225: "OTC_N225",
+  OTC_AEX: "OTC_AEX", OTC_AS51: "OTC_AS51", OTC_FCHI: "OTC_FCHI",
+  OTC_HSI: "OTC_HSI", OTC_SSMI: "OTC_SSMI", OTC_SX5E: "OTC_SX5E",
 };
 const DERIV_GRAN: Record<string, number> = {
   "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400,
