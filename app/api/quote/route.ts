@@ -6,6 +6,10 @@ const BINANCE_MAP: Record<string, string> = {
   ADAUSD: "ADAUSDT", XRPUSD: "XRPUSDT",
 };
 
+function toDateStr(date: Date) {
+  return date.toISOString().split("T")[0];
+}
+
 export async function GET(req: NextRequest) {
   const symbol = req.nextUrl.searchParams.get("symbol") ?? "";
   const base   = symbol.replace("-OTC", "");
@@ -25,7 +29,22 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Forex → Twelve Data (real-time price)
+  // Forex → Massive API (most recent 1m candle close)
+  if (base.length === 6 && process.env.MASSIVE_API_KEY) {
+    try {
+      const to   = new Date();
+      const from = new Date(Date.now() - 2 * 86_400_000); // 2 days back
+      const url  = `https://api.massive.com/v2/aggs/ticker/C:${base}/range/1/minute/${toDateStr(from)}/${toDateStr(to)}?sort=desc&limit=1&apiKey=${process.env.MASSIVE_API_KEY}`;
+      const res  = await fetch(url, { cache: "no-store" });
+      const data = await res.json();
+      if (Array.isArray(data.results) && data.results.length) {
+        const price = data.results[0].c;
+        if (price && price > 0) return NextResponse.json({ price });
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Forex → Twelve Data (fallback)
   if (base.length === 6 && process.env.TWELVE_DATA_KEY) {
     try {
       const tdSymbol = `${base.slice(0, 3)}/${base.slice(3, 6)}`;
@@ -37,7 +56,7 @@ export async function GET(req: NextRequest) {
     } catch { /* fall through */ }
   }
 
-  // Forex → Alpha Vantage (fallback)
+  // Forex → Alpha Vantage (last fallback)
   if (base.length === 6 && process.env.ALPHA_VANTAGE_KEY) {
     try {
       const from = base.slice(0, 3);

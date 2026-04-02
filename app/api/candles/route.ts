@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-/* ── In-memory cache to protect API credits ──────────────────────────── */
+/* ── In-memory cache to protect API rate limits ──────────────────────── */
 const memCache = new Map<string, { data: any; expiresAt: number }>();
 function memGet(key: string) {
   const entry = memCache.get(key);
@@ -23,37 +23,72 @@ const BINANCE_LIMIT: Record<string, number> = {
   "1h": 1000, "4h": 500,  "1d": 365,
 };
 
-/* ── Forex → Twelve Data ─────────────────────────────────────────────── */
+/* ── Forex → Massive API (primary) ──────────────────────────────────── */
+const MASSIVE_TF: Record<string, { multiplier: number; timespan: string; daysBack: number }> = {
+  "1m":  { multiplier: 1,  timespan: "minute", daysBack: 1   },
+  "5m":  { multiplier: 5,  timespan: "minute", daysBack: 3   },
+  "15m": { multiplier: 15, timespan: "minute", daysBack: 7   },
+  "1h":  { multiplier: 1,  timespan: "hour",   daysBack: 25  },
+  "4h":  { multiplier: 4,  timespan: "hour",   daysBack: 90  },
+  "1d":  { multiplier: 1,  timespan: "day",    daysBack: 500 },
+};
+
+function toDateStr(date: Date) {
+  return date.toISOString().split("T")[0];
+}
+
+async function fetchMassiveCandles(base: string, tf: string) {
+  const key = process.env.MASSIVE_API_KEY;
+  if (!key) return null;
+
+  const { multiplier, timespan, daysBack } = MASSIVE_TF[tf] ?? MASSIVE_TF["1m"];
+
+  // Cache: 1m=60s, 5m=3min, others=10min
+  const ttlMs = tf === "1m" ? 60_000 : tf === "5m" ? 180_000 : 600_000;
+  const cacheKey = `massive:${base}:${tf}`;
+  const cached = memGet(cacheKey);
+  if (cached) return cached;
+
+  const to   = new Date();
+  const from = new Date(Date.now() - daysBack * 86_400_000);
+
+  const url = `https://api.massive.com/v2/aggs/ticker/C:${base}/range/${multiplier}/${timespan}/${toDateStr(from)}/${toDateStr(to)}?sort=asc&limit=500&apiKey=${key}`;
+  const res  = await fetch(url, { cache: "no-store" });
+  const data = await res.json();
+
+  if (!Array.isArray(data.results) || !data.results.length) return null;
+
+  const candles = data.results.map((v: any) => ({
+    time:  Math.floor(v.t / 1000),
+    open:  v.o,
+    high:  v.h,
+    low:   v.l,
+    close: v.c,
+  }));
+
+  memSet(cacheKey, candles, ttlMs);
+  return candles;
+}
+
+/* ── Forex → Twelve Data (fallback) ─────────────────────────────────── */
 const TD_INTERVAL: Record<string, string> = {
   "1m": "1min", "5m": "5min", "15m": "15min",
   "1h": "1h",   "4h": "4h",   "1d": "1day",
 };
 
-const TD_OUTPUTSIZE: Record<string, number> = {
-  "1m": 500, "5m": 500, "15m": 500,
-  "1h": 500, "4h": 500, "1d": 500,
-};
-
-function toTwelveSymbol(base: string): string {
-  // EURUSD → EUR/USD
-  return `${base.slice(0, 3)}/${base.slice(3, 6)}`;
-}
-
 async function fetchTwelveDataCandles(base: string, tf: string) {
   const key = process.env.TWELVE_DATA_KEY;
   if (!key) return null;
 
-  const symbol     = toTwelveSymbol(base);
-  const interval   = TD_INTERVAL[tf] ?? "1min";
-  const outputsize = TD_OUTPUTSIZE[tf] ?? 500;
-
-  // In-memory cache: 1m=60s, 5m=3min, 1h+=10min — protects daily credit limit
-  const ttlMs = interval === "1min" ? 60_000 : interval === "5min" ? 180_000 : 600_000;
+  const ttlMs    = tf === "1m" ? 60_000 : tf === "5m" ? 180_000 : 600_000;
   const cacheKey = `td:${base}:${tf}`;
-  const cached = memGet(cacheKey);
+  const cached   = memGet(cacheKey);
   if (cached) return cached;
 
-  const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=${outputsize}&timezone=UTC&dp=5&apikey=${key}`;
+  const symbol   = `${base.slice(0, 3)}/${base.slice(3, 6)}`;
+  const interval = TD_INTERVAL[tf] ?? "1min";
+  const url = `https://api.twelvedata.com/time_series?symbol=${symbol}&interval=${interval}&outputsize=500&timezone=UTC&dp=5&apikey=${key}`;
+
   const res  = await fetch(url, { cache: "no-store" });
   const data = await res.json();
 
@@ -75,7 +110,7 @@ async function fetchTwelveDataCandles(base: string, tf: string) {
   return candles;
 }
 
-/* ── Forex → Yahoo Finance (fallback) ───────────────────────────────── */
+/* ── Forex → Yahoo Finance (last fallback) ───────────────────────────── */
 const YAHOO_TF: Record<string, { interval: string; range: string }> = {
   "1m":  { interval: "1m",  range: "1d"  },
   "5m":  { interval: "5m",  range: "5d"  },
@@ -93,8 +128,8 @@ async function fetchYahooCandles(base: string, tf: string) {
   const result = data?.chart?.result?.[0];
   if (!result) return null;
 
-  const timestamps: number[]   = result.timestamp ?? [];
-  const quote                   = result.indicators?.quote?.[0] ?? {};
+  const timestamps: number[] = result.timestamp ?? [];
+  const quote                 = result.indicators?.quote?.[0] ?? {};
 
   const candles = timestamps
     .map((t, i) => ({
@@ -104,19 +139,14 @@ async function fetchYahooCandles(base: string, tf: string) {
       low:   quote.low?.[i],
       close: quote.close?.[i],
     }))
-    .filter((c) => c.open != null && c.high != null && c.low != null && c.close != null)
+    .filter((c) => c.open != null && c.close != null && c.open > 0 && c.high >= c.low)
     .map((c) => ({
       time:  c.time,
       open:  +c.open!.toFixed(5),
       high:  +c.high!.toFixed(5),
       low:   +c.low!.toFixed(5),
       close: +c.close!.toFixed(5),
-    }))
-    .filter((c) => {
-      if (c.open <= 0 || c.high < c.low) return false;
-      const body = Math.abs(c.close - c.open) || c.open * 0.0001;
-      return (c.high - c.low) <= body * 100;
-    });
+    }));
 
   if (!candles.length) return null;
   if (tf === "4h") return aggregate(candles, 4);
@@ -140,7 +170,7 @@ function aggregate(candles: { time: number; open: number; high: number; low: num
 
 /* ── Alpha Vantage daily (fallback for 1d) ───────────────────────────── */
 async function fetchAVDaily(base: string) {
-  const key  = process.env.ALPHA_VANTAGE_KEY;
+  const key = process.env.ALPHA_VANTAGE_KEY;
   if (!key) return null;
   const from = base.slice(0, 3);
   const to   = base.slice(3, 6);
@@ -159,7 +189,6 @@ async function fetchAVDaily(base: string) {
     }))
     .sort((a, b) => a.time - b.time);
 }
-
 
 /* ── Route handler ───────────────────────────────────────────────────── */
 export async function GET(req: NextRequest) {
@@ -189,7 +218,15 @@ export async function GET(req: NextRequest) {
     } catch { /* fall through */ }
   }
 
-  // Forex → Twelve Data (primary)
+  // Forex → Massive API (primary)
+  if (base.length === 6) {
+    try {
+      const candles = await fetchMassiveCandles(base, tf);
+      if (candles?.length) return NextResponse.json(candles);
+    } catch { /* fall through */ }
+  }
+
+  // Forex → Twelve Data (fallback)
   if (base.length === 6) {
     try {
       const candles = await fetchTwelveDataCandles(base, tf);
@@ -213,6 +250,5 @@ export async function GET(req: NextRequest) {
     } catch { /* fall through */ }
   }
 
-  // All sources failed — return empty so client uses its cache instead of simulation
   return NextResponse.json([], { status: 200 });
 }
