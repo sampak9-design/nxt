@@ -155,6 +155,8 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
       return saved.filter((t) => !t.result && t.expiresAt > Date.now());
     } catch { return []; }
   });
+  const activeTradesRef = useRef(activeTrades);
+  activeTradesRef.current = activeTrades;
   const openTabsRef = useRef(openTabs);
   openTabsRef.current = openTabs;
   const [selectedExpMs, setSelectedExpMs] = useState(60_000);
@@ -194,14 +196,23 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
     setActiveTab(tab);
   };
 
-  const handlePriceChange = useCallback((price: number, time: number) => {
-    setLivePrice(price);
-    setLiveTime(time);
+  // Stable ref so the chart's setInterval always calls the latest version
+  const handlePriceChangeRef = useRef<(price: number, time: number) => void>(null!);
 
-    // Resolve expired trades
-    const now = Date.now();
-    const toResolve = activeTrades.filter((t) => t.expiresAt <= now && !t.result);
-    if (toResolve.length) {
+  const handlePriceChange = useCallback((price: number, time: number) => {
+    handlePriceChangeRef.current(price, time);
+  }, []);
+
+  useEffect(() => {
+    handlePriceChangeRef.current = (price: number, time: number) => {
+      setLivePrice(price);
+      setLiveTime(time);
+
+      // Resolve expired trades — read from ref so we always have latest state
+      const now = Date.now();
+      const toResolve = activeTradesRef.current.filter((t) => t.expiresAt <= now && !t.result);
+      if (!toResolve.length) return;
+
       const historyEntries: TradeHistoryEntry[] = [];
       toResolve.forEach((trade) => {
         const won =
@@ -236,18 +247,16 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         });
       });
 
-      if (historyEntries.length) {
-        setTradeHistory((h) => {
-          const existing = new Set(h.map((e) => e.id));
-          const fresh = historyEntries.filter((e) => !existing.has(e.id));
-          return fresh.length ? [...fresh, ...h] : h;
-        });
-        // Play sound outside any state setter — browser allows audio here
-        const anyWin  = historyEntries.some((e) => e.result === "win");
-        const anyLose = historyEntries.some((e) => e.result === "lose");
-        if (anyWin)             playWin();
-        else if (anyLose)       playLose();
-      }
+      setTradeHistory((h) => {
+        const existing = new Set(h.map((e) => e.id));
+        const fresh = historyEntries.filter((e) => !existing.has(e.id));
+        return fresh.length ? [...fresh, ...h] : h;
+      });
+
+      const anyWin  = historyEntries.some((e) => e.result === "win");
+      const anyLose = historyEntries.some((e) => e.result === "lose");
+      if (anyWin)        playWin();
+      else if (anyLose)  playLose();
 
       setActiveTrades((prev) =>
         prev.map((t) =>
@@ -263,13 +272,13 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
             : t
         )
       );
-    }
 
-    // Remove resolved trades after 3s
-    setTimeout(() => {
-      setActiveTrades((prev) => prev.filter((t) => !t.result));
-    }, 5000);
-  }, [activeTrades]);
+      // Remove resolved trades after 5s
+      setTimeout(() => {
+        setActiveTrades((prev) => prev.filter((t) => !t.result));
+      }, 5000);
+    };
+  });
 
   const handleTrade = (direction: "up" | "down", amount: number, expiresMs: number) => {
     if (balance < amount) return;
