@@ -8,6 +8,7 @@ import HistoryPanel from "./HistoryPanel";
 import TradePanel from "./TradePanel";
 import TradeChart from "./TradeChart";
 import DepositModal from "./DepositModal";
+import { playOrderOpen, playWin, playLose } from "@/lib/sounds";
 
 export type ApiAsset = {
   id: string; symbol: string; name: string; is_active: boolean;
@@ -243,6 +244,10 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           const fresh = historyEntries.filter((e) => !existing.has(e.id));
           return fresh.length ? [...fresh, ...h] : h;
         });
+        const anyWin  = historyEntries.some((e) => e.result === "win");
+        const anyLose = historyEntries.some((e) => e.result === "lose");
+        if (anyWin)  playWin();
+        if (anyLose && !anyWin) playLose();
       }
 
       // Mark resolved
@@ -288,6 +293,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
     };
 
     setActiveTrades((prev) => [...prev, trade]);
+    playOrderOpen();
 
   };
 
