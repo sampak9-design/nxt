@@ -1100,6 +1100,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     };
 
     const load = async () => {
+      // Yield one frame so React renders the loading overlay BEFORE any data appears
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      if (cancelled) return;
+
       const base     = tab.id.replace("-OTC", "");
       const isCrypto = !!BINANCE_MAP[base];
 
@@ -1118,9 +1122,12 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         }
       } catch {}
 
+      if (cancelled) return;
+
       if (isCrypto) {
         // ── Crypto: use Binance OHLC (real-time, perfect candles) ──────────
         const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
+        if (cancelled) return; // ← critical: guard after every await
         const source = isUsable(data) ? data : null;
         if (!source) { if (realP && candles.current.length) realPriceRef.current = realP; return; }
         const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
@@ -1146,6 +1153,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
         // 1. Fetch price fast (Deriv tick) so seed candles start at real price
         const realP = await fetchPrice(tab.id);
+        if (cancelled) return;
         if (realP) realPriceRef.current = realP;
 
         // 2. If no cache, show seed candles instantly — chart is never blank
