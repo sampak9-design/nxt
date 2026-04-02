@@ -1053,7 +1053,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         ? source
         : source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
 
-      const startPrice = realP ?? adjusted[adjusted.length - 1]?.close ?? seedPrice(tab.id);
+      const startPrice = (realP != null && realP > 0) ? realP : (adjusted[adjusted.length - 1]?.close ?? seedPrice(tab.id));
       const patched = [...adjusted];
       if (patched.length) {
         const last = patched[patched.length - 1];
