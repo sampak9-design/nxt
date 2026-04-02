@@ -1,9 +1,15 @@
 /* Web Audio API sound effects — no external files needed */
 
+// Reuse a single AudioContext — browsers limit how many can be created
+let _ac: AudioContext | null = null;
+
 function ctx(): AudioContext | null {
   if (typeof window === "undefined") return null;
   try {
-    return new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (!_ac) _ac = new (window.AudioContext || (window as any).webkitAudioContext)();
+    // Resume if browser suspended it (autoplay policy)
+    if (_ac.state === "suspended") _ac.resume();
+    return _ac;
   } catch {
     return null;
   }
