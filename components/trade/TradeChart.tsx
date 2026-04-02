@@ -429,13 +429,22 @@ function renderCanvas(
   // Always show: dashed line at next candle close + "HORA DE COMPRA" label
   // + solid red line at next candle close + selected expiry
   if (candleData.length > 0) {
-    const nowSec    = Math.floor(Date.now() / 1000);
-    const nextClose = Math.ceil((nowSec + 1) / barSeconds) * barSeconds;
-    const expirySec = Math.floor(expiryMs / 1000);
-    const expiryTime = nextClose + expirySec;
+    // Use logical bar indices — completely timezone-agnostic.
+    // candleData.length is the index of the NEXT (not-yet-opened) bar.
+    const ts = chart.timeScale();
+    const nextBarIdx   = candleData.length;
+    const expiryBars   = Math.max(1, Math.round((expiryMs / 1000) / barSeconds));
+    const expiryBarIdx = nextBarIdx + expiryBars;
 
-    const entryX  = px(nextClose);
-    const expireX = px(expiryTime);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const entryX  = ts.logicalToCoordinate(nextBarIdx   as any) as number | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const expireX = ts.logicalToCoordinate(expiryBarIdx as any) as number | null;
+
+    // countdown: seconds remaining in current bar (BRT-relative)
+    const lastCandleTime = candleData[candleData.length - 1].time as number;
+    const nowBRT  = Math.floor(Date.now() / 1000) - 3 * 3600;
+    const remSBar = Math.max(0, barSeconds - (Math.max(0, nowBRT - lastCandleTime) % barSeconds));
 
     // Dashed white line at next candle close (entry point)
     if (entryX !== null) {
@@ -459,7 +468,7 @@ function renderCanvas(
         const remS  = Math.ceil(remMs / 1000);
         countdownStr = `${String(Math.floor(remS / 60)).padStart(2,"0")}:${String(remS % 60).padStart(2,"0")}`;
       } else {
-        const remS  = Math.max(0, nextClose - Math.floor(Date.now() / 1000));
+        const remS  = remSBar;
         countdownStr = `${String(Math.floor(remS / 60)).padStart(2,"0")}:${String(remS % 60).padStart(2,"0")}`;
       }
 
@@ -563,7 +572,7 @@ function renderCanvas(
       const openTrade  = activeTrades.find((t) => !t.result);
       const remS = openTrade
         ? Math.ceil(Math.max(0, openTrade.expiresAt - Date.now()) / 1000)
-        : Math.max(0, expiryTime - Math.floor(Date.now() / 1000));
+        : remSBar + (expiryBars - 1) * barSeconds;
       const remLabel = remS >= 60
         ? `${Math.floor(remS / 60)}:${String(remS % 60).padStart(2,"0")}`
         : String(remS);
@@ -626,7 +635,7 @@ function renderCanvas(
       ctx.restore();
 
       // Countdown clock — white, fixed just after last candle regardless of zoom
-      const nowSec    = Math.floor(Date.now() / 1000);
+      const nowSec    = Math.floor(Date.now() / 1000) - 3 * 3600; // BRT UTC-3
       const elapsed   = nowSec - lastCandle.time;
       const remaining = Math.max(0, barSeconds - (elapsed % barSeconds));
       const mm  = String(Math.floor(remaining / 60)).padStart(2, "0");
