@@ -166,7 +166,7 @@ export default function TradeHeader({
               <div
                 ref={panelRef}
                 className="fixed rounded-xl shadow-2xl"
-                style={{ background: "#161c2c", border: "1px solid rgba(255,255,255,0.08)", zIndex: 9999, top: panelPos.top, right: panelPos.right, width: 440 }}
+                style={{ background: "#161c2c", border: "1px solid rgba(255,255,255,0.08)", zIndex: 9999, top: panelPos.top, right: Math.max(panelPos.right, 8), left: 8, maxWidth: 440 }}
               >
                 <div className="flex">
                   {/* Left summary */}
