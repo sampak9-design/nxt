@@ -24,13 +24,15 @@ const BINANCE_LIMIT: Record<string, number> = {
 };
 
 /* ── Forex → Massive API (primary) ──────────────────────────────────── */
-const MASSIVE_TF: Record<string, { multiplier: number; timespan: string; daysBack: number }> = {
-  "1m":  { multiplier: 1,  timespan: "minute", daysBack: 1   },
-  "5m":  { multiplier: 5,  timespan: "minute", daysBack: 3   },
-  "15m": { multiplier: 15, timespan: "minute", daysBack: 7   },
-  "1h":  { multiplier: 1,  timespan: "hour",   daysBack: 25  },
-  "4h":  { multiplier: 4,  timespan: "hour",   daysBack: 90  },
-  "1d":  { multiplier: 1,  timespan: "day",    daysBack: 500 },
+// Free plan only supports "minute" timespan with variable multiplier.
+// limit = multiplier * ~500 to get ~500 candles per request (max 50000).
+const MASSIVE_TF: Record<string, { multiplier: number; limit: number; daysBack: number }> = {
+  "1m":  { multiplier: 1,    limit: 500,   daysBack: 2   },
+  "5m":  { multiplier: 5,    limit: 2500,  daysBack: 10  },
+  "15m": { multiplier: 15,   limit: 7500,  daysBack: 30  },
+  "1h":  { multiplier: 60,   limit: 30000, daysBack: 180 },
+  "4h":  { multiplier: 240,  limit: 50000, daysBack: 500 },
+  "1d":  { multiplier: 1440, limit: 50000, daysBack: 730 },
 };
 
 function toDateStr(date: Date) {
@@ -41,7 +43,7 @@ async function fetchMassiveCandles(base: string, tf: string) {
   const key = process.env.MASSIVE_API_KEY;
   if (!key) return null;
 
-  const { multiplier, timespan, daysBack } = MASSIVE_TF[tf] ?? MASSIVE_TF["1m"];
+  const { multiplier, limit, daysBack } = MASSIVE_TF[tf] ?? MASSIVE_TF["1m"];
 
   // Cache: 1m=60s, 5m=3min, others=10min
   const ttlMs = tf === "1m" ? 60_000 : tf === "5m" ? 180_000 : 600_000;
@@ -52,11 +54,11 @@ async function fetchMassiveCandles(base: string, tf: string) {
   const to   = new Date();
   const from = new Date(Date.now() - daysBack * 86_400_000);
 
-  const url = `https://api.massive.com/v2/aggs/ticker/C:${base}/range/${multiplier}/${timespan}/${toDateStr(from)}/${toDateStr(to)}?sort=asc&limit=500&apiKey=${key}`;
+  const url = `https://api.massive.com/v2/aggs/ticker/C:${base}/range/${multiplier}/minute/${toDateStr(from)}/${toDateStr(to)}?sort=asc&limit=${limit}&apiKey=${key}`;
   const res  = await fetch(url, { cache: "no-store" });
   const data = await res.json();
 
-  if (!Array.isArray(data.results) || !data.results.length) return null;
+  if (data.status === "ERROR" || !Array.isArray(data.results) || !data.results.length) return null;
 
   const candles = data.results.map((v: any) => ({
     time:  Math.floor(v.t / 1000),
