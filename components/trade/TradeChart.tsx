@@ -672,7 +672,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const candles      = useRef<Candle[]>([]);
   const lastPrice    = useRef(0);
   const lastTime     = useRef(0);
-  const realPriceRef = useRef(0); // latest price from API, micro-tick drifts toward this
+  const realPriceRef   = useRef(0); // latest price from API, micro-tick drifts toward this
+  const activeKeyRef   = useRef(""); // tracks current tab.id+tf — stale async ops check this
   const pendingPt      = useRef<{ x: number; y: number; time: number; price: number } | null>(null);
   const freehandRef    = useRef<{ id: string; points: { time: number; price: number }[] } | null>(null);
   const isDrawingFree  = useRef(false);
@@ -1037,8 +1038,14 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     const series = seriesRef.current;
     const chart  = chartRef.current;
     if (!series || !chart) return;
+
+    // Mark this tab+tf as the active load — any stale async op checks this ref
+    const activeKey = `${tab.id}:${tf}`;
+    activeKeyRef.current = activeKey;
+
     candles.current = []; lastPrice.current = 0; lastTime.current = 0;
     realPriceRef.current = 0;
+    series.setData([]); // immediately wipe old chart so it never bleeds through
     setPrice(null);
     setLoading(true);
 
@@ -1102,7 +1109,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     const load = async () => {
       // Yield one frame so React renders the loading overlay BEFORE any data appears
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
-      if (cancelled) return;
+      if (activeKeyRef.current !== activeKey) return;
 
       const base     = tab.id.replace("-OTC", "");
       const isCrypto = !!BINANCE_MAP[base];
@@ -1121,12 +1128,12 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         }
       } catch {}
 
-      if (cancelled) return;
+      if (activeKeyRef.current !== activeKey) return;
 
       if (isCrypto) {
         // ── Crypto: use Binance OHLC (real-time, perfect candles) ──────────
         const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
-        if (cancelled) return; // ← critical: guard after every await
+        if (activeKeyRef.current !== activeKey) return; // guard after every await
         const source = isUsable(data) ? data : null;
         if (!source) { if (realP && candles.current.length) realPriceRef.current = realP; return; }
         const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
@@ -1153,7 +1160,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
         // 1. Fetch price fast (Deriv tick) so seed candles start at real price
         const realP = await fetchPrice(tab.id);
-        if (cancelled) return;
+        if (activeKeyRef.current !== activeKey) return;
         if (realP) realPriceRef.current = realP;
 
         // 2. Always show seed candles immediately (fresh from real price, not from old cache)
@@ -1165,7 +1172,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
         // 3. Fetch real Deriv OHLC in background and replace seed with real candles
         fetchCandles(tab.id, tf).then((data) => {
-          if (cancelled || !isUsable(data)) return;
+          if (activeKeyRef.current !== activeKey || !isUsable(data)) return;
           const brtSource = data.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
           try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
           applySource(data, realPriceRef.current, false);
@@ -1173,9 +1180,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
     };
 
-    let cancelled = false;
     load();
-    return () => { cancelled = true; };
+    return () => { activeKeyRef.current = ""; };
   }, [tab.id, tf]);
 
 
