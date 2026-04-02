@@ -1112,32 +1112,41 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
         applySource(source, realP, false);
       } else {
-        // ── Forex: Deriv real OHLC + micro-tick for live animation ──────────
-        const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
-        if (realP) realPriceRef.current = realP;
-        const source = isUsable(data) ? data : null;
-        if (source) {
-          // Real Deriv candles — save BRT-converted to cache, apply to chart
-          const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
-          try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
-          applySource(source, realP, false);
-        } else if (!hadCache) {
-          // Deriv unavailable + no cache — generate seed candles as last resort
+        // ── Forex: show immediately, then replace with real Deriv OHLC ───────
+
+        // Helper: build seed candles from a price so chart is never empty
+        const buildSeed = (seedP: number) => {
           const period    = TF_SEC[tf] ?? 60;
           const nowBRT    = Math.floor(Date.now() / 1000) - 3 * 3600;
           const currentCt = Math.floor(nowBRT / period) * period;
-          const seedP     = realP ?? seedPrice(tab.id);
           const path: number[] = [seedP];
           for (let i = 0; i < 99; i++) path.unshift(+(path[0] * (1 + (Math.random() - 0.5) * 0.0006)).toFixed(5));
-          const seedCandles: Candle[] = path.slice(0, 100).map((open, i) => {
+          return path.slice(0, 100).map((open, i) => {
             const t     = (currentCt - (99 - i) * period) as UTCTimestamp;
             const close = +(path[i + 1] ?? open).toFixed(5);
             const move  = Math.abs(close - open) + open * 0.00008;
             return { time: t, open, high: +(Math.max(open, close) + move * 0.6).toFixed(5), low: +(Math.min(open, close) - move * 0.6).toFixed(5), close };
           });
+        };
+
+        // 1. Fetch price fast (Deriv tick) so seed candles start at real price
+        const realP = await fetchPrice(tab.id);
+        if (realP) realPriceRef.current = realP;
+
+        // 2. If no cache, show seed candles instantly — chart is never blank
+        if (!hadCache) {
+          const seedCandles = buildSeed(realP ?? seedPrice(tab.id));
           try { localStorage.setItem(cacheKey, JSON.stringify(seedCandles)); } catch {}
           applySource(seedCandles, realP, true);
         }
+
+        // 3. Fetch real Deriv OHLC in background and replace seed with real candles
+        fetchCandles(tab.id, tf).then((data) => {
+          if (!isUsable(data)) return;
+          const brtSource = data.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+          try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
+          applySource(data, realPriceRef.current, false);
+        }).catch(() => {});
       }
     };
 
