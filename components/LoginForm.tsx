@@ -26,7 +26,7 @@ export default function LoginForm() {
         setError(data?.detail ?? "Credenciais inválidas");
         return;
       }
-      window.location.href = "/trade";
+      window.location.href = "/traderoom";
     } catch {
       setError("Erro de conexão. Tente novamente.");
     } finally {

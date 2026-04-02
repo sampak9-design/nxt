@@ -12,7 +12,7 @@ export default function RegisterForm() {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      window.location.href = "/trade";
+      window.location.href = "/traderoom";
     }, 1000);
   };
 

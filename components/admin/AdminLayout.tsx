@@ -85,7 +85,7 @@ export default function AdminLayout({ children, page, setPage }: Props) {
         <div className="border-t py-2 flex-shrink-0" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
           <button
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-500 hover:text-white transition-colors"
-            onClick={() => window.location.href = "/trade"}
+            onClick={() => window.location.href = "/traderoom"}
           >
             <LogOut className="w-4 h-4" />
             {!collapsed && <span>Sair</span>}
