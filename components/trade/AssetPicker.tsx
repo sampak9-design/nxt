@@ -184,6 +184,7 @@ export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: P
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
+                style={{ fontSize: 16 }}
               />
             </div>
             <button
