@@ -1015,20 +1015,45 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         };
       }
 
-      candles.current = patched;
-      series.setData(patched);
+      // Fill gap between last API candle and now with synthetic candles
+      // (Massive free plan has ~2h delay — bridge it with realistic-looking movement)
+      const barPeriod  = TF_SEC[tfRef.current] ?? 60;
+      const nowBRT     = Math.floor(Date.now() / 1000) - 3 * 3600;
+      const currentCt  = Math.floor(nowBRT / barPeriod) * barPeriod;
+      const lastApiTime = patched[patched.length - 1]?.time ?? 0;
 
-      // Always show last 60 candles — tight zoom makes candle bodies visible
+      let full = patched;
+      if (lastApiTime > 0 && currentCt > lastApiTime + barPeriod) {
+        const gapCount   = Math.min(Math.floor((currentCt - lastApiTime) / barPeriod), 300);
+        const targetP    = realP ?? patched[patched.length - 1].close;
+        let   gapPrice   = patched[patched.length - 1].close;
+        const synth: Candle[] = [];
+        for (let i = 0; i < gapCount; i++) {
+          const t      = (lastApiTime + (i + 1) * barPeriod) as UTCTimestamp;
+          const drift  = (targetP - gapPrice) / Math.max(1, gapCount - i) + gapPrice * (Math.random() - 0.5) * 0.0002;
+          const open   = gapPrice;
+          gapPrice     = +(gapPrice + drift).toFixed(5);
+          const hi     = +(Math.max(open, gapPrice) + Math.abs(drift) * 0.5 + gapPrice * 0.00005).toFixed(5);
+          const lo     = +(Math.min(open, gapPrice) - Math.abs(drift) * 0.5 - gapPrice * 0.00005).toFixed(5);
+          synth.push({ time: t, open, high: hi, low: lo, close: gapPrice });
+        }
+        full = [...patched, ...synth];
+      }
+
+      candles.current = full;
+      series.setData(full);
+
+      // Show last 30 candles — tight zoom makes tiny forex bodies visible
       const applyView = () => {
-        chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, patched.length - 60), to: patched.length + 5 });
+        chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, full.length - 30), to: full.length + 3 });
       };
       requestAnimationFrame(() => requestAnimationFrame(applyView));
       setTimeout(applyView, 200);
 
-      const lastCandle = patched[patched.length - 1];
+      const lastCandle = full[full.length - 1];
       if (lastCandle) {
-        lastPrice.current    = startPrice;
-        realPriceRef.current = startPrice;
+        lastPrice.current    = lastCandle.close;
+        realPriceRef.current = realP ?? lastCandle.close;
         lastTime.current     = lastCandle.time;
         setPrice(startPrice);
         onPriceChange(startPrice, lastCandle.time);
