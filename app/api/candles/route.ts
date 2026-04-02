@@ -54,19 +54,22 @@ async function fetchMassiveCandles(base: string, tf: string) {
   const to   = new Date();
   const from = new Date(Date.now() - daysBack * 86_400_000);
 
-  const url = `https://api.massive.com/v2/aggs/ticker/C:${base}/range/${multiplier}/minute/${toDateStr(from)}/${toDateStr(to)}?sort=asc&limit=${limit}&apiKey=${key}`;
+  // sort=desc → most recent 500 candles first, then reverse for chronological order
+  const url = `https://api.massive.com/v2/aggs/ticker/C:${base}/range/${multiplier}/minute/${toDateStr(from)}/${toDateStr(to)}?sort=desc&limit=${limit}&apiKey=${key}`;
   const res  = await fetch(url, { cache: "no-store" });
   const data = await res.json();
 
   if (data.status === "ERROR" || !Array.isArray(data.results) || !data.results.length) return null;
 
-  const candles = data.results.map((v: any) => ({
-    time:  Math.floor(v.t / 1000),
-    open:  v.o,
-    high:  v.h,
-    low:   v.l,
-    close: v.c,
-  }));
+  const candles = data.results
+    .map((v: any) => ({
+      time:  Math.floor(v.t / 1000),
+      open:  v.o,
+      high:  v.h,
+      low:   v.l,
+      close: v.c,
+    }))
+    .reverse(); // chronological order (oldest → newest)
 
   memSet(cacheKey, candles, ttlMs);
   return candles;
