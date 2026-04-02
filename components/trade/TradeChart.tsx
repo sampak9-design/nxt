@@ -736,7 +736,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
           k.startsWith("xd_candles_v2:") ||
           k.startsWith("xd_candles_v3:") ||
           k.startsWith("xd_candles_v4:") ||
-          k.startsWith("xd_candles_v5:") || // old synthetic/Massive cache → flush for Deriv
+          k.startsWith("xd_candles_v5:") ||
+          k.startsWith("xd_candles_v7:") || // may contain corrupt candles from pre-fix sessions
           k.startsWith("xd_range:")         // old view positions
         )
         .forEach((k) => localStorage.removeItem(k));
@@ -1041,7 +1042,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     setPrice(null);
     setLoading(true);
 
-    const cacheKey = `xd_candles_v6:${tab.id}:${tf}`;
+    const cacheKey = `xd_candles_v7:${tab.id}:${tf}`;
     const BRT_OFFSET = -3 * 3600;
 
     // Minimal validation: array with enough real candles (close > 0)
@@ -1094,7 +1095,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         realPriceRef.current = realP ?? lastCandle.close;
         lastTime.current     = lastCandle.time;
         setPrice(startPrice);
-        setLoading(false);
         onPriceChange(startPrice, lastCandle.time);
       }
     };
@@ -1107,17 +1107,16 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const base     = tab.id.replace("-OTC", "");
       const isCrypto = !!BINANCE_MAP[base];
 
-      // Load localStorage cache for both crypto and forex
-      let hadCache = false;
+      // Pre-load localStorage cache (shown under loading overlay — user won't see it,
+      // but it gives the chart real data to replace as soon as overlay clears)
       try {
         const raw = localStorage.getItem(cacheKey);
         if (raw) {
-          const parsed  = JSON.parse(raw);
-          const nowBRT  = Math.floor(Date.now() / 1000) - 3 * 3600;
-          const lastT   = parsed[parsed.length - 1]?.time ?? 0;
+          const parsed = JSON.parse(raw);
+          const nowBRT = Math.floor(Date.now() / 1000) - 3 * 3600;
+          const lastT  = parsed[parsed.length - 1]?.time ?? 0;
           if (isUsable(parsed) && (nowBRT - lastT) < 2 * 86400) {
             applySource(parsed, null, true);
-            hadCache = true;
           }
         }
       } catch {}
@@ -1133,6 +1132,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
         try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
         applySource(source, realP, false);
+        setLoading(false); // fresh Binance data ready
       } else {
         // ── Forex: show immediately, then replace with real Deriv OHLC ───────
 
@@ -1156,12 +1156,12 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         if (cancelled) return;
         if (realP) realPriceRef.current = realP;
 
-        // 2. If no cache, show seed candles instantly — chart is never blank
-        if (!hadCache) {
-          const seedCandles = buildSeed(realP ?? seedPrice(tab.id));
-          try { localStorage.setItem(cacheKey, JSON.stringify(seedCandles)); } catch {}
-          applySource(seedCandles, realP, true);
-        }
+        // 2. Always show seed candles immediately (fresh from real price, not from old cache)
+        //    This is the first thing the user sees — overlay dismisses here
+        const seedCandles = buildSeed(realP ?? seedPrice(tab.id));
+        try { localStorage.setItem(cacheKey, JSON.stringify(seedCandles)); } catch {}
+        applySource(seedCandles, realP, true);
+        setLoading(false); // seed candles from current price are ready
 
         // 3. Fetch real Deriv OHLC in background and replace seed with real candles
         fetchCandles(tab.id, tf).then((data) => {
@@ -1258,7 +1258,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         onPriceChange(p, ct);
         // Persist forex candles on each new candle (crypto uses Binance OHLC)
         if (!BINANCE_MAP[tab.id.replace("-OTC", "")]) {
-          try { localStorage.setItem(`xd_candles_v6:${tab.id}:${tfRef.current}`, JSON.stringify(list.slice(-500))); } catch {}
+          try { localStorage.setItem(`xd_candles_v7:${tab.id}:${tfRef.current}`, JSON.stringify(list.slice(-500))); } catch {}
         }
       }
     };
