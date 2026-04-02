@@ -103,21 +103,23 @@ export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: P
       style={{ background: "rgba(0,0,0,0.55)" }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Panel */}
+      {/* Panel — full screen on mobile, fixed size on desktop */}
       <div
-        className="absolute flex overflow-hidden rounded-xl shadow-2xl"
+        className="absolute flex overflow-hidden md:rounded-xl shadow-2xl"
         style={{
-          top: 64,
-          left: 60,
-          width: 780,
-          height: 540,
+          // Mobile: full screen
+          top: 0, left: 0, right: 0, bottom: 0,
+          // Desktop: fixed positioned box
+          ...(typeof window !== "undefined" && window.innerWidth >= 768
+            ? { top: 64, left: 60, right: "auto", bottom: "auto", width: 780, height: 540, borderRadius: 12 }
+            : {}),
           background: "#0d1117",
           border: "1px solid rgba(255,255,255,0.08)",
         }}
       >
-        {/* ── Left sidebar ── */}
+        {/* ── Left sidebar — hidden on mobile ── */}
         <div
-          className="flex-shrink-0 flex flex-col pt-4 pb-3 overflow-y-auto"
+          className="hidden md:flex flex-shrink-0 flex-col pt-4 pb-3 overflow-y-auto"
           style={{ width: 220, borderRight: "1px solid rgba(255,255,255,0.06)" }}
         >
           {/* Favoritos */}
@@ -193,9 +195,32 @@ export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: P
             </button>
           </div>
 
-          {/* Column headers */}
+          {/* Mobile category scroll bar */}
           <div
-            className="flex items-center px-4 py-2 flex-shrink-0"
+            className="md:hidden flex gap-2 px-4 py-2 overflow-x-auto flex-shrink-0"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <style>{`.cat-scroll::-webkit-scrollbar{display:none}`}</style>
+            <div className="cat-scroll flex gap-2">
+              {[{ key: "todos" as Category, label: "Todos" }, ...SIDEBAR].filter((c,i,a) => a.findIndex(x=>x.key===c.key)===i).map((cat) => (
+                <button
+                  key={cat.key}
+                  onClick={() => setCategory(cat.key)}
+                  className="flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-colors"
+                  style={{
+                    background: category === cat.key ? "#f97316" : "rgba(255,255,255,0.08)",
+                    color: category === cat.key ? "white" : "#64748b",
+                  }}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Column headers — desktop only */}
+          <div
+            className="hidden md:flex items-center px-4 py-2 flex-shrink-0"
             style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
           >
             <div className="flex-1 text-[11px] font-semibold text-gray-500 tracking-wide">Popularidade</div>
@@ -244,21 +269,32 @@ export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: P
 
                     {/* Name */}
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm font-semibold text-white truncate">{asset.name}</span>
-                      {isOpen && (
-                        <span className="ml-2 text-[9px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(249,115,22,0.2)", color: "#f97316" }}>
-                          aberto
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-semibold text-white truncate">{asset.name}</span>
+                        {isOpen && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(249,115,22,0.2)", color: "#f97316" }}>
+                            aberto
+                          </span>
+                        )}
+                      </div>
+                      {/* Payout shown inline on mobile */}
+                      <div className="md:hidden flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold text-white" style={{ background: "#2563eb" }}>
+                          {asset.payout_m1}%
                         </span>
-                      )}
+                        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold text-white" style={{ background: "linear-gradient(135deg,#d97706,#92400e)" }}>
+                          VIP: {asset.payout_m5}%
+                        </span>
+                      </div>
                     </div>
 
-                    {/* 24h change */}
-                    <div className="w-28 text-center">
+                    {/* 24h change — desktop only */}
+                    <div className="hidden md:block w-28 text-center">
                       <span className="text-sm font-semibold" style={{ color: "#4ade80" }}>0.00%</span>
                     </div>
 
-                    {/* Rentabilidade */}
-                    <div className="w-48 flex items-center justify-end gap-1.5">
+                    {/* Rentabilidade — desktop only */}
+                    <div className="hidden md:flex w-48 items-center justify-end gap-1.5">
                       <span
                         className="px-2.5 py-0.5 rounded text-xs font-bold text-white"
                         style={{ background: "#2563eb" }}
