@@ -1,3 +1,4 @@
+"use client";
 import dynamic from "next/dynamic";
 import type { ApiAsset } from "@/components/trade/TradeLayout";
 
