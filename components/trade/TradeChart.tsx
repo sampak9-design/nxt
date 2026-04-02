@@ -55,6 +55,31 @@ const BINANCE_TF: Record<string, string> = {
   "1m": "1m", "5m": "5m", "15m": "15m", "1h": "1h", "4h": "4h", "1d": "1d",
 };
 
+const DERIV_SYMBOL: Record<string, string> = {
+  EURUSD: "frxEURUSD", GBPUSD: "frxGBPUSD", USDJPY: "frxUSDJPY",
+  AUDUSD: "frxAUDUSD", USDCAD: "frxUSDCAD", USDCHF: "frxUSDCHF",
+  NZDUSD: "frxNZDUSD", EURGBP: "frxEURGBP", EURJPY: "frxEURJPY",
+  EURCHF: "frxEURCHF", GBPJPY: "frxGBPJPY", AUDJPY: "frxAUDJPY",
+};
+const DERIV_GRAN: Record<string, number> = {
+  "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400,
+};
+
+function derivWS<T>(msg: object): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket("wss://ws.binaryws.com/websockets/v3?app_id=1089");
+    const timer = setTimeout(() => { ws.close(); reject(new Error("deriv timeout")); }, 10000);
+    ws.onopen    = () => ws.send(JSON.stringify(msg));
+    ws.onmessage = (e) => {
+      clearTimeout(timer);
+      ws.close();
+      const d = JSON.parse(e.data);
+      if (d.error) reject(new Error(d.error.message));
+      else resolve(d);
+    };
+    ws.onerror = () => { clearTimeout(timer); reject(new Error("deriv ws error")); };
+  });
+}
 
 async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null> {
   const base = symbol.replace("-OTC", "");
@@ -79,7 +104,32 @@ async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null
     } catch { /* fall through */ }
   }
 
-  // Forex → server proxy (Twelve Data via API route)
+  // Forex → Deriv (real-time OHLC, free, no rate limits)
+  const derivSym = DERIV_SYMBOL[base];
+  if (derivSym) {
+    try {
+      const gran  = DERIV_GRAN[tf] ?? 60;
+      const count = tf === "1d" ? 365 : 500;
+      const data: any = await derivWS({
+        ticks_history: derivSym,
+        style: "candles",
+        granularity: gran,
+        count,
+        end: "latest",
+      });
+      if (Array.isArray(data.candles) && data.candles.length > 1) {
+        return data.candles.map((c: any) => ({
+          time:  c.epoch as UTCTimestamp,
+          open:  c.open,
+          high:  c.high,
+          low:   c.low,
+          close: c.close,
+        }));
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Forex → server proxy (fallback)
   if (base.length === 6) {
     try {
       const r = await fetch(`/api/candles?symbol=${symbol}&tf=${tf}`);
@@ -106,7 +156,17 @@ async function fetchPrice(symbol: string): Promise<number | null> {
     } catch { /* fall through */ }
   }
 
-  // Forex → try server proxy, then Yahoo Finance directly
+  // Forex → Deriv tick (real-time price)
+  const derivSym2 = DERIV_SYMBOL[base];
+  if (derivSym2) {
+    try {
+      const data: any = await derivWS({ ticks_history: derivSym2, style: "ticks", count: 1, end: "latest" });
+      const prices = data?.history?.prices;
+      if (Array.isArray(prices) && prices.length > 0) return prices[prices.length - 1];
+    } catch { /* fall through */ }
+  }
+
+  // Forex → server proxy (fallback)
   try {
     const r = await fetch(`/api/quote?symbol=${symbol}`);
     if (r.ok) {
@@ -114,17 +174,6 @@ async function fetchPrice(symbol: string): Promise<number | null> {
       if (typeof d.price === "number") return d.price;
     }
   } catch { /* fall through */ }
-
-  // Yahoo Finance last price from browser
-  if (base.length === 6) {
-    try {
-      const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${base}=X?interval=1m&range=1d`, { headers: { "Accept": "application/json" } });
-      const data = await r.json();
-      const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
-      const last = closes.filter((v: number | null) => v != null).pop();
-      if (last) return +last.toFixed(5);
-    } catch { /* fall through */ }
-  }
 
   return null;
 }
@@ -685,7 +734,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
           k.startsWith("xd_candles:")    ||
           k.startsWith("xd_candles_v2:") ||
           k.startsWith("xd_candles_v3:") ||
-          k.startsWith("xd_candles_v4:") || // old Twelve Data cache
+          k.startsWith("xd_candles_v4:") ||
+          k.startsWith("xd_candles_v5:") || // old synthetic/Massive cache → flush for Deriv
           k.startsWith("xd_range:")         // old view positions
         )
         .forEach((k) => localStorage.removeItem(k));
@@ -988,7 +1038,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     realPriceRef.current = 0;
     setPrice(null);
 
-    const cacheKey = `xd_candles_v5:${tab.id}:${tf}`;
+    const cacheKey = `xd_candles_v6:${tab.id}:${tf}`;
     const BRT_OFFSET = -3 * 3600;
 
     // Minimal validation: array with enough real candles (close > 0)
@@ -1061,34 +1111,29 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
         applySource(source, realP, false);
       } else {
-        // ── Forex: fetch only price, build candles via micro-tick ───────────
-        const realP = await fetchPrice(tab.id);
+        // ── Forex: Deriv real OHLC + micro-tick for live animation ──────────
+        const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
         if (realP) realPriceRef.current = realP;
-
-        if (!hadCache) {
-          // First visit: generate 100 seed candles ending at current BRT time
+        const source = isUsable(data) ? data : null;
+        if (source) {
+          // Real Deriv candles — save BRT-converted to cache, apply to chart
+          const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+          try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
+          applySource(source, realP, false);
+        } else if (!hadCache) {
+          // Deriv unavailable + no cache — generate seed candles as last resort
           const period    = TF_SEC[tf] ?? 60;
           const nowBRT    = Math.floor(Date.now() / 1000) - 3 * 3600;
           const currentCt = Math.floor(nowBRT / period) * period;
           const seedP     = realP ?? seedPrice(tab.id);
-
-          // Build price path that ends at seedP (newest = real price)
           const path: number[] = [seedP];
           for (let i = 0; i < 99; i++) path.unshift(+(path[0] * (1 + (Math.random() - 0.5) * 0.0006)).toFixed(5));
-
           const seedCandles: Candle[] = path.slice(0, 100).map((open, i) => {
             const t     = (currentCt - (99 - i) * period) as UTCTimestamp;
             const close = +(path[i + 1] ?? open).toFixed(5);
             const move  = Math.abs(close - open) + open * 0.00008;
-            return {
-              time:  t,
-              open,
-              high:  +(Math.max(open, close) + move * 0.6).toFixed(5),
-              low:   +(Math.min(open, close) - move * 0.6).toFixed(5),
-              close,
-            };
+            return { time: t, open, high: +(Math.max(open, close) + move * 0.6).toFixed(5), low: +(Math.min(open, close) - move * 0.6).toFixed(5), close };
           });
-
           try { localStorage.setItem(cacheKey, JSON.stringify(seedCandles)); } catch {}
           applySource(seedCandles, realP, true);
         }
@@ -1150,7 +1195,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         onPriceChange(p, ct);
         // Persist forex candles on each new candle (crypto uses Binance OHLC)
         if (!BINANCE_MAP[tab.id.replace("-OTC", "")]) {
-          try { localStorage.setItem(`xd_candles_v5:${tab.id}:${tfRef.current}`, JSON.stringify(list.slice(-500))); } catch {}
+          try { localStorage.setItem(`xd_candles_v6:${tab.id}:${tfRef.current}`, JSON.stringify(list.slice(-500))); } catch {}
         }
       }
     };
