@@ -998,7 +998,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     const applySource = (source: Candle[], realP: number | null, alreadyBRT = false) => {
       if (seriesRef.current !== series) return;
 
-      // Apply BRT offset only if source is in UTC (fresh from API)
       const adjusted = alreadyBRT
         ? source
         : source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
@@ -1015,42 +1014,16 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         };
       }
 
-      // Fill gap between last API candle and now with synthetic candles
-      // (Massive free plan has ~2h delay — bridge it with realistic-looking movement)
-      const barPeriod  = TF_SEC[tfRef.current] ?? 60;
-      const nowBRT     = Math.floor(Date.now() / 1000) - 3 * 3600;
-      const currentCt  = Math.floor(nowBRT / barPeriod) * barPeriod;
-      const lastApiTime = patched[patched.length - 1]?.time ?? 0;
+      candles.current = patched;
+      series.setData(patched);
 
-      let full = patched;
-      if (lastApiTime > 0 && currentCt > lastApiTime + barPeriod) {
-        const gapCount   = Math.min(Math.floor((currentCt - lastApiTime) / barPeriod), 300);
-        const targetP    = realP ?? patched[patched.length - 1].close;
-        let   gapPrice   = patched[patched.length - 1].close;
-        const synth: Candle[] = [];
-        for (let i = 0; i < gapCount; i++) {
-          const t      = (lastApiTime + (i + 1) * barPeriod) as UTCTimestamp;
-          const drift  = (targetP - gapPrice) / Math.max(1, gapCount - i) + gapPrice * (Math.random() - 0.5) * 0.0002;
-          const open   = gapPrice;
-          gapPrice     = +(gapPrice + drift).toFixed(5);
-          const hi     = +(Math.max(open, gapPrice) + Math.abs(drift) * 0.5 + gapPrice * 0.00005).toFixed(5);
-          const lo     = +(Math.min(open, gapPrice) - Math.abs(drift) * 0.5 - gapPrice * 0.00005).toFixed(5);
-          synth.push({ time: t, open, high: hi, low: lo, close: gapPrice });
-        }
-        full = [...patched, ...synth];
-      }
-
-      candles.current = full;
-      series.setData(full);
-
-      // Show last 30 candles — tight zoom makes tiny forex bodies visible
       const applyView = () => {
-        chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, full.length - 30), to: full.length + 3 });
+        chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, patched.length - 30), to: patched.length + 3 });
       };
       requestAnimationFrame(() => requestAnimationFrame(applyView));
       setTimeout(applyView, 200);
 
-      const lastCandle = full[full.length - 1];
+      const lastCandle = patched[patched.length - 1];
       if (lastCandle) {
         lastPrice.current    = lastCandle.close;
         realPriceRef.current = realP ?? lastCandle.close;
@@ -1061,35 +1034,65 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     };
 
     const load = async () => {
-      // Show cached data immediately on refresh (already in BRT)
+      const base     = tab.id.replace("-OTC", "");
+      const isCrypto = !!BINANCE_MAP[base];
+
+      // Load localStorage cache for both crypto and forex
+      let hadCache = false;
       try {
         const raw = localStorage.getItem(cacheKey);
         if (raw) {
-          const parsed = JSON.parse(raw);
-          if (isUsable(parsed)) applySource(parsed, null, true);
+          const parsed  = JSON.parse(raw);
+          const nowBRT  = Math.floor(Date.now() / 1000) - 3 * 3600;
+          const lastT   = parsed[parsed.length - 1]?.time ?? 0;
+          if (isUsable(parsed) && (nowBRT - lastT) < 2 * 86400) {
+            applySource(parsed, null, true);
+            hadCache = true;
+          }
         }
       } catch {}
 
-      // Fetch fresh data + real price in parallel
-      const [data, realP] = await Promise.all([
-        fetchCandles(tab.id, tf),
-        fetchPrice(tab.id),
-      ]);
+      if (isCrypto) {
+        // ── Crypto: use Binance OHLC (real-time, perfect candles) ──────────
+        const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
+        const source = isUsable(data) ? data : null;
+        if (!source) { if (realP && candles.current.length) realPriceRef.current = realP; return; }
+        const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+        try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
+        applySource(source, realP, false);
+      } else {
+        // ── Forex: fetch only price, build candles via micro-tick ───────────
+        const realP = await fetchPrice(tab.id);
+        if (realP) realPriceRef.current = realP;
 
-      const source = isUsable(data) ? data : null;
-      if (!source) {
-        // API failed — just update price on existing candles if we have them
-        if (realP && candles.current.length) {
-          realPriceRef.current = realP;
+        if (!hadCache) {
+          // First visit: generate 100 seed candles ending at current BRT time
+          const period    = TF_SEC[tf] ?? 60;
+          const nowBRT    = Math.floor(Date.now() / 1000) - 3 * 3600;
+          const currentCt = Math.floor(nowBRT / period) * period;
+          const seedP     = realP ?? seedPrice(tab.id);
+
+          // Build price path that ends at seedP (newest = real price)
+          const path: number[] = [seedP];
+          for (let i = 0; i < 99; i++) path.unshift(+(path[0] * (1 + (Math.random() - 0.5) * 0.0006)).toFixed(5));
+
+          const seedCandles: Candle[] = path.slice(0, 100).map((open, i) => {
+            const t     = (currentCt - (99 - i) * period) as UTCTimestamp;
+            const close = +(path[i + 1] ?? open).toFixed(5);
+            const move  = Math.abs(close - open) + open * 0.00008;
+            return {
+              time:  t,
+              open,
+              high:  +(Math.max(open, close) + move * 0.6).toFixed(5),
+              low:   +(Math.min(open, close) - move * 0.6).toFixed(5),
+              close,
+            };
+          });
+
+          try { localStorage.setItem(cacheKey, JSON.stringify(seedCandles)); } catch {}
+          applySource(seedCandles, realP, true);
         }
-        return;
       }
-
-      // Convert to BRT before saving so cache is always BRT
-      const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
-      try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
-
-      applySource(source, realP, false); // fresh data is UTC, needs BRT conversion
     };
 
     load();
@@ -1145,6 +1148,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         series.update(n);
         lastTime.current = ct;
         onPriceChange(p, ct);
+        // Persist forex candles on each new candle (crypto uses Binance OHLC)
+        if (!BINANCE_MAP[tab.id.replace("-OTC", "")]) {
+          try { localStorage.setItem(`xd_candles_v5:${tab.id}:${tfRef.current}`, JSON.stringify(list.slice(-500))); } catch {}
+        }
       }
     };
 
