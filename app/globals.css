@@ -29,8 +29,12 @@
   box-sizing: border-box;
 }
 
+html {
+  background: #0d1117;
+}
+
 body {
-  background: hsl(var(--background));
+  background: #0d1117;
   color: hsl(var(--foreground));
   font-family: 'Roboto', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
