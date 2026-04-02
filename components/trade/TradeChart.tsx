@@ -682,10 +682,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     try {
       Object.keys(localStorage)
         .filter((k) =>
-          k.startsWith("xd_candles:")   ||
+          k.startsWith("xd_candles:")    ||
           k.startsWith("xd_candles_v2:") ||
           k.startsWith("xd_candles_v3:") ||
-          k.startsWith("xd_candles_v5:") // clear old Twelve Data cache
+          k.startsWith("xd_candles_v4:") || // old Twelve Data cache
+          k.startsWith("xd_range:")         // old view positions
         )
         .forEach((k) => localStorage.removeItem(k));
     } catch {}
@@ -1017,11 +1018,9 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       candles.current = patched;
       series.setData(patched);
 
-      const rangeKey = `xd_range:${tab.id}:${tf}`;
-      const savedRange = (() => { try { return JSON.parse(localStorage.getItem(rangeKey) ?? "null"); } catch { return null; } })();
+      // Always show last 60 candles — tight zoom makes candle bodies visible
       const applyView = () => {
-        if (savedRange) chart.timeScale().setVisibleLogicalRange(savedRange);
-        else chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, patched.length - 100), to: patched.length + 5 });
+        chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, patched.length - 60), to: patched.length + 5 });
       };
       requestAnimationFrame(() => requestAnimationFrame(applyView));
       setTimeout(applyView, 200);
@@ -1066,12 +1065,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
 
       applySource(source, realP, false); // fresh data is UTC, needs BRT conversion
-
-      // Subscribe range changes after fresh data loaded
-      const rangeKey = `xd_range:${tab.id}:${tf}`;
-      chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-        if (range) try { localStorage.setItem(rangeKey, JSON.stringify(range)); } catch {}
-      });
     };
 
     load();
