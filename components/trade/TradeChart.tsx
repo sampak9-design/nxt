@@ -1056,132 +1056,144 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     const isUsable = (arr: unknown): arr is Candle[] =>
       Array.isArray(arr) && arr.length >= 5 && arr.filter((c: Candle) => c.close > 0).length >= 3;
 
+    // ── applySource: validate, clean, format and render candle data ─────
     const applySource = (source: Candle[], realP: number | null, alreadyBRT = false) => {
-      if (seriesRef.current !== series) return;
+      // Guard: bail if this effect is no longer the active one
+      if (activeKeyRef.current !== activeKey) return;
 
       const adjusted = alreadyBRT
         ? source
         : source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
 
-      // Strip any corrupt candles (low/close <= 0) before touching the chart
+      // Drop corrupt candles (any OHLC ≤ 0 or high < low)
       const clean = adjusted.filter((c) => c.open > 0 && c.high > 0 && c.low > 0 && c.close > 0 && c.high >= c.low);
       if (!clean.length) return;
 
-      const startPrice = (realP != null && realP > 0) ? realP : (clean[clean.length - 1]?.close ?? seedPrice(tab.id));
+      const startPrice = (realP != null && realP > 0) ? realP : clean[clean.length - 1].close;
 
-      // Only patch close/high/low if startPrice is within ±20% of the last candle (sanity check)
-      const lastClose = clean[clean.length - 1].close;
-      const patchedLast = (startPrice > 0 && Math.abs(startPrice - lastClose) / lastClose < 0.20)
-        ? { ...clean[clean.length - 1], close: startPrice, high: Math.max(clean[clean.length - 1].high, startPrice), low: Math.min(clean[clean.length - 1].low, startPrice) }
-        : clean[clean.length - 1];
+      // Patch last candle's close only if startPrice is within ±20% (sanity)
+      const last = clean[clean.length - 1];
+      const patchedLast = (startPrice > 0 && Math.abs(startPrice - last.close) / last.close < 0.20)
+        ? { ...last, close: startPrice, high: Math.max(last.high, startPrice), low: Math.min(last.low, startPrice) }
+        : last;
       const patched = [...clean.slice(0, -1), patchedLast];
 
-      // Detect precision from price magnitude so axis looks right for all assets
+      // Auto-detect price format from magnitude
       const p0 = patchedLast.close;
-      const fmt = p0 >= 500
-        ? { type: "price" as const, precision: 2, minMove: 0.01 }   // BTC, ETH, BNB...
-        : p0 >= 10
-        ? { type: "price" as const, precision: 3, minMove: 0.001 }  // SOL, EURJPY, GBPJPY...
-        : p0 >= 1
-        ? { type: "price" as const, precision: 4, minMove: 0.0001 } // USDJPY, GBPUSD...
-        : { type: "price" as const, precision: 5, minMove: 0.00001 };// EUR/USD, ADA, XRP...
-      series.applyOptions({ priceFormat: fmt });
+      series.applyOptions({ priceFormat:
+        p0 >= 500 ? { type: "price" as const, precision: 2, minMove: 0.01   } :
+        p0 >= 10  ? { type: "price" as const, precision: 3, minMove: 0.001  } :
+        p0 >= 1   ? { type: "price" as const, precision: 4, minMove: 0.0001 } :
+                    { type: "price" as const, precision: 5, minMove: 0.00001 },
+      });
 
       candles.current = patched;
       series.setData(patched);
 
-      const applyView = () => {
+      const applyView = () =>
         chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, patched.length - 30), to: patched.length + 3 });
-      };
       requestAnimationFrame(() => requestAnimationFrame(applyView));
       setTimeout(applyView, 200);
 
-      const lastCandle = patched[patched.length - 1];
-      if (lastCandle) {
-        lastPrice.current    = lastCandle.close;
-        realPriceRef.current = realP ?? lastCandle.close;
-        lastTime.current     = lastCandle.time;
+      const lc = patched[patched.length - 1];
+      if (lc) {
+        lastPrice.current    = lc.close;
+        realPriceRef.current = (realP && realP > 0) ? realP : lc.close;
+        lastTime.current     = lc.time;
         setPrice(startPrice);
-        onPriceChange(startPrice, lastCandle.time);
+        onPriceChange(startPrice, lc.time);
       }
     };
 
+    // ── buildSeed: synthetic candles for micro-tick warm-up ──────────────
+    const buildSeed = (seedP: number): Candle[] => {
+      const period    = TF_SEC[tf] ?? 60;
+      const nowBRT    = Math.floor(Date.now() / 1000) - 3 * 3600;
+      const currentCt = Math.floor(nowBRT / period) * period;
+      const path: number[] = [seedP];
+      for (let i = 0; i < 99; i++)
+        path.unshift(+(path[0] * (1 + (Math.random() - 0.5) * 0.0006)).toFixed(5));
+      return path.slice(0, 100).map((open, i) => {
+        const t     = (currentCt - (99 - i) * period) as UTCTimestamp;
+        const close = +(path[i + 1] ?? open).toFixed(5);
+        const move  = Math.abs(close - open) + open * 0.00008;
+        return { time: t, open, high: +(Math.max(open, close) + move * 0.6).toFixed(5), low: +(Math.min(open, close) - move * 0.6).toFixed(5), close };
+      });
+    };
+
     const load = async () => {
-      // Yield one frame so React renders the loading overlay BEFORE any data appears
+      // Yield one frame → React paints loading overlay before any data touches the chart
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
       if (activeKeyRef.current !== activeKey) return;
 
       const base     = tab.id.replace("-OTC", "");
       const isCrypto = !!BINANCE_MAP[base];
 
-      // Pre-load localStorage cache (shown under loading overlay — user won't see it,
-      // but it gives the chart real data to replace as soon as overlay clears)
-      try {
-        const raw = localStorage.getItem(cacheKey);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          const nowBRT = Math.floor(Date.now() / 1000) - 3 * 3600;
-          const lastT  = parsed[parsed.length - 1]?.time ?? 0;
-          if (isUsable(parsed) && (nowBRT - lastT) < 2 * 86400) {
-            applySource(parsed, null, true);
-          }
-        }
-      } catch {}
-
-      if (activeKeyRef.current !== activeKey) return;
-
       if (isCrypto) {
-        // ── Crypto: use Binance OHLC (real-time, perfect candles) ──────────
+        // ── Crypto ── fetch Binance history + price in parallel ─────────────
+        console.log(`[chart] loading crypto ${tab.id} tf=${tf}`);
         const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
-        if (activeKeyRef.current !== activeKey) return; // guard after every await
+        if (activeKeyRef.current !== activeKey) {
+          console.log(`[chart] ${tab.id} response discarded (stale)`);
+          return;
+        }
+        console.log(`[chart] ${tab.id} Binance responded, candles=${data?.length ?? 0}`);
         const source = isUsable(data) ? data : null;
-        if (!source) { if (realP && candles.current.length) realPriceRef.current = realP; return; }
+        if (!source) { if (realP && realP > 0) realPriceRef.current = realP; setLoading(false); return; }
         const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
         try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
         applySource(source, realP, false);
-        setLoading(false); // fresh Binance data ready
+        setLoading(false);
+
       } else {
-        // ── Forex: show immediately, then replace with real Deriv OHLC ───────
-
-        // Helper: build seed candles from a price so chart is never empty
-        const buildSeed = (seedP: number) => {
-          const period    = TF_SEC[tf] ?? 60;
-          const nowBRT    = Math.floor(Date.now() / 1000) - 3 * 3600;
-          const currentCt = Math.floor(nowBRT / period) * period;
-          const path: number[] = [seedP];
-          for (let i = 0; i < 99; i++) path.unshift(+(path[0] * (1 + (Math.random() - 0.5) * 0.0006)).toFixed(5));
-          return path.slice(0, 100).map((open, i) => {
-            const t     = (currentCt - (99 - i) * period) as UTCTimestamp;
-            const close = +(path[i + 1] ?? open).toFixed(5);
-            const move  = Math.abs(close - open) + open * 0.00008;
-            return { time: t, open, high: +(Math.max(open, close) + move * 0.6).toFixed(5), low: +(Math.min(open, close) - move * 0.6).toFixed(5), close };
-          });
-        };
-
-        // 1. Fetch price fast (Deriv tick) so seed candles start at real price
+        // ── Forex ── fetch price first, then history ─────────────────────────
+        console.log(`[chart] loading forex ${tab.id} tf=${tf}`);
         const realP = await fetchPrice(tab.id);
-        if (activeKeyRef.current !== activeKey) return;
-        if (realP) realPriceRef.current = realP;
+        if (activeKeyRef.current !== activeKey) {
+          console.log(`[chart] ${tab.id} price discarded (stale)`);
+          return;
+        }
+        console.log(`[chart] ${tab.id} price=${realP}`);
+        if (realP && realP > 0) realPriceRef.current = realP;
 
-        // 2. Always show seed candles immediately (fresh from real price, not from old cache)
-        //    This is the first thing the user sees — overlay dismisses here
-        const seedCandles = buildSeed(realP ?? seedPrice(tab.id));
-        try { localStorage.setItem(cacheKey, JSON.stringify(seedCandles)); } catch {}
-        applySource(seedCandles, realP, true);
-        setLoading(false); // seed candles from current price are ready
+        // Warm up micro-tick with seed candles (stays hidden under overlay)
+        applySource(buildSeed(realP ?? seedPrice(tab.id)), realP, true);
 
-        // 3. Fetch real Deriv OHLC in background and replace seed with real candles
+        // Fetch Deriv history — overlay stays until this resolves (or times out)
+        const fallbackTimer = setTimeout(() => {
+          if (activeKeyRef.current !== activeKey) return;
+          console.log(`[chart] ${tab.id} Deriv timeout — showing seed candles`);
+          setLoading(false);
+        }, 7000);
+
         fetchCandles(tab.id, tf).then((data) => {
-          if (activeKeyRef.current !== activeKey || !isUsable(data)) return;
-          const brtSource = data.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
-          try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
-          applySource(data, realPriceRef.current, false);
-        }).catch(() => {});
+          clearTimeout(fallbackTimer);
+          if (activeKeyRef.current !== activeKey) {
+            console.log(`[chart] ${tab.id} history discarded (stale)`);
+            return;
+          }
+          console.log(`[chart] ${tab.id} Deriv history candles=${data?.length ?? 0}`);
+          if (isUsable(data)) {
+            const brtSource = data.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+            try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
+            applySource(data, realPriceRef.current, false);
+          }
+          setLoading(false);
+        }).catch(() => {
+          clearTimeout(fallbackTimer);
+          if (activeKeyRef.current === activeKey) {
+            console.log(`[chart] ${tab.id} Deriv fetch error — showing seed candles`);
+            setLoading(false);
+          }
+        });
       }
     };
 
     load();
-    return () => { activeKeyRef.current = ""; };
+    return () => {
+      activeKeyRef.current = "";
+      console.log(`[chart] cleanup ${tab.id}:${tf}`);
+    };
   }, [tab.id, tf]);
 
 
