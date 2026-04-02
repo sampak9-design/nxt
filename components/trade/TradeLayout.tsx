@@ -200,10 +200,8 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
 
     // Resolve expired trades
     const now = Date.now();
-    setActiveTrades((prev) => {
-      const toResolve = prev.filter((t) => t.expiresAt <= now && !t.result);
-      if (!toResolve.length) return prev;
-
+    const toResolve = activeTrades.filter((t) => t.expiresAt <= now && !t.result);
+    if (toResolve.length) {
       const historyEntries: TradeHistoryEntry[] = [];
       toResolve.forEach((trade) => {
         const won =
@@ -219,7 +217,6 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           setRealBalance((b) => +(b + gain).toFixed(2));
         }
 
-        // Find tab info from openTabs snapshot via tabId
         const tabInfo = openTabsRef.current.find((t) => t.id === trade.tabId);
         historyEntries.push({
           id: trade.id,
@@ -238,32 +235,35 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           resolvedAt: Date.now(),
         });
       });
+
       if (historyEntries.length) {
         setTradeHistory((h) => {
           const existing = new Set(h.map((e) => e.id));
           const fresh = historyEntries.filter((e) => !existing.has(e.id));
           return fresh.length ? [...fresh, ...h] : h;
         });
+        // Play sound outside any state setter — browser allows audio here
         const anyWin  = historyEntries.some((e) => e.result === "win");
         const anyLose = historyEntries.some((e) => e.result === "lose");
-        if (anyWin)  playWin();
-        if (anyLose && !anyWin) playLose();
+        if (anyWin)             playWin();
+        else if (anyLose)       playLose();
       }
 
-      // Mark resolved
-      return prev.map((t) =>
-        toResolve.find((r) => r.id === t.id)
-          ? {
-              ...t,
-              result:
-                (t.direction === "up" && price > t.entryPrice) ||
-                (t.direction === "down" && price < t.entryPrice)
-                  ? "win"
-                  : "lose",
-            }
-          : t
+      setActiveTrades((prev) =>
+        prev.map((t) =>
+          toResolve.find((r) => r.id === t.id)
+            ? {
+                ...t,
+                result:
+                  (t.direction === "up" && price > t.entryPrice) ||
+                  (t.direction === "down" && price < t.entryPrice)
+                    ? "win"
+                    : "lose",
+              }
+            : t
+        )
       );
-    });
+    }
 
     // Remove resolved trades after 3s
     setTimeout(() => {
