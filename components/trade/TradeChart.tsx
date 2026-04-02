@@ -1053,17 +1053,18 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         ? source
         : source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
 
-      const startPrice = (realP != null && realP > 0) ? realP : (adjusted[adjusted.length - 1]?.close ?? seedPrice(tab.id));
-      const patched = [...adjusted];
-      if (patched.length) {
-        const last = patched[patched.length - 1];
-        patched[patched.length - 1] = {
-          ...last,
-          close: startPrice,
-          high: Math.max(last.high, startPrice),
-          low:  Math.min(last.low,  startPrice),
-        };
-      }
+      // Strip any corrupt candles (low/close <= 0) before touching the chart
+      const clean = adjusted.filter((c) => c.open > 0 && c.high > 0 && c.low > 0 && c.close > 0 && c.high >= c.low);
+      if (!clean.length) return;
+
+      const startPrice = (realP != null && realP > 0) ? realP : (clean[clean.length - 1]?.close ?? seedPrice(tab.id));
+
+      // Only patch close/high/low if startPrice is within ±20% of the last candle (sanity check)
+      const lastClose = clean[clean.length - 1].close;
+      const patchedLast = (startPrice > 0 && Math.abs(startPrice - lastClose) / lastClose < 0.20)
+        ? { ...clean[clean.length - 1], close: startPrice, high: Math.max(clean[clean.length - 1].high, startPrice), low: Math.min(clean[clean.length - 1].low, startPrice) }
+        : clean[clean.length - 1];
+      const patched = [...clean.slice(0, -1), patchedLast];
 
       candles.current = patched;
       series.setData(patched);
@@ -1142,7 +1143,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
         // 3. Fetch real Deriv OHLC in background and replace seed with real candles
         fetchCandles(tab.id, tf).then((data) => {
-          if (!isUsable(data)) return;
+          if (cancelled || !isUsable(data)) return;
           const brtSource = data.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
           try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
           applySource(data, realPriceRef.current, false);
@@ -1150,7 +1151,9 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
     };
 
+    let cancelled = false;
     load();
+    return () => { cancelled = true; };
   }, [tab.id, tf]);
 
 
