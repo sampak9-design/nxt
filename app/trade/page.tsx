@@ -1,5 +1,9 @@
-import TradeLayout from "@/components/trade/TradeLayout";
+import dynamic from "next/dynamic";
 import type { ApiAsset } from "@/components/trade/TradeLayout";
+
+// SSR disabled — TradeLayout reads localStorage in useState initializers;
+// running on the server causes a hydration mismatch and a blank first load.
+const TradeLayout = dynamic(() => import("@/components/trade/TradeLayout"), { ssr: false });
 
 const ASSETS: ApiAsset[] = [
   // ── Crypto ──────────────────────────────────────────────────────────────
