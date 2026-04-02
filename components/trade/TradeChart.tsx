@@ -1334,10 +1334,9 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         drift = (real - current) * 0.25;
         noise = current * (Math.random() - 0.5) * 0.000008;
       } else {
-        // Forex/metals/synthetics: slow drift + larger noise so chart keeps moving
-        // between Deriv ticks (which arrive every 1-3s)
-        drift = (real - current) * 0.05;
-        noise = current * (Math.random() - 0.5) * 0.000028;
+        // Forex/metals/synthetics: same as crypto — mirrors Binance fluidity
+        drift = (real - current) * 0.25;
+        noise = current * (Math.random() - 0.5) * 0.000008;
       }
       // toFixed(7) avoids rounding killing sub-pip moves; priceFormat handles display
       const p = +(current + drift + noise).toFixed(7);
