@@ -1157,16 +1157,44 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   }, [tab.id, tf]);
 
 
-  /* ── poll real price every 1s ────────────────────────────────────── */
+  /* ── real-time price feed ─────────────────────────────────────────── */
   useEffect(() => {
-    const fetchReal = async () => {
-      const p = await fetchPrice(tab.id);
-      if (!p) return;
-      realPriceRef.current = p;
-    };
-    fetchReal(); // fetch immediately on mount
-    const iv = setInterval(fetchReal, 1000);
-    return () => clearInterval(iv);
+    const base = tab.id.replace("-OTC", "");
+    const derivSym = DERIV_SYMBOL[base];
+
+    if (derivSym) {
+      // Forex → persistent Deriv WebSocket tick subscription (real-time stream)
+      let ws: WebSocket | null = null;
+      let dead = false;
+
+      const connect = () => {
+        if (dead) return;
+        ws = new WebSocket("wss://ws.binaryws.com/websockets/v3?app_id=1089");
+        ws.onopen = () => {
+          ws?.send(JSON.stringify({ ticks: derivSym, subscribe: 1 }));
+        };
+        ws.onmessage = (e) => {
+          const d = JSON.parse(e.data);
+          const q = d?.tick?.quote;
+          if (q && q > 0) realPriceRef.current = q;
+        };
+        ws.onerror = () => ws?.close();
+        ws.onclose = () => { if (!dead) setTimeout(connect, 2000); }; // auto-reconnect
+      };
+
+      connect();
+      return () => { dead = true; ws?.close(); };
+    } else {
+      // Crypto → 1s Binance polling (WebSocket not needed, already near real-time)
+      const fetchReal = async () => {
+        const p = await fetchPrice(tab.id);
+        if (!p) return;
+        realPriceRef.current = p;
+      };
+      fetchReal();
+      const iv = setInterval(fetchReal, 1000);
+      return () => clearInterval(iv);
+    }
   }, [tab.id]);
 
   /* ── micro-tick every 100ms for fluid movement ───────────────────── */
