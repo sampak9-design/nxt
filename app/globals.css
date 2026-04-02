@@ -30,11 +30,11 @@
 }
 
 html {
-  background: #0d1117;
+  background: #161C2C;
 }
 
 body {
-  background: #0d1117;
+  background: #161C2C;
   color: hsl(var(--foreground));
   font-family: 'Roboto', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
