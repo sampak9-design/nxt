@@ -754,14 +754,14 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         textColor: "rgba(255,255,255,0.45)",
       },
       grid: {
-        vertLines: { color: "rgba(255,255,255,0.04)" },
-        horzLines: { color: "rgba(255,255,255,0.04)" },
+        vertLines: { color: "rgba(255,255,255,0.07)" },
+        horzLines: { color: "rgba(255,255,255,0.07)" },
       },
       crosshair: {
         vertLine: { color: "rgba(255,255,255,0.2)" },
         horzLine: { color: "rgba(255,255,255,0.2)" },
       },
-      rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
+      rightPriceScale: { borderColor: "rgba(255,255,255,0.08)", minimumWidth: 70 },
       timeScale: { borderColor: "rgba(255,255,255,0.08)", timeVisible: true, secondsVisible: false, rightOffset: 20, fixRightEdge: false },
     });
 
@@ -771,6 +771,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       wickUpColor: "#22c55e", wickDownColor: "#ef4444",
       priceLineVisible: false,
       lastValueVisible: false,
+      priceFormat: { type: "price", precision: 5, minMove: 0.00001 },
     });
 
 
