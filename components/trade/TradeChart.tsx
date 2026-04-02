@@ -681,6 +681,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const [tf, setTf]           = useState("1m");
   const [price, setPrice]     = useState<number | null>(null);
   const [up, setUp]           = useState(true);
+  const [loading, setLoading] = useState(true);
   const [tool, setTool]       = useState<Tool>("cursor");
   const [color, setColor]     = useState(COLORS[0]);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
@@ -1038,6 +1039,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     candles.current = []; lastPrice.current = 0; lastTime.current = 0;
     realPriceRef.current = 0;
     setPrice(null);
+    setLoading(true);
 
     const cacheKey = `xd_candles_v6:${tab.id}:${tf}`;
     const BRT_OFFSET = -3 * 3600;
@@ -1092,6 +1094,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         realPriceRef.current = realP ?? lastCandle.close;
         lastTime.current     = lastCandle.time;
         setPrice(startPrice);
+        setLoading(false);
         onPriceChange(startPrice, lastCandle.time);
       }
     };
@@ -1565,6 +1568,23 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
           </div>
           {/* wrapRef fills parent — autoSize ResizeObserver watches this element */}
           <div ref={wrapRef} style={{ width: "100%", height: "100%", position: "absolute", inset: 0 }} />
+
+          {/* Loading overlay */}
+          {loading && (
+            <div style={{
+              position: "absolute", inset: 0, zIndex: 10,
+              background: "#111622",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14,
+            }}>
+              <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"
+                style={{ animation: "zyro-spin 1s linear infinite" }}>
+                <circle cx="20" cy="20" r="20" fill="#f97316" />
+                <path d="M11 12h18l-14 16h14" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace" }}>carregando...</span>
+              <style>{`@keyframes zyro-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            </div>
+          )}
           {/* Drawing canvas sits on top */}
           <canvas
             ref={canvasRef}
