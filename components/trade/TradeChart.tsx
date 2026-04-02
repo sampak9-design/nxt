@@ -1320,19 +1320,27 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const real    = realPriceRef.current || current;
       const signal  = signalRef.current;
 
+      const isCrypto = !!BINANCE_MAP[tab.id.replace("-OTC", "")];
+
       let drift: number;
       let noise: number;
       if (signal) {
         // Directional drift controlled by admin signal
         const dir = signal.direction === "up" ? 1 : -1;
         drift = current * 0.000015 * dir * signal.strength;
-        noise = current * (Math.random() - 0.5) * 0.000003; // minimal noise
-      } else {
-        // Normal: drift toward real price
+        noise = current * (Math.random() - 0.5) * 0.000003;
+      } else if (isCrypto) {
+        // Crypto: fast convergence to Binance real price, moderate noise
         drift = (real - current) * 0.25;
         noise = current * (Math.random() - 0.5) * 0.000008;
+      } else {
+        // Forex/metals/synthetics: slow drift + larger noise so chart keeps moving
+        // between Deriv ticks (which arrive every 1-3s)
+        drift = (real - current) * 0.05;
+        noise = current * (Math.random() - 0.5) * 0.000028;
       }
-      const p = +(current + drift + noise).toFixed(5);
+      // toFixed(7) avoids rounding killing sub-pip moves; priceFormat handles display
+      const p = +(current + drift + noise).toFixed(7);
 
       setUp(p >= lastPrice.current);
       lastPrice.current = p;
