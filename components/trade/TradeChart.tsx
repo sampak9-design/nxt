@@ -681,7 +681,12 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   useEffect(() => {
     try {
       Object.keys(localStorage)
-        .filter((k) => k.startsWith("xd_candles:") || k.startsWith("xd_candles_v2:") || k.startsWith("xd_candles_v3:"))
+        .filter((k) =>
+          k.startsWith("xd_candles:")   ||
+          k.startsWith("xd_candles_v2:") ||
+          k.startsWith("xd_candles_v3:") ||
+          k.startsWith("xd_candles_v5:") // clear old Twelve Data cache
+        )
         .forEach((k) => localStorage.removeItem(k));
     } catch {}
   }, []);
@@ -982,7 +987,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     realPriceRef.current = 0;
     setPrice(null);
 
-    const cacheKey = `xd_candles_v4:${tab.id}:${tf}`;
+    const cacheKey = `xd_candles_v5:${tab.id}:${tf}`;
     const BRT_OFFSET = -3 * 3600;
 
     // Minimal validation: array with enough real candles (close > 0)
@@ -1009,25 +1014,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         };
       }
 
-      // Fill gap between last API candle and current BRT time
-      const barPeriod = TF_SEC[tfRef.current] ?? 60;
-      const nowBRT    = Math.floor(Date.now() / 1000) - 3 * 3600;
-      const currentCt = Math.floor(nowBRT / barPeriod) * barPeriod;
-      const lastCandleTime = patched[patched.length - 1]?.time ?? 0;
-      const gapCandles = patched.length > 0 && currentCt > lastCandleTime + barPeriod ? (() => {
-        const lastClose = patched[patched.length - 1].close;
-        const extra: Candle[] = [];
-        let t = lastCandleTime + barPeriod;
-        while (t <= currentCt && extra.length < 500) {
-          extra.push({ time: t as UTCTimestamp, open: lastClose, high: lastClose, low: lastClose, close: lastClose });
-          t += barPeriod;
-        }
-        return extra;
-      })() : [];
-      const full = gapCandles.length ? [...patched, ...gapCandles] : patched;
-
-      candles.current = full;
-      series.setData(full);
+      candles.current = patched;
+      series.setData(patched);
 
       const rangeKey = `xd_range:${tab.id}:${tf}`;
       const savedRange = (() => { try { return JSON.parse(localStorage.getItem(rangeKey) ?? "null"); } catch { return null; } })();
