@@ -1569,61 +1569,65 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       {/* Chart area */}
       <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
-        {/* Drawing toolbar (left) */}
-        <div
-          className="flex flex-col items-center py-2 gap-1 flex-shrink-0"
-          style={{ width: 40, borderRight: "1px solid rgba(255,255,255,0.08)", background: "var(--color-third)" }}
-        >
-          {TOOLS.map((t) => (
-            <button
-              key={t.id}
-              title={t.title}
-              onClick={() => { setTool(t.id); pendingPt.current = null; previewRef.current = null; setCtxMenu(null); setSelectedId(null); }}
-              className="w-8 h-8 flex items-center justify-center rounded transition-colors"
-              style={{
-                background: tool === t.id ? "rgba(249,115,22,0.2)" : "transparent",
-                color:      tool === t.id ? "var(--color-primary)" : "#64748b",
-                border:     tool === t.id ? "1px solid rgba(249,115,22,0.4)" : "1px solid transparent",
-              }}
-            >
-              {t.icon}
-            </button>
-          ))}
-
-          {/* Divider */}
-          <div className="w-6 border-t my-1" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
-
-          {/* Color palette */}
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              title={c}
-              onClick={() => setColor(c)}
-              className="w-5 h-5 rounded-full transition-transform hover:scale-110"
-              style={{
-                background: c,
-                outline: color === c ? `2px solid ${c}` : "none",
-                outlineOffset: 2,
-              }}
-            />
-          ))}
-
-          {/* Divider */}
-          <div className="w-6 border-t my-1" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
-
-          {/* Clear all */}
-          <button
-            title="Limpar tudo"
-            onClick={() => { persistedSetDrawings([]); pendingPt.current = null; previewRef.current = null; }}
-            className="w-8 h-8 flex items-center justify-center rounded transition-colors"
-            style={{ color: "#64748b" }}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-
         {/* Chart + canvas overlay */}
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative", overflow: "hidden" }}>
+
+          {/* Floating toolbar — bottom-left */}
+          <div style={{
+            position: "absolute", bottom: 48, left: 12, zIndex: 6,
+            display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            {TOOLS.map((t) => (
+              <button
+                key={t.id}
+                title={t.title}
+                onClick={() => { setTool(t.id); pendingPt.current = null; previewRef.current = null; setCtxMenu(null); setSelectedId(null); }}
+                style={{
+                  width: 40, height: 40,
+                  borderRadius: 10,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: tool === t.id ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.82)",
+                  border: `1px solid ${tool === t.id ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
+                  color: tool === t.id ? "#f97316" : "#94a3b8",
+                  cursor: "pointer", transition: "all 0.15s",
+                }}
+              >
+                {t.icon}
+              </button>
+            ))}
+
+            {/* Color dots */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, paddingTop: 2 }}>
+              {COLORS.map((c) => (
+                <button
+                  key={c}
+                  title={c}
+                  onClick={() => setColor(c)}
+                  style={{
+                    width: color === c ? 18 : 14, height: color === c ? 18 : 14,
+                    borderRadius: "50%", background: c, cursor: "pointer",
+                    outline: color === c ? `2px solid ${c}` : "none",
+                    outlineOffset: 2, transition: "all 0.15s",
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Clear all */}
+            <button
+              title="Limpar tudo"
+              onClick={() => { persistedSetDrawings([]); pendingPt.current = null; previewRef.current = null; }}
+              style={{
+                width: 40, height: 40, borderRadius: 10,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "rgba(15,20,35,0.82)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "#64748b", cursor: "pointer",
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
           {/* Zoom controls — horizontal, centered bottom */}
           <div style={{ position: "absolute", bottom: 36, left: "50%", transform: "translateX(-50%)", zIndex: 5, display: "flex", flexDirection: "row", gap: 4 }}>
             {[
