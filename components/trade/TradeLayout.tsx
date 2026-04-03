@@ -147,6 +147,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
   const [accountType, setAccountType] = useState<AccountType>("practice");
   const [demoBalance, setDemoBalance] = useState(10000);
   const [realBalance, setRealBalance] = useState(0);
+  const [isMarketing, setIsMarketing] = useState(false);
 
   const [activeTrades, setActiveTrades] = useState<ActiveTrade[]>(() => {
     try {
@@ -166,6 +167,17 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
   const [sidebarPanel, setSidebarPanel] = useState<"portfolio" | "history" | null>(null);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryEntry[]>([]);
   const [hoverDirection, setHoverDirection] = useState<"up" | "down" | null>(null);
+
+  // Load user info (balance + marketing flag) on mount
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (d.user) {
+        setRealBalance(d.user.real_balance ?? 0);
+        setDemoBalance(d.user.demo_balance ?? 10000);
+        setIsMarketing(!!d.user.is_marketing);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Load trade history from server on mount
   useEffect(() => {
@@ -504,6 +516,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         <DepositModal
           onDeposit={handleDeposit}
           onClose={() => setShowDeposit(false)}
+          isMarketing={isMarketing}
         />
       )}
     </div>

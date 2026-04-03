@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, ChevronLeft, Search, Lock } from "lucide-react";
+import { X, ChevronLeft, Search, Lock, CheckCircle2 } from "lucide-react";
 
 const AMOUNTS = [60, 100, 250, 500, 1000, 1500, 2000, 4000];
 const MIN = 60;
@@ -35,9 +35,110 @@ const METHODS: Method[] = [
 interface Props {
   onDeposit: (amount: number) => void;
   onClose: () => void;
+  isMarketing?: boolean;
 }
 
-export default function DepositModal({ onDeposit, onClose }: Props) {
+/* ── Marketing deposit (direct, no payment gateway) ── */
+function MarketingDeposit({ onDeposit, onClose }: { onDeposit: (n: number) => void; onClose: () => void }) {
+  const [amount, setAmount] = useState(100);
+  const [custom, setCustom] = useState("100");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError]   = useState("");
+
+  const selectAmount = (v: number) => { setAmount(v); setCustom(String(v)); };
+
+  const handleProcess = async () => {
+    if (amount < MIN) { setError(`Mínimo: R$ ${MIN}`); return; }
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/marketing-deposit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setError(d.error ?? "Erro ao processar"); setLoading(false); return; }
+      setSuccess(true);
+      setTimeout(() => { onDeposit(amount); }, 1500);
+    } catch {
+      setError("Erro de conexão");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.6)" }}
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="flex flex-col w-full md:w-[420px] md:rounded-xl overflow-hidden shadow-2xl"
+        style={{ background: "#1a2236", maxHeight: "95dvh" }}>
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
+            <X className="w-4 h-4 text-white" />
+          </button>
+          <span className="font-semibold text-white">Depositar fundos</span>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-4 py-5 flex flex-col gap-4">
+          {success ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <CheckCircle2 className="w-14 h-14" style={{ color: "#34A93E" }} />
+              <p className="text-white font-semibold">Depósito processado!</p>
+              <p className="text-sm text-gray-400">R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} adicionado ao seu saldo real.</p>
+            </div>
+          ) : (
+            <>
+              {/* Amount input */}
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Valor</div>
+                <input
+                  type="number"
+                  value={custom}
+                  onChange={e => { setCustom(e.target.value); setAmount(parseFloat(e.target.value) || 0); }}
+                  className="w-full bg-transparent text-white text-2xl font-bold focus:outline-none"
+                  style={{ borderBottom: "1px solid rgba(255,255,255,0.15)", paddingBottom: 6 }}
+                />
+                <div className="text-xs text-gray-500 mt-1">Mínimo: R$ {MIN},00</div>
+              </div>
+
+              {/* Amount chips */}
+              <div className="grid grid-cols-4 gap-2">
+                {AMOUNTS.map(a => (
+                  <button key={a} onClick={() => selectAmount(a)}
+                    className="py-2 rounded text-xs font-semibold transition-all"
+                    style={{
+                      background: amount === a ? "#34A93E" : "rgba(255,255,255,0.07)",
+                      color:      amount === a ? "#fff" : "#94a3b8",
+                      border:     `1px solid ${amount === a ? "#34A93E" : "rgba(255,255,255,0.1)"}`,
+                    }}>
+                    R$ {a.toLocaleString("pt-BR")}
+                  </button>
+                ))}
+              </div>
+
+              {error && <p className="text-sm text-red-400">{error}</p>}
+
+              <button
+                onClick={handleProcess}
+                disabled={loading || amount < MIN}
+                className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: "#34A93E" }}
+              >
+                {loading ? "Processando..." : `Processar R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function DepositModal({ onDeposit, onClose, isMarketing }: Props) {
   const [step, setStep]         = useState<"method" | "form">("method");
   const [method, setMethod]     = useState<Method | null>(null);
   const [search, setSearch]     = useState("");
@@ -49,11 +150,15 @@ export default function DepositModal({ onDeposit, onClose }: Props) {
   const [promo, setPromo]       = useState("");
   const [agreed, setAgreed]     = useState(false);
 
-  const filtered = METHODS.filter((m) =>
+  if (isMarketing) {
+    return <MarketingDeposit onDeposit={onDeposit} onClose={onClose} />;
+  }
+
+  const filtered = METHODS.filter(m =>
     !search || m.name.toLowerCase().includes(search.toLowerCase())
   );
-  const recommended = filtered.filter((m) => m.recommended);
-  const others      = filtered.filter((m) => !m.recommended);
+  const recommended = filtered.filter(m => m.recommended);
+  const others      = filtered.filter(m => !m.recommended);
 
   const selectAmount = (v: number) => { setAmount(v); setCustom(String(v)); };
 
@@ -75,7 +180,6 @@ export default function DepositModal({ onDeposit, onClose }: Props) {
         {/* ── Step 1: Method selection ── */}
         {step === "method" && (
           <>
-            {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
               <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
                 <X className="w-4 h-4 text-white" />
@@ -83,7 +187,6 @@ export default function DepositModal({ onDeposit, onClose }: Props) {
               <span className="font-semibold text-white">Método de pagamento</span>
             </div>
 
-            {/* Search */}
             <div className="px-4 py-3 flex-shrink-0">
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "rgba(255,255,255,0.07)" }}>
                 <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
@@ -98,12 +201,11 @@ export default function DepositModal({ onDeposit, onClose }: Props) {
               </div>
             </div>
 
-            {/* List */}
             <div className="overflow-y-auto flex-1 px-4 pb-6">
               {recommended.length > 0 && (
                 <>
                   <div className="text-[11px] font-semibold text-gray-500 tracking-widest mb-2">RECOMENDADO</div>
-                  {recommended.map((m) => (
+                  {recommended.map(m => (
                     <MethodRow key={m.id} m={m} onSelect={() => { setMethod(m); setStep("form"); }} />
                   ))}
                 </>
@@ -111,7 +213,7 @@ export default function DepositModal({ onDeposit, onClose }: Props) {
               {others.length > 0 && (
                 <>
                   <div className="text-[11px] font-semibold text-gray-500 tracking-widest mt-4 mb-2">OUTROS MÉTODOS</div>
-                  {others.map((m) => (
+                  {others.map(m => (
                     <MethodRow key={m.id} m={m} onSelect={() => { setMethod(m); setStep("form"); }} />
                   ))}
                 </>
@@ -123,7 +225,6 @@ export default function DepositModal({ onDeposit, onClose }: Props) {
         {/* ── Step 2: Deposit form ── */}
         {step === "form" && method && (
           <>
-            {/* Header */}
             <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
               <button onClick={() => setStep("method")} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
                 <ChevronLeft className="w-5 h-5 text-white" />
@@ -132,7 +233,6 @@ export default function DepositModal({ onDeposit, onClose }: Props) {
             </div>
 
             <div className="overflow-y-auto flex-1 px-4 py-4 flex flex-col gap-4">
-              {/* Amount input */}
               <div>
                 <div className="text-xs text-gray-400 mb-1">Valor</div>
                 <input
@@ -145,86 +245,68 @@ export default function DepositModal({ onDeposit, onClose }: Props) {
                 <div className="text-xs text-gray-500 mt-1">Mínimo: R$ {MIN},00</div>
               </div>
 
-              {/* Amount chips */}
               <div className="grid grid-cols-4 gap-2">
-                {AMOUNTS.map((a) => (
-                  <button
-                    key={a}
-                    onClick={() => selectAmount(a)}
+                {AMOUNTS.map(a => (
+                  <button key={a} onClick={() => selectAmount(a)}
                     className="py-2 rounded text-xs font-semibold transition-all"
                     style={{
                       background: amount === a ? "#34A93E" : "rgba(255,255,255,0.07)",
-                      color: amount === a ? "#fff" : "#94a3b8",
-                      border: `1px solid ${amount === a ? "#34A93E" : "rgba(255,255,255,0.1)"}`,
-                    }}
-                  >
+                      color:      amount === a ? "#fff" : "#94a3b8",
+                      border:     `1px solid ${amount === a ? "#34A93E" : "rgba(255,255,255,0.1)"}`,
+                    }}>
                     R$ {a.toLocaleString("pt-BR")}
                   </button>
                 ))}
               </div>
 
-              {/* Promo */}
               <div>
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
                   <span>PROMOÇÃO</span>
                   <span>· Exibir disponíveis (0)</span>
                 </div>
                 <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Insira seu código promocional"
-                    value={promo}
-                    onChange={(e) => setPromo(e.target.value)}
+                  <input type="text" placeholder="Insira seu código promocional" value={promo} onChange={e => setPromo(e.target.value)}
                     className="flex-1 bg-transparent text-sm text-white focus:outline-none px-3 py-2 rounded"
-                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
-                  />
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
                   <button className="px-3 py-2 rounded text-sm text-gray-400" style={{ background: "rgba(255,255,255,0.06)" }}>
                     Aplicar
                   </button>
                 </div>
-                <div className="text-[11px] text-gray-500 mt-1">Um código promocional por depósito</div>
               </div>
 
-              {/* Notice */}
               <div className="text-[11px] text-gray-400 p-3 rounded" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                Nossa plataforma não permite CNPJ, CPF de terceiros e/ou métodos de pagamento de terceiros. 90% dos pagamentos são processados pelo provedor em até 5 minutos.
+                Nossa plataforma não permite CNPJ, CPF de terceiros e/ou métodos de pagamento de terceiros.
               </div>
 
-              {/* Name */}
               <div>
                 <div className="text-xs text-gray-400 mb-1">Nome</div>
-                <input type="text" placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)}
+                <input type="text" placeholder="Nome" value={name} onChange={e => setName(e.target.value)}
                   className="w-full px-3 py-2.5 rounded text-sm text-white focus:outline-none"
                   style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
               </div>
               <div>
                 <div className="text-xs text-gray-400 mb-1">Sobrenome</div>
-                <input type="text" placeholder="Sobrenome" value={lastName} onChange={(e) => setLastName(e.target.value)}
+                <input type="text" placeholder="Sobrenome" value={lastName} onChange={e => setLastName(e.target.value)}
                   className="w-full px-3 py-2.5 rounded text-sm text-white focus:outline-none"
                   style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
               </div>
               <div>
                 <div className="text-xs text-gray-400 mb-1">CPF <span className="text-gray-600">11 dígitos</span></div>
-                <input type="text" placeholder="Digite seu CPF" value={cpf} onChange={(e) => setCpf(e.target.value)}
+                <input type="text" placeholder="Digite seu CPF" value={cpf} onChange={e => setCpf(e.target.value)}
                   className="w-full px-3 py-2.5 rounded text-sm text-white focus:outline-none"
                   style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
               </div>
 
-              {/* Terms */}
               <label className="flex items-start gap-2 cursor-pointer">
-                <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1 accent-orange-500" />
+                <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="mt-1 accent-orange-500" />
                 <span className="text-xs text-gray-400">
                   Eu, por meio deste, aceito as <span className="text-orange-500">Termos e Condições</span>
                 </span>
               </label>
 
-              {/* CTA */}
-              <button
-                onClick={handleDeposit}
-                disabled={!agreed || !name || !cpf || amount < MIN}
+              <button onClick={handleDeposit} disabled={!agreed || !name || !cpf || amount < MIN}
                 className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: "#34A93E" }}
-              >
+                style={{ background: "#34A93E" }}>
                 Depositar R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </button>
             </div>
@@ -237,11 +319,9 @@ export default function DepositModal({ onDeposit, onClose }: Props) {
 
 function MethodRow({ m, onSelect }: { m: Method; onSelect: () => void }) {
   return (
-    <button
-      onClick={onSelect}
+    <button onClick={onSelect}
       className="w-full flex items-center gap-3 p-3 rounded-lg mb-1 transition-colors hover:bg-white/[0.05]"
-      style={{ border: "1px solid rgba(255,255,255,0.07)" }}
-    >
+      style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
       <div className="flex-shrink-0">{m.logo}</div>
       <div className="flex-1 text-left">
         <div className="text-sm font-medium text-white">{m.name}</div>
