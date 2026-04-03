@@ -140,9 +140,10 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
   const [cpf, setCpf]             = useState("");
   const [promo, setPromo]         = useState("");
   const [agreed, setAgreed]       = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [error, setError]         = useState("");
-  const [qr, setQr]               = useState<{ qr_code: string; qr_image?: string } | null>(null);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState("");
+  const [qr, setQr]                 = useState<{ qr_code: string; qr_image?: string } | null>(null);
+  const [crediting, setCrediting]   = useState(false);
 
   // isMarketing muda apenas o handleDeposit — o popup é o mesmo
 
@@ -155,26 +156,15 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
     if (!agreed || !name || !cpf || amount < MIN) return;
     setError(""); setLoading(true);
     try {
-      if (isMarketing) {
-        // Conta marketing: credita direto no saldo
-        const res = await fetch("/api/marketing-deposit", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount }),
-        });
-        const d = await res.json();
-        if (!res.ok) { setError(d.error ?? "Erro ao processar"); setLoading(false); return; }
-        onDeposit(amount);
-      } else {
-        // Conta normal: gera QR Code PIX via BSPay
-        const res = await fetch("/api/pix-charge", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount, name: `${name} ${lastName}`.trim(), cpf }),
-        });
-        const d = await res.json();
-        if (!res.ok) { setError(d.error ?? "Erro ao gerar PIX"); setLoading(false); return; }
-        setQr(d);
-        setStep("qr");
-      }
+      // Sempre gera QR Code via BSPay (marketing ou não)
+      const res = await fetch("/api/pix-charge", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, name: `${name} ${lastName}`.trim(), cpf }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setError(d.error ?? "Erro ao gerar PIX"); setLoading(false); return; }
+      setQr(d);
+      setStep("qr");
     } catch { setError("Erro de conexão"); }
     setLoading(false);
   };
@@ -299,9 +289,7 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
                 className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 style={{ background: "#34A93E" }}>
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                {loading
-                  ? (isMarketing ? "Processando..." : "Gerando PIX...")
-                  : `Depositar R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                {loading ? "Gerando PIX..." : `Depositar R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
               </button>
             </div>
           </>
@@ -342,6 +330,29 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
                 style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.15)" }}>
                 Após o pagamento, seu saldo será creditado automaticamente. Não feche esta janela até pagar.
               </div>
+
+              {isMarketing && (
+                <button
+                  onClick={async () => {
+                    setCrediting(true);
+                    try {
+                      const res = await fetch("/api/marketing-deposit", {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ amount }),
+                      });
+                      const d = await res.json();
+                      if (res.ok) { onDeposit(amount); }
+                    } catch {}
+                    setCrediting(false);
+                  }}
+                  disabled={crediting}
+                  className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2"
+                  style={{ background: "#34A93E" }}
+                >
+                  {crediting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {crediting ? "Creditando..." : "Já paguei — Creditar saldo"}
+                </button>
+              )}
             </div>
           </>
         )}
