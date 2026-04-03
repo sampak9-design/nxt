@@ -273,7 +273,7 @@ export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: P
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-sm font-semibold text-white truncate">{asset.name}</span>
                         {isOpen && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(249,115,22,0.2)", color: "#f97316" }}>
+                          <span className="hidden md:inline text-[9px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(249,115,22,0.2)", color: "#f97316" }}>
                             aberto
                           </span>
                         )}
