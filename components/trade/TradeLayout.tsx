@@ -144,7 +144,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
     } catch {}
     return defaultTabs[0];
   });
-  const [accountType, setAccountType] = useState<AccountType>("practice");
+  const [accountType, setAccountType] = useState<AccountType>("real");
   const [demoBalance, setDemoBalance] = useState(10000);
   const [realBalance, setRealBalance] = useState(0);
   const [isMarketing, setIsMarketing] = useState(false);
