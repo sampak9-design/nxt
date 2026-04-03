@@ -46,28 +46,22 @@ export default function IntegrationPage() {
     setTestStatus("loading");
     setTestMsg("");
     try {
-      // Try to get token from BSPay
-      const base = sandbox ? "https://sandbox.bspay.co/v2" : "https://api.bspay.co/v2";
-      const credentials = btoa(`${clientId}:${clientSecret}`);
-      const res = await fetch(`${base}/oauth/token`, {
+      const res = await fetch("/api/admin/test-gateway", {
         method: "POST",
-        headers: {
-          "Authorization": `Basic ${credentials}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, clientSecret, sandbox }),
       });
       const data = await res.json();
-      if (res.ok && data.access_token) {
+      if (data.ok) {
         setTestStatus("ok");
-        setTestMsg("Conexão bem-sucedida! Token gerado com sucesso.");
+        setTestMsg(data.message);
       } else {
         setTestStatus("error");
-        setTestMsg(data?.message ?? data?.error ?? "Credenciais inválidas.");
+        setTestMsg(data.message ?? "Credenciais inválidas.");
       }
     } catch {
       setTestStatus("error");
-      setTestMsg("Erro de conexão com a BSPay.");
+      setTestMsg("Erro de conexão com o servidor.");
     }
   };
 
