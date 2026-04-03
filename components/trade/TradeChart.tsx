@@ -28,7 +28,6 @@ type Drawing = HLine | VLine | Trend | Rect | Freehand;
 type Tool = "cursor" | "hline" | "vline" | "trend" | "rect" | "freehand" | "erase";
 
 /* ── Constants ──────────────────────────────────────────────────────── */
-const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"];
 
 const TF_SEC: Record<string, number> = {
   "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400,
@@ -727,9 +726,9 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const isDrawingFree  = useRef(false);
   const previewRef     = useRef<{ type: Tool; p1?: { x: number; y: number }; mx: number; my: number } | null>(null);
 
-  const [tf, setTf]           = useState("1m");
+  const [tf]                  = useState("1m");
   const [price, setPrice]     = useState<number | null>(null);
-  const [up, setUp]           = useState(true);
+  const [, setUp]             = useState(true);
   const [loading, setLoading] = useState(true);
   const [tool, setTool]       = useState<Tool>("cursor");
   const [color, setColor]     = useState(COLORS[0]);
@@ -1553,8 +1552,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     previewRef.current = { type: tool, p1: p1px, mx, my };
   };
 
-  const dec = tab.id.replace("-OTC","").match(/BTC|ETH|SOL|BNB/) ? 2
-    : tab.id.replace("-OTC","").match(/JPY/) ? 3 : 5;
 
   const TOOLS: { id: Tool; icon: React.ReactNode; title: string }[] = [
     { id: "cursor",   icon: <MousePointer2 className="w-4 h-4" />,         title: "Cursor" },
@@ -1568,35 +1565,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
-
-      {/* Top toolbar */}
-      <div
-        className="flex items-center gap-3 px-4 flex-shrink-0"
-        style={{ height: 44, borderBottom: "1px solid rgba(255,255,255,0.08)", background: "var(--color-third)" }}
-      >
-        <div className="flex items-center gap-2">
-          {tab.icon_url && <img src={tab.icon_url} alt={tab.name} className="w-5 h-5 object-contain" />}
-          <span className="font-semibold text-white text-sm">{tab.name}</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded"
-            style={{ background: "rgba(255,255,255,0.08)", color: "#64748b" }}>
-            {tab.type}
-          </span>
-        </div>
-        {price !== null && (
-          <span className={`font-mono font-bold text-sm ${up ? "text-green-400" : "text-red-400"}`}>
-            {price.toFixed(dec)}
-          </span>
-        )}
-        <div className="flex gap-0.5 ml-auto">
-          {TIMEFRAMES.map((t) => (
-            <button key={t} onClick={() => setTf(t)}
-              className="text-xs px-2 py-1 rounded transition-colors"
-              style={{ background: tf === t ? "var(--color-primary)" : "transparent", color: tf === t ? "#fff" : "#64748b" }}>
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Chart area */}
       <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
