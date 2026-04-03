@@ -142,8 +142,8 @@ export default function WithdrawPage() {
           <p className="text-sm text-center" style={{ color: "#9ca3af" }}>Você não pode retirar fundos porque seu saldo é 0.</p>
           <button
             onClick={() => window.location.href = "/traderoom"}
-            className="w-full py-3 font-bold text-white text-xs transition-all hover:opacity-90"
-            style={{ background: "#34A93E", borderRadius: 6, marginTop: 4 }}
+            className="py-3 font-bold text-white text-sm transition-all hover:opacity-90"
+            style={{ background: "#34A93E", borderRadius: 6, marginTop: 4, width: "75%", display: "block", marginLeft: "auto", marginRight: "auto" }}
           >
             Depositar
           </button>
