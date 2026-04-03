@@ -101,6 +101,11 @@ export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
                   key={label}
                   onClick={() => {
                     if (label === "Depositar fundos") { onClose(); onDepositClick(); }
+                    else if (label === "Sair") {
+                      fetch("/api/auth/logout", { method: "POST" }).finally(() => {
+                        window.location.href = "/";
+                      });
+                    }
                     else onClose();
                   }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-white/[0.05] active:bg-white/10"
@@ -164,6 +169,11 @@ export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
                   key={label}
                   onClick={() => {
                     if (label === "Depositar fundos") { onClose(); onDepositClick(); }
+                    else if (label === "Sair") {
+                      fetch("/api/auth/logout", { method: "POST" }).finally(() => {
+                        window.location.href = "/";
+                      });
+                    }
                   }}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.05]"
                   style={{ color: danger ? "#ef4444" : "rgba(255,255,255,0.85)" }}
