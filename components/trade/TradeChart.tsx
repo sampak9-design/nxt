@@ -5,12 +5,14 @@ import {
   createChart,
   ColorType,
   CandlestickSeries,
+  LineSeries,
+  HistogramSeries,
   ISeriesApi,
   IChartApi,
   UTCTimestamp,
 } from "lightweight-charts";
 import {
-  MousePointer2, Minus, TrendingUp, Square, Eraser, Trash2, Pen, ZoomIn, ZoomOut, Crosshair,
+  MousePointer2, Minus, TrendingUp, Square, Eraser, Trash2, Pen, ZoomIn, ZoomOut, Crosshair, BarChart2,
 } from "lucide-react";
 import type { Tab, ActiveTrade } from "./TradeLayout";
 
@@ -26,6 +28,60 @@ type Freehand = { id: string; type: "freehand"; points: { time: number; price: n
 type Drawing = HLine | VLine | Trend | Rect | Freehand;
 
 type Tool = "cursor" | "hline" | "vline" | "trend" | "rect" | "freehand" | "erase";
+
+/* ── Indicator helpers ───────────────────────────────────────────────── */
+type CandleClose = { time: UTCTimestamp; close: number };
+type LinePoint   = { time: UTCTimestamp; value: number };
+
+function calcSMA(data: CandleClose[], period: number): LinePoint[] {
+  const out: LinePoint[] = [];
+  for (let i = period - 1; i < data.length; i++) {
+    let sum = 0;
+    for (let j = i - period + 1; j <= i; j++) sum += data[j].close;
+    out.push({ time: data[i].time, value: sum / period });
+  }
+  return out;
+}
+
+function calcEMA(data: CandleClose[], period: number): LinePoint[] {
+  if (data.length < period) return [];
+  const k = 2 / (period + 1);
+  let ema = data.slice(0, period).reduce((s, c) => s + c.close, 0) / period;
+  const out: LinePoint[] = [{ time: data[period - 1].time, value: ema }];
+  for (let i = period; i < data.length; i++) {
+    ema = data[i].close * k + ema * (1 - k);
+    out.push({ time: data[i].time, value: ema });
+  }
+  return out;
+}
+
+function calcBB(data: CandleClose[], period = 20, mult = 2) {
+  const upper: LinePoint[] = [], mid: LinePoint[] = [], lower: LinePoint[] = [];
+  for (let i = period - 1; i < data.length; i++) {
+    const slice = data.slice(i - period + 1, i + 1);
+    const avg = slice.reduce((s, c) => s + c.close, 0) / period;
+    const std = Math.sqrt(slice.reduce((s, c) => s + (c.close - avg) ** 2, 0) / period);
+    mid.push({ time: data[i].time, value: avg });
+    upper.push({ time: data[i].time, value: avg + mult * std });
+    lower.push({ time: data[i].time, value: avg - mult * std });
+  }
+  return { upper, mid, lower };
+}
+
+const IND_DEFS = [
+  { key: "sma9",   label: "SMA 9",    color: "#3b82f6" },
+  { key: "sma21",  label: "SMA 21",   color: "#f59e0b" },
+  { key: "sma50",  label: "SMA 50",   color: "#a855f7" },
+  { key: "sma200", label: "SMA 200",  color: "#ec4899" },
+  { key: "ema9",   label: "EMA 9",    color: "#06b6d4" },
+  { key: "ema21",  label: "EMA 21",   color: "#10b981" },
+  { key: "bb20",   label: "BB (20,2)", color: "#f97316" },
+];
+
+type IndKey = "sma9" | "sma21" | "sma50" | "sma200" | "ema9" | "ema21" | "bb20";
+const IND_DEFAULT: Record<IndKey, boolean> = {
+  sma9: false, sma21: false, sma50: false, sma200: false, ema9: false, ema21: false, bb20: false,
+};
 
 /* ── Constants ──────────────────────────────────────────────────────── */
 
@@ -736,6 +792,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const [color, setColor]     = useState(COLORS[0]);
   const [showDrawMenu, setShowDrawMenu] = useState(false);
   const [showTfMenu, setShowTfMenu]     = useState(false);
+  const [showIndMenu, setShowIndMenu]   = useState(false);
+  const [indicators, setIndicators]     = useState<Record<IndKey, boolean>>(IND_DEFAULT);
+  const [candlesVersion, setCandlesVersion] = useState(0);
+  const indSeriesRef = useRef<Record<string, ISeriesApi<any> | null>>({});
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; id: string } | null>(null);
@@ -1140,6 +1200,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
       candles.current = patched;
       series.setData(patched);
+      setCandlesVersion(v => v + 1);
 
       const applyView = () =>
         chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, patched.length - 30), to: patched.length + 3 });
@@ -1557,6 +1618,43 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   };
 
 
+  /* ── Indicator series effect ── */
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const data = candles.current;
+
+    const removeSeries = (key: string) => {
+      const s = indSeriesRef.current[key];
+      if (s) { try { chart.removeSeries(s); } catch {} indSeriesRef.current[key] = null; }
+    };
+
+    const addLine = (key: string, pts: LinePoint[], color: string, width = 1) => {
+      removeSeries(key);
+      if (!pts.length) return;
+      const s = chart.addSeries(LineSeries, { color, lineWidth: width as any, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+      s.setData(pts);
+      indSeriesRef.current[key] = s;
+    };
+
+    // SMA
+    removeSeries("sma9");   if (indicators.sma9   && data.length) addLine("sma9",   calcSMA(data, 9),   "#3b82f6");
+    removeSeries("sma21");  if (indicators.sma21  && data.length) addLine("sma21",  calcSMA(data, 21),  "#f59e0b");
+    removeSeries("sma50");  if (indicators.sma50  && data.length) addLine("sma50",  calcSMA(data, 50),  "#a855f7");
+    removeSeries("sma200"); if (indicators.sma200 && data.length) addLine("sma200", calcSMA(data, 200), "#ec4899");
+    // EMA
+    removeSeries("ema9");  if (indicators.ema9  && data.length) addLine("ema9",  calcEMA(data, 9),  "#06b6d4");
+    removeSeries("ema21"); if (indicators.ema21 && data.length) addLine("ema21", calcEMA(data, 21), "#10b981");
+    // Bollinger Bands
+    removeSeries("bb20_upper"); removeSeries("bb20_mid"); removeSeries("bb20_lower");
+    if (indicators.bb20 && data.length >= 20) {
+      const bb = calcBB(data, 20, 2);
+      addLine("bb20_upper", bb.upper, "rgba(249,115,22,0.7)", 1);
+      addLine("bb20_mid",   bb.mid,   "rgba(249,115,22,0.9)", 1);
+      addLine("bb20_lower", bb.lower, "rgba(249,115,22,0.7)", 1);
+    }
+  }, [indicators, candlesVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const TOOLS: { id: Tool; icon: React.ReactNode; title: string }[] = [
     { id: "cursor",   icon: <MousePointer2 className="w-4 h-4" />,         title: "Cursor" },
     { id: "hline",    icon: <Minus className="w-4 h-4" />,                 title: "Linha horizontal" },
@@ -1611,7 +1709,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
               {/* Timeframe toggle */}
               <button
                 title="Timeframe"
-                onClick={() => { setShowTfMenu(v => !v); setShowDrawMenu(false); }}
+                onClick={() => { setShowTfMenu(v => !v); setShowDrawMenu(false); setShowIndMenu(false); }}
                 style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
                   background: showTfMenu ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.82)",
                   border: `1px solid ${showTfMenu ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
@@ -1620,6 +1718,19 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
                 }}
               >
                 {tf}
+              </button>
+
+              {/* Indicators toggle */}
+              <button
+                title="Indicadores"
+                onClick={() => { setShowIndMenu(v => !v); setShowDrawMenu(false); setShowTfMenu(false); }}
+                style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
+                  background: showIndMenu || Object.values(indicators).some(Boolean) ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.82)",
+                  border: `1px solid ${showIndMenu || Object.values(indicators).some(Boolean) ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
+                  color: showIndMenu || Object.values(indicators).some(Boolean) ? "#f97316" : "#94a3b8",
+                }}
+              >
+                <BarChart2 className="w-4 h-4" />
               </button>
             </div>
 
@@ -1679,6 +1790,32 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
                     {t}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* Indicators submenu */}
+            {showIndMenu && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, background: "rgba(13,17,28,0.97)", borderRadius: 12, padding: "10px 8px", border: "1px solid rgba(255,255,255,0.1)", minWidth: 150 }}>
+                <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, letterSpacing: "0.08em", padding: "0 4px 6px" }}>INDICADORES</div>
+                {IND_DEFS.map(ind => {
+                  const active = indicators[ind.key as IndKey];
+                  return (
+                    <button key={ind.key}
+                      onClick={() => setIndicators(v => ({ ...v, [ind.key]: !v[ind.key as IndKey] }))}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8, cursor: "pointer", transition: "all 0.15s",
+                        background: active ? "rgba(249,115,22,0.12)" : "transparent",
+                        border: `1px solid ${active ? "rgba(249,115,22,0.25)" : "transparent"}`,
+                      }}
+                    >
+                      <div style={{ width: 14, height: 3, borderRadius: 2, background: ind.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, color: active ? "#fff" : "#94a3b8", whiteSpace: "nowrap", flex: 1, textAlign: "left" }}>{ind.label}</span>
+                      <div style={{ width: 14, height: 14, borderRadius: 3, border: `1px solid ${active ? "#f97316" : "rgba(255,255,255,0.2)"}`,
+                        background: active ? "#f97316" : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {active && <span style={{ color: "#fff", fontSize: 9, lineHeight: 1 }}>✓</span>}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
