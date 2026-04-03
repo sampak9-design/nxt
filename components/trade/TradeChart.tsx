@@ -7,12 +7,15 @@ import {
   CandlestickSeries,
   LineSeries,
   HistogramSeries,
+  BarSeries,
+  AreaSeries,
   ISeriesApi,
   IChartApi,
   UTCTimestamp,
 } from "lightweight-charts";
 import {
   MousePointer2, Minus, TrendingUp, Square, Eraser, Trash2, Pen, ZoomIn, ZoomOut, Crosshair, BarChart2,
+  CandlestickChart, AreaChart, Activity,
 } from "lucide-react";
 import type { Tab, ActiveTrade } from "./TradeLayout";
 
@@ -68,6 +71,28 @@ function calcBB(data: CandleClose[], period = 20, mult = 2) {
   return { upper, mid, lower };
 }
 
+function calcRSI(data: CandleClose[], period = 14): LinePoint[] {
+  if (data.length < period + 1) return [];
+  const out: LinePoint[] = [];
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = data[i].close - data[i - 1].close;
+    if (diff > 0) avgGain += diff; else avgLoss += Math.abs(diff);
+  }
+  avgGain /= period; avgLoss /= period;
+  const rsi0 = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  out.push({ time: data[period].time, value: rsi0 });
+  for (let i = period + 1; i < data.length; i++) {
+    const diff = data[i].close - data[i - 1].close;
+    const gain = Math.max(0, diff), loss = Math.abs(Math.min(0, diff));
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+    const rsi = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+    out.push({ time: data[i].time, value: rsi });
+  }
+  return out;
+}
+
 const IND_DEFS = [
   { key: "sma9",   label: "SMA 9",    color: "#3b82f6" },
   { key: "sma21",  label: "SMA 21",   color: "#f59e0b" },
@@ -76,11 +101,12 @@ const IND_DEFS = [
   { key: "ema9",   label: "EMA 9",    color: "#06b6d4" },
   { key: "ema21",  label: "EMA 21",   color: "#10b981" },
   { key: "bb20",   label: "BB (20,2)", color: "#f97316" },
+  { key: "rsi14",  label: "RSI (14)", color: "#a3e635" },
 ];
 
-type IndKey = "sma9" | "sma21" | "sma50" | "sma200" | "ema9" | "ema21" | "bb20";
+type IndKey = "sma9" | "sma21" | "sma50" | "sma200" | "ema9" | "ema21" | "bb20" | "rsi14";
 const IND_DEFAULT: Record<IndKey, boolean> = {
-  sma9: false, sma21: false, sma50: false, sma200: false, ema9: false, ema21: false, bb20: false,
+  sma9: false, sma21: false, sma50: false, sma200: false, ema9: false, ema21: false, bb20: false, rsi14: false,
 };
 
 /* ── Constants ──────────────────────────────────────────────────────── */
@@ -796,6 +822,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const [indicators, setIndicators]     = useState<Record<IndKey, boolean>>(IND_DEFAULT);
   const [candlesVersion, setCandlesVersion] = useState(0);
   const indSeriesRef = useRef<Record<string, ISeriesApi<any> | null>>({});
+  const [chartType, setChartType] = useState<"candlestick" | "line" | "area" | "bar">("candlestick");
+  const chartTypeRef = useRef<"candlestick" | "line" | "area" | "bar">("candlestick");
+  chartTypeRef.current = chartType;
+  const [showChartMenu, setShowChartMenu] = useState(false);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; id: string } | null>(null);
@@ -1199,7 +1229,12 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       });
 
       candles.current = patched;
-      series.setData(patched);
+      const ctype = chartTypeRef.current;
+      if (ctype === "line" || ctype === "area") {
+        (series as any).setData(patched.map((c: Candle) => ({ time: c.time, value: c.close })));
+      } else {
+        series.setData(patched);
+      }
       setCandlesVersion(v => v + 1);
 
       const applyView = () =>
@@ -1423,13 +1458,15 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       if (last.time === ct) {
         const u = { ...last, close: p, high: Math.max(last.high, p), low: Math.min(last.low, p) };
         list[list.length - 1] = u;
-        series.update(u);
+        const ctu = chartTypeRef.current;
+        series.update(ctu === "line" || ctu === "area" ? { time: u.time, value: u.close } as any : u);
         lastTime.current = ct;
         onPriceChange(p, ct);
       } else {
         const n: Candle = { time: ct, open: last.close, high: Math.max(last.close, p), low: Math.min(last.close, p), close: p };
         list.push(n);
-        series.update(n);
+        const ctn = chartTypeRef.current;
+        series.update(ctn === "line" || ctn === "area" ? { time: n.time, value: n.close } as any : n);
         lastTime.current = ct;
         onPriceChange(p, ct);
         // Persist forex candles on each new candle (crypto uses Binance OHLC)
@@ -1653,7 +1690,55 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       addLine("bb20_mid",   bb.mid,   "rgba(249,115,22,0.9)", 1);
       addLine("bb20_lower", bb.lower, "rgba(249,115,22,0.7)", 1);
     }
+    // RSI
+    removeSeries("rsi14"); removeSeries("rsi14_ob"); removeSeries("rsi14_os");
+    if (indicators.rsi14 && data.length > 15) {
+      const rsiPts = calcRSI(data, 14);
+      if (rsiPts.length) {
+        const rs = chart.addSeries(LineSeries, { color: "#a3e635", lineWidth: 1 as any, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, 1);
+        rs.setData(rsiPts);
+        indSeriesRef.current["rsi14"] = rs;
+        // Overbought/Oversold horizontal reference lines
+        const obPts = rsiPts.map(p => ({ time: p.time, value: 70 }));
+        const osPts = rsiPts.map(p => ({ time: p.time, value: 30 }));
+        const rOb = chart.addSeries(LineSeries, { color: "rgba(239,68,68,0.4)", lineWidth: 1 as any, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, 1);
+        rOb.setData(obPts);
+        indSeriesRef.current["rsi14_ob"] = rOb;
+        const rOs = chart.addSeries(LineSeries, { color: "rgba(34,197,94,0.4)", lineWidth: 1 as any, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, 1);
+        rOs.setData(osPts);
+        indSeriesRef.current["rsi14_os"] = rOs;
+      }
+    }
   }, [indicators, candlesVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Chart type effect ── */
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const oldSeries = seriesRef.current;
+    if (oldSeries) { try { chart.removeSeries(oldSeries); } catch {} }
+    const base = { priceLineVisible: false as const, lastValueVisible: false as const };
+    let s: ISeriesApi<any>;
+    if (chartType === "line") {
+      s = chart.addSeries(LineSeries, { ...base, color: "#f97316", lineWidth: 2 as any });
+    } else if (chartType === "area") {
+      s = chart.addSeries(AreaSeries, { ...base, topColor: "rgba(249,115,22,0.25)", bottomColor: "rgba(249,115,22,0.02)", lineColor: "#f97316" });
+    } else if (chartType === "bar") {
+      s = chart.addSeries(BarSeries, { ...base, upColor: "#22c55e", downColor: "#ef4444" });
+    } else {
+      s = chart.addSeries(CandlestickSeries, { ...base, upColor: "#22c55e", downColor: "#ef4444", borderUpColor: "#22c55e", borderDownColor: "#ef4444", wickUpColor: "#22c55e", wickDownColor: "#ef4444" });
+    }
+    seriesRef.current = s;
+    const data = candles.current;
+    if (data.length) {
+      if (chartType === "line" || chartType === "area") {
+        s.setData(data.map(c => ({ time: c.time, value: c.close })));
+      } else {
+        s.setData(data);
+      }
+      setCandlesVersion(v => v + 1);
+    }
+  }, [chartType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const TOOLS: { id: Tool; icon: React.ReactNode; title: string }[] = [
     { id: "cursor",   icon: <MousePointer2 className="w-4 h-4" />,         title: "Cursor" },
@@ -1731,6 +1816,22 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
                 }}
               >
                 <BarChart2 className="w-4 h-4" />
+              </button>
+
+              {/* Chart type toggle */}
+              <button
+                title="Tipo de gráfico"
+                onClick={() => { setShowChartMenu(v => !v); setShowDrawMenu(false); setShowTfMenu(false); setShowIndMenu(false); }}
+                style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
+                  background: showChartMenu ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.82)",
+                  border: `1px solid ${showChartMenu ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
+                  color: showChartMenu ? "#f97316" : "#94a3b8",
+                }}
+              >
+                {chartType === "candlestick" && <CandlestickChart className="w-4 h-4" />}
+                {chartType === "line" && <Activity className="w-4 h-4" />}
+                {chartType === "area" && <AreaChart className="w-4 h-4" />}
+                {chartType === "bar" && <BarChart2 className="w-4 h-4" />}
               </button>
             </div>
 
@@ -1813,6 +1914,34 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
                         background: active ? "#f97316" : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                         {active && <span style={{ color: "#fff", fontSize: 9, lineHeight: 1 }}>✓</span>}
                       </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Chart type submenu */}
+            {showChartMenu && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, background: "rgba(13,17,28,0.97)", borderRadius: 12, padding: "10px 8px", border: "1px solid rgba(255,255,255,0.1)", minWidth: 140 }}>
+                <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, letterSpacing: "0.08em", padding: "0 4px 6px" }}>TIPO DE GRÁFICO</div>
+                {([
+                  { key: "candlestick", label: "Candlestick", icon: <CandlestickChart className="w-3.5 h-3.5" /> },
+                  { key: "bar",         label: "Barras OHLC", icon: <BarChart2 className="w-3.5 h-3.5" /> },
+                  { key: "line",        label: "Linha",       icon: <Activity className="w-3.5 h-3.5" /> },
+                  { key: "area",        label: "Área",         icon: <AreaChart className="w-3.5 h-3.5" /> },
+                ] as const).map(ct => {
+                  const active = chartType === ct.key;
+                  return (
+                    <button key={ct.key}
+                      onClick={() => { setChartType(ct.key); setShowChartMenu(false); }}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8, cursor: "pointer", transition: "all 0.15s",
+                        background: active ? "rgba(249,115,22,0.12)" : "transparent",
+                        border: `1px solid ${active ? "rgba(249,115,22,0.25)" : "transparent"}`,
+                      }}
+                    >
+                      <span style={{ color: active ? "#f97316" : "#64748b", flexShrink: 0 }}>{ct.icon}</span>
+                      <span style={{ fontSize: 11, color: active ? "#fff" : "#94a3b8", whiteSpace: "nowrap", flex: 1, textAlign: "left" }}>{ct.label}</span>
+                      {active && <span style={{ color: "#f97316", fontSize: 9, lineHeight: 1 }}>✓</span>}
                     </button>
                   );
                 })}
