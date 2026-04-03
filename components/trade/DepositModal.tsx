@@ -333,19 +333,19 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
 
               <button
                 onClick={async () => {
-                  setCrediting(true);
-                  try {
-                    if (isMarketing) {
+                  if (isMarketing) {
+                    setCrediting(true);
+                    try {
                       const res = await fetch("/api/marketing-deposit", {
                         method: "POST", headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ amount }),
                       });
                       if (res.ok) { onDeposit(amount); }
-                    } else {
-                      onDeposit(amount);
-                    }
-                  } catch {}
-                  setCrediting(false);
+                    } catch {}
+                    setCrediting(false);
+                  } else {
+                    onClose();
+                  }
                 }}
                 disabled={crediting}
                 className="w-full py-2.5 rounded text-sm font-medium transition-all hover:opacity-80 disabled:opacity-40 flex items-center justify-center gap-2"
