@@ -165,9 +165,11 @@ export default function TradeHeader({
             {showBalancePanel && (
               <div
                 ref={panelRef}
-                className="fixed rounded-xl shadow-2xl"
-                style={{ background: "#161c2c", border: "1px solid rgba(255,255,255,0.08)", zIndex: 9999, top: panelPos.top, right: Math.max(panelPos.right, 8), left: 8, maxWidth: 440 }}
+                className="fixed rounded-xl shadow-2xl balance-panel"
+                style={{ background: "#161c2c", border: "1px solid rgba(255,255,255,0.08)", zIndex: 9999, top: panelPos.top, right: panelPos.right, width: 440 }}
               >
+                {/* Mobile: stretch to screen */}
+                <style>{`@media (max-width: 768px) { .balance-panel { left: 8px !important; right: 8px !important; width: auto !important; } }`}</style>
                 <div className="flex flex-col md:flex-row">
                   {/* Left summary */}
                   <div className="flex-shrink-0 p-4 text-xs md:w-[168px]" style={{ background: "#111622", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
