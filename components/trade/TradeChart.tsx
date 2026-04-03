@@ -14,7 +14,7 @@ import {
   UTCTimestamp,
 } from "lightweight-charts";
 import {
-  MousePointer2, Minus, TrendingUp, Square, Eraser, Trash2, Pen, ZoomIn, ZoomOut, Crosshair, BarChart2,
+  Minus, TrendingUp, Square, Eraser, Trash2, Pen, ZoomIn, ZoomOut, Crosshair, BarChart2,
   CandlestickChart, AreaChart, Activity,
 } from "lucide-react";
 import type { Tab, ActiveTrade } from "./TradeLayout";
@@ -1743,7 +1743,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   }, [chartType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const TOOLS: { id: Tool; icon: React.ReactNode; title: string }[] = [
-    { id: "cursor",   icon: <MousePointer2 className="w-4 h-4" />,         title: "Cursor" },
     { id: "hline",    icon: <Minus className="w-4 h-4" />,                 title: "Linha horizontal" },
     { id: "vline",    icon: <Minus className="w-4 h-4 rotate-90" />,       title: "Linha vertical" },
     { id: "trend",    icon: <TrendingUp className="w-4 h-4" />,            title: "Linha de tendência" },
@@ -1767,23 +1766,16 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
             {/* Main icon column */}
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
 
-              {/* Cursor */}
+              {/* Drawing tools toggle — also resets to cursor when a tool is active */}
               <button
-                title="Cursor"
-                onClick={() => { setTool("cursor"); setShowDrawMenu(false); setShowTfMenu(false); pendingPt.current = null; previewRef.current = null; setCtxMenu(null); setSelectedId(null); }}
-                style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
-                  background: tool === "cursor" && !showDrawMenu ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.82)",
-                  border: `1px solid ${tool === "cursor" && !showDrawMenu ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
-                  color: tool === "cursor" && !showDrawMenu ? "#f97316" : "#94a3b8",
+                title={tool !== "cursor" ? "Desativar ferramenta" : "Ferramentas de marcação"}
+                onClick={() => {
+                  if (tool !== "cursor") {
+                    setTool("cursor"); setShowDrawMenu(false); pendingPt.current = null; previewRef.current = null; setCtxMenu(null); setSelectedId(null);
+                  } else {
+                    setShowDrawMenu(v => !v); setShowTfMenu(false); setShowIndMenu(false); setShowChartMenu(false);
+                  }
                 }}
-              >
-                <MousePointer2 className="w-4 h-4" />
-              </button>
-
-              {/* Drawing tools toggle */}
-              <button
-                title="Ferramentas de marcação"
-                onClick={() => { setShowDrawMenu(v => !v); setShowTfMenu(false); }}
                 style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
                   background: showDrawMenu || (tool !== "cursor") ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.82)",
                   border: `1px solid ${showDrawMenu || (tool !== "cursor") ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
