@@ -1666,7 +1666,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   ];
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, overflow: "hidden", width: "100%", height: "100%" }}>
 
       {/* Chart area */}
       <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
