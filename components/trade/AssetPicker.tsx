@@ -253,11 +253,8 @@ export default function AssetPicker({ assets, openTabIds, activeTabId, onSelect,
                   <div
                     key={asset.id}
                     onClick={() => { onSelect(asset); onClose(); }}
-                    className="flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors hover:bg-white/[0.04]"
-                    style={{
-                      borderBottom: "1px solid rgba(255,255,255,0.03)",
-                      background: isOpen ? "rgba(249,115,22,0.07)" : undefined,
-                    }}
+                    className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors hover:bg-white/[0.04] ${isActive ? "bg-orange-500/[0.07]" : ""} ${!isActive && isOpen ? "md:bg-orange-500/[0.07]" : ""}`}
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}
                   >
                     {/* Icon */}
                     <div
@@ -274,8 +271,13 @@ export default function AssetPicker({ assets, openTabIds, activeTabId, onSelect,
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-sm font-semibold text-white truncate">{asset.name}</span>
-                        {isOpen && (
+                        {isActive && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(249,115,22,0.2)", color: "#f97316" }}>
+                            aberto
+                          </span>
+                        )}
+                        {!isActive && isOpen && (
+                          <span className="hidden md:inline text-[9px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(249,115,22,0.2)", color: "#f97316" }}>
                             aberto
                           </span>
                         )}
