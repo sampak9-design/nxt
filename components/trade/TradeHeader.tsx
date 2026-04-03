@@ -168,9 +168,9 @@ export default function TradeHeader({
                 className="fixed rounded-xl shadow-2xl"
                 style={{ background: "#161c2c", border: "1px solid rgba(255,255,255,0.08)", zIndex: 9999, top: panelPos.top, right: Math.max(panelPos.right, 8), left: 8, maxWidth: 440 }}
               >
-                <div className="flex">
-                  {/* Left summary — hidden on mobile */}
-                  <div className="hidden md:block flex-shrink-0 p-4 text-xs" style={{ width: 168, background: "#111622", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="flex flex-col md:flex-row">
+                  {/* Left summary */}
+                  <div className="flex-shrink-0 p-4 text-xs md:w-[168px]" style={{ background: "#111622", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
                     <div className="font-semibold text-white mb-3 text-[11px] whitespace-nowrap">
                       {accountType === "practice" ? "CONTA DE PRÁTICA" : "CONTA REAL"}
                     </div>
