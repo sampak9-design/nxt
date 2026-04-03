@@ -10,6 +10,7 @@ import TradesPage     from "@/components/admin/TradesPage";
 import AssetsPage     from "@/components/admin/AssetsPage";
 import ReportsPage    from "@/components/admin/ReportsPage";
 import SignalsPage    from "@/components/admin/SignalsPage";
+import IntegrationPage from "@/components/admin/IntegrationPage";
 
 export default function AdminPage() {
   const [page, setPage] = useState<AdminPage>("dashboard");
@@ -23,6 +24,7 @@ export default function AdminPage() {
     assets:      <AssetsPage />,
     signals:     <SignalsPage />,
     reports:     <ReportsPage />,
+    integration: <IntegrationPage />,
   }[page];
 
   return (
