@@ -1,9 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import { X, CreditCard, Zap } from "lucide-react";
+import { X, ChevronLeft, Search, Lock } from "lucide-react";
 
-const AMOUNTS = [50, 100, 250, 500, 1000, 2500];
+const AMOUNTS = [60, 100, 250, 500, 1000, 1500, 2000, 4000];
+const MIN = 60;
+
+type Method = {
+  id: string;
+  name: string;
+  time: string;
+  locked: boolean;
+  recommended?: boolean;
+  logo: React.ReactNode;
+};
+
+const PIX_LOGO = (
+  <svg viewBox="0 0 40 40" className="w-9 h-9">
+    <rect width="40" height="40" rx="8" fill="#32BCAD"/>
+    <path d="M20 8l5.3 5.3-5.3 5.3-5.3-5.3L20 8zm10 10l-5.3 5.3 5.3 5.3L35.3 23 30 18zm-10 10l5.3 5.3L20 38.6l-5.3-5.3L20 28zm-10-10l5.3 5.3L10 28.6 4.7 23.3 10 18z" fill="white"/>
+  </svg>
+);
+
+const METHODS: Method[] = [
+  { id: "pix",        name: "PIX (Apenas seu CPF)", time: "1–6 horas",          locked: false, recommended: true, logo: PIX_LOGO },
+  { id: "googlepay",  name: "Google Pay",            time: "Instantâneo",        locked: true,  logo: <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center text-[10px] font-bold text-gray-700">G Pay</div> },
+  { id: "applepay",   name: "Apple Pay",             time: "Instantâneo",        locked: true,  logo: <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center"><svg viewBox="0 0 24 24" className="w-5 h-5"><path fill="#000" d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg></div> },
+  { id: "mastercard", name: "Mastercard",            time: "Instantâneo",        locked: true,  logo: <div className="w-9 h-9 rounded-lg bg-gray-800 border border-white/10 flex items-center justify-center"><div className="flex"><div className="w-5 h-5 rounded-full bg-red-500 opacity-90"/><div className="w-5 h-5 rounded-full bg-yellow-400 opacity-90 -ml-2"/></div></div> },
+  { id: "visa",       name: "Visa",                  time: "Instantâneo · Contas verificadas", locked: true, logo: <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center text-[11px] font-extrabold text-blue-800 tracking-tight">VISA</div> },
+  { id: "picpay",     name: "PicPay (Apenas seu CPF)", time: "3–60 minutos",     locked: true,  logo: <div className="w-9 h-9 rounded-lg bg-[#21c25e] flex items-center justify-center text-white text-[9px] font-bold">PicPay</div> },
+  { id: "boleto",     name: "Boleto Rápido",         time: "1–3 dias úteis",     locked: true,  logo: <div className="w-9 h-9 rounded-lg bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-700">BOLETO</div> },
+];
 
 interface Props {
   onDeposit: (amount: number) => void;
@@ -11,112 +38,221 @@ interface Props {
 }
 
 export default function DepositModal({ onDeposit, onClose }: Props) {
-  const [selected, setSelected] = useState(100);
-  const [custom, setCustom]     = useState("");
+  const [step, setStep]         = useState<"method" | "form">("method");
+  const [method, setMethod]     = useState<Method | null>(null);
+  const [search, setSearch]     = useState("");
+  const [amount, setAmount]     = useState(100);
+  const [customAmount, setCustom] = useState("100");
+  const [name, setName]         = useState("");
+  const [lastName, setLastName] = useState("");
+  const [cpf, setCpf]           = useState("");
+  const [promo, setPromo]       = useState("");
+  const [agreed, setAgreed]     = useState(false);
 
-  const finalAmount = custom ? parseFloat(custom) || 0 : selected;
+  const filtered = METHODS.filter((m) =>
+    !search || m.name.toLowerCase().includes(search.toLowerCase())
+  );
+  const recommended = filtered.filter((m) => m.recommended);
+  const others      = filtered.filter((m) => !m.recommended);
+
+  const selectAmount = (v: number) => { setAmount(v); setCustom(String(v)); };
+
+  const handleDeposit = () => {
+    if (!agreed || !name || !cpf) return;
+    onDeposit(amount);
+  };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.7)" }}
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.75)" }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="flex flex-col rounded-xl border shadow-2xl overflow-hidden w-[420px]"
-        style={{ background: "var(--color-third)", borderColor: "var(--color-border)" }}
+        className="flex flex-col w-full md:w-[420px] md:rounded-xl overflow-hidden shadow-2xl"
+        style={{ background: "#111", maxHeight: "95dvh" }}
       >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-4 border-b"
-          style={{ borderColor: "var(--color-border)" }}
-        >
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-green-400" />
-            <span className="font-bold text-white">Depositar</span>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-          >
-            <X className="w-4 h-4 text-gray-400" />
-          </button>
-        </div>
-
-        <div className="p-5 flex flex-col gap-5">
-          {/* Amount grid */}
-          <div>
-            <label className="block text-xs text-gray-400 uppercase tracking-wide mb-3">
-              Selecione o valor
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {AMOUNTS.map((a) => (
-                <button
-                  key={a}
-                  onClick={() => { setSelected(a); setCustom(""); }}
-                  className="py-2.5 rounded-lg text-sm font-semibold transition-all"
-                  style={{
-                    background: selected === a && !custom
-                      ? "var(--color-primary)"
-                      : "rgba(255,255,255,0.06)",
-                    color: selected === a && !custom ? "#fff" : "#94a3b8",
-                    border: `1px solid ${selected === a && !custom ? "var(--color-primary)" : "rgba(255,255,255,0.08)"}`,
-                  }}
-                >
-                  ${a.toLocaleString()}
-                </button>
-              ))}
+        {/* ── Step 1: Method selection ── */}
+        {step === "method" && (
+          <>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
+                <X className="w-4 h-4 text-white" />
+              </button>
+              <span className="font-semibold text-white">Método de pagamento</span>
             </div>
-          </div>
 
-          {/* Custom amount */}
-          <div>
-            <label className="block text-xs text-gray-400 uppercase tracking-wide mb-2">
-              Outro valor
-            </label>
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border"
-              style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
-            >
-              <span className="text-gray-400 text-sm">$</span>
-              <input
-                type="number"
-                placeholder="0.00"
-                value={custom}
-                onChange={(e) => { setCustom(e.target.value); setSelected(0); }}
-                min="1"
-                className="flex-1 bg-transparent text-white text-sm focus:outline-none"
-              />
+            {/* Search */}
+            <div className="px-4 py-3 flex-shrink-0">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "rgba(255,255,255,0.07)" }}>
+                <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar por forma de pagamento"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
+                  style={{ fontSize: 16 }}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Summary */}
-          <div
-            className="flex items-center justify-between p-3 rounded-lg"
-            style={{ background: "rgba(52,169,62,0.1)", border: "1px solid rgba(52,169,62,0.2)" }}
-          >
-            <span className="text-sm text-gray-300">Saldo que será adicionado</span>
-            <span className="font-bold text-green-400 text-base">
-              ${finalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-            </span>
-          </div>
+            {/* List */}
+            <div className="overflow-y-auto flex-1 px-4 pb-6">
+              {recommended.length > 0 && (
+                <>
+                  <div className="text-[11px] font-semibold text-gray-500 tracking-widest mb-2">RECOMENDADO</div>
+                  {recommended.map((m) => (
+                    <MethodRow key={m.id} m={m} onSelect={() => { setMethod(m); setStep("form"); }} />
+                  ))}
+                </>
+              )}
+              {others.length > 0 && (
+                <>
+                  <div className="text-[11px] font-semibold text-gray-500 tracking-widest mt-4 mb-2">OUTROS MÉTODOS</div>
+                  {others.map((m) => (
+                    <MethodRow key={m.id} m={m} onSelect={() => { setMethod(m); setStep("form"); }} />
+                  ))}
+                </>
+              )}
+            </div>
+          </>
+        )}
 
-          {/* CTA */}
-          <button
-            onClick={() => { if (finalAmount > 0) onDeposit(finalAmount); }}
-            disabled={finalAmount <= 0}
-            className="w-full py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: "#34A93E" }}
-          >
-            <Zap className="w-4 h-4" />
-            Depositar ${finalAmount > 0 ? finalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "0,00"}
-          </button>
+        {/* ── Step 2: Deposit form ── */}
+        {step === "form" && method && (
+          <>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              <button onClick={() => setStep("method")} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
+                <ChevronLeft className="w-5 h-5 text-white" />
+              </button>
+              <span className="font-semibold text-white">{method.name}</span>
+            </div>
 
-          <p className="text-center text-[11px] text-gray-500">
-            Ambiente de demonstração · Nenhum valor real é cobrado
-          </p>
-        </div>
+            <div className="overflow-y-auto flex-1 px-4 py-4 flex flex-col gap-4">
+              {/* Amount input */}
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Valor</div>
+                <input
+                  type="number"
+                  value={customAmount}
+                  onChange={(e) => { setCustom(e.target.value); setAmount(parseFloat(e.target.value) || 0); }}
+                  className="w-full bg-transparent text-white text-2xl font-bold focus:outline-none"
+                  style={{ borderBottom: "1px solid rgba(255,255,255,0.15)", paddingBottom: 6 }}
+                />
+                <div className="text-xs text-gray-500 mt-1">Mínimo: R$ {MIN},00</div>
+              </div>
+
+              {/* Amount chips */}
+              <div className="grid grid-cols-4 gap-2">
+                {AMOUNTS.map((a) => (
+                  <button
+                    key={a}
+                    onClick={() => selectAmount(a)}
+                    className="py-2 rounded text-xs font-semibold transition-all"
+                    style={{
+                      background: amount === a ? "#34A93E" : "rgba(255,255,255,0.07)",
+                      color: amount === a ? "#fff" : "#94a3b8",
+                      border: `1px solid ${amount === a ? "#34A93E" : "rgba(255,255,255,0.1)"}`,
+                    }}
+                  >
+                    R$ {a.toLocaleString("pt-BR")}
+                  </button>
+                ))}
+              </div>
+
+              {/* Promo */}
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>PROMOÇÃO</span>
+                  <span>· Exibir disponíveis (0)</span>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Insira seu código promocional"
+                    value={promo}
+                    onChange={(e) => setPromo(e.target.value)}
+                    className="flex-1 bg-transparent text-sm text-white focus:outline-none px-3 py-2 rounded"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+                  />
+                  <button className="px-3 py-2 rounded text-sm text-gray-400" style={{ background: "rgba(255,255,255,0.06)" }}>
+                    Aplicar
+                  </button>
+                </div>
+                <div className="text-[11px] text-gray-500 mt-1">Um código promocional por depósito</div>
+              </div>
+
+              {/* Notice */}
+              <div className="text-[11px] text-gray-400 p-3 rounded" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                Nossa plataforma não permite CNPJ, CPF de terceiros e/ou métodos de pagamento de terceiros. 90% dos pagamentos são processados pelo provedor em até 5 minutos.
+              </div>
+
+              {/* Name */}
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Nome</div>
+                <input type="text" placeholder="Nome" value={name} onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded text-sm text-white focus:outline-none"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+              </div>
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Sobrenome</div>
+                <input type="text" placeholder="Sobrenome" value={lastName} onChange={(e) => setLastName(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded text-sm text-white focus:outline-none"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+              </div>
+              <div>
+                <div className="text-xs text-gray-400 mb-1">CPF <span className="text-gray-600">11 dígitos</span></div>
+                <input type="text" placeholder="Digite seu CPF" value={cpf} onChange={(e) => setCpf(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded text-sm text-white focus:outline-none"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+              </div>
+
+              {/* Terms */}
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1 accent-orange-500" />
+                <span className="text-xs text-gray-400">
+                  Eu, por meio deste, aceito as <span className="text-orange-500">Termos e Condições</span>
+                </span>
+              </label>
+
+              {/* CTA */}
+              <button
+                onClick={handleDeposit}
+                disabled={!agreed || !name || !cpf || amount < MIN}
+                className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: "#34A93E" }}
+              >
+                Depositar R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+function MethodRow({ m, onSelect }: { m: Method; onSelect: () => void }) {
+  return (
+    <button
+      onClick={onSelect}
+      className="w-full flex items-center gap-3 p-3 rounded-lg mb-1 transition-colors hover:bg-white/[0.05]"
+      style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+    >
+      <div className="flex-shrink-0">{m.logo}</div>
+      <div className="flex-1 text-left">
+        <div className="text-sm font-medium text-white">{m.name}</div>
+        <div className="text-xs text-gray-500">{m.time}</div>
+      </div>
+      {m.locked && (
+        <div className="flex items-center gap-1 px-2 py-1 rounded text-xs text-gray-400" style={{ background: "rgba(255,255,255,0.06)" }}>
+          <Lock className="w-3 h-3" />
+          Bloqueado
+        </div>
+      )}
+    </button>
   );
 }
