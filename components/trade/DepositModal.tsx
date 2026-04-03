@@ -144,7 +144,7 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
   const [error, setError]         = useState("");
   const [qr, setQr]               = useState<{ qr_code: string; qr_image?: string } | null>(null);
 
-  if (isMarketing) return <MarketingDeposit onDeposit={onDeposit} onClose={onClose} />;
+  // isMarketing muda apenas o handleDeposit — o popup é o mesmo
 
   const filtered    = METHODS.filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase()));
   const recommended = filtered.filter(m => m.recommended);
@@ -155,14 +155,26 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
     if (!agreed || !name || !cpf || amount < MIN) return;
     setError(""); setLoading(true);
     try {
-      const res = await fetch("/api/pix-charge", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, name: `${name} ${lastName}`.trim(), cpf }),
-      });
-      const d = await res.json();
-      if (!res.ok) { setError(d.error ?? "Erro ao gerar PIX"); setLoading(false); return; }
-      setQr(d);
-      setStep("qr");
+      if (isMarketing) {
+        // Conta marketing: credita direto no saldo
+        const res = await fetch("/api/marketing-deposit", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount }),
+        });
+        const d = await res.json();
+        if (!res.ok) { setError(d.error ?? "Erro ao processar"); setLoading(false); return; }
+        onDeposit(amount);
+      } else {
+        // Conta normal: gera QR Code PIX via BSPay
+        const res = await fetch("/api/pix-charge", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount, name: `${name} ${lastName}`.trim(), cpf }),
+        });
+        const d = await res.json();
+        if (!res.ok) { setError(d.error ?? "Erro ao gerar PIX"); setLoading(false); return; }
+        setQr(d);
+        setStep("qr");
+      }
     } catch { setError("Erro de conexão"); }
     setLoading(false);
   };
@@ -287,7 +299,9 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
                 className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 style={{ background: "#34A93E" }}>
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                {loading ? "Gerando PIX..." : `Depositar R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+                {loading
+                  ? (isMarketing ? "Processando..." : "Gerando PIX...")
+                  : `Depositar R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
               </button>
             </div>
           </>
