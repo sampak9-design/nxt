@@ -64,14 +64,39 @@ export async function POST(req: NextRequest) {
 
     const chargeData = await chargeRes.json();
     if (!chargeRes.ok) {
-      return NextResponse.json({ error: chargeData?.message ?? "Erro ao gerar cobrança" }, { status: 400 });
+      return NextResponse.json({ error: chargeData?.message ?? chargeData?.error ?? "Erro ao gerar cobrança", raw: chargeData }, { status: 400 });
     }
 
+    // Tentar todos os campos possíveis da BSPay
+    const qr_code =
+      chargeData.qr_code        ??
+      chargeData.pixCopiaECola  ??
+      chargeData.brCode         ??
+      chargeData.emv            ??
+      chargeData.pix_code       ??
+      chargeData.copy_paste      ??
+      chargeData.copia_e_cola   ??
+      chargeData?.pix?.qr_code  ??
+      chargeData?.data?.qr_code ??
+      chargeData?.data?.pixCopiaECola ??
+      null;
+
+    const qr_image =
+      chargeData.qr_image        ??
+      chargeData.imagemQrcode    ??
+      chargeData.qrcode_image    ??
+      chargeData.image           ??
+      chargeData?.pix?.qr_image  ??
+      chargeData?.data?.qr_image ??
+      null;
+
+    // Retorna campos mapeados + raw para debug
     return NextResponse.json({
-      qr_code:    chargeData.qr_code    ?? chargeData.pixCopiaECola ?? chargeData.brCode,
-      qr_image:   chargeData.qr_image   ?? chargeData.imagemQrcode,
-      txid:       chargeData.txid       ?? chargeData.id,
-      expires_at: chargeData.expires_at ?? chargeData.expiracao,
+      qr_code,
+      qr_image,
+      txid:       chargeData.txid       ?? chargeData.id       ?? chargeData?.data?.txid,
+      expires_at: chargeData.expires_at ?? chargeData.expiracao ?? chargeData?.data?.expires_at,
+      _raw: chargeData, // debug: remover após confirmar campos corretos
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Erro interno" }, { status: 500 });

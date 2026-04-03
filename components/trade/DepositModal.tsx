@@ -160,6 +160,13 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
       });
       const d = await res.json();
       if (!res.ok) { setError(d.error ?? "Erro ao gerar PIX"); setLoading(false); return; }
+      // Debug: ver resposta completa da BSPay no console
+      console.log("[BSPay response]", d._raw);
+      if (!d.qr_code && !d.qr_image) {
+        setError(`Gateway retornou resposta inesperada. Verifique o console. Raw: ${JSON.stringify(d._raw ?? d)}`);
+        setLoading(false);
+        return;
+      }
       setQr(d);
       setStep("qr");
     } catch { setError("Erro de conexão"); }
