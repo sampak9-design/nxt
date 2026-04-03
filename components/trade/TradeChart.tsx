@@ -1268,7 +1268,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
           const d = JSON.parse(e.data);
           const q = d?.tick?.quote;
           const now = Date.now();
-          if (q && q > 0 && now - lastDerivUpdate >= 2000) {
+          if (q && q > 0 && now - lastDerivUpdate >= 4000) {
             lastDerivUpdate = now;
             realPriceRef.current = q;
           }
@@ -1342,8 +1342,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         noise = current * (Math.random() - 0.5) * 0.000008;
       } else {
         // Forex: preço muda só a cada 2s — drift muito suave, ruído mínimo
-        drift = (real - current) * 0.03;
-        noise = current * (Math.random() - 0.5) * 0.000003;
+        drift = (real - current) * 0.015;
+        noise = current * (Math.random() - 0.5) * 0.0000015;
       }
       // toFixed(7) avoids rounding killing sub-pip moves; priceFormat handles display
       const p = +(current + drift + noise).toFixed(7);
