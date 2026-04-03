@@ -21,7 +21,8 @@ db.exec(`
     password_hash TEXT    NOT NULL,
     demo_balance  REAL    NOT NULL DEFAULT 10000,
     real_balance  REAL    NOT NULL DEFAULT 0,
-    created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+    avatar_url    TEXT
   );
 
   CREATE TABLE IF NOT EXISTS trades (
@@ -42,5 +43,8 @@ db.exec(`
     expires_at    INTEGER NOT NULL
   );
 `);
+
+// Migrations — safe to run multiple times
+try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch {}
 
 export default db;

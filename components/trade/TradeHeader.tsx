@@ -34,9 +34,22 @@ export default function TradeHeader({
   const [showProfile, setShowProfile] = useState(false);
   const [panelPos, setPanelPos] = useState({ top: 0, right: 0 });
   const [profilePos, setProfilePos] = useState({ top: 0, right: 0 });
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [initials, setInitials] = useState("Z");
   const btnRef     = useRef<HTMLButtonElement>(null);
   const avatarRef  = useRef<HTMLButtonElement>(null);
   const panelRef   = useRef<HTMLDivElement>(null);
+
+  // Load avatar on mount and when profile closes (avatar may have changed)
+  const loadAvatar = () => {
+    fetch("/api/auth/me").then((r) => r.json()).then((d) => {
+      if (d.user) {
+        setInitials(`${d.user.first_name[0]}${d.user.last_name[0]}`.toUpperCase());
+        setAvatarUrl(d.user.avatar_url ? `${d.user.avatar_url}?t=${Date.now()}` : null);
+      }
+    }).catch(() => {});
+  };
+  useEffect(() => { loadAvatar(); }, []);
 
   const balance    = accountType === "practice" ? demoBalance : realBalance;
   const openTabIds = new Set(tabs.map((t) => t.id));
@@ -277,12 +290,10 @@ export default function TradeHeader({
             className="flex-shrink-0 rounded-full overflow-hidden hover:opacity-90 transition-opacity"
             style={{ width: 34, height: 34, border: "2px solid var(--color-primary)" }}
           >
-            <div
-              className="w-full h-full flex items-center justify-center text-xs font-bold text-white"
-              style={{ background: "linear-gradient(135deg,#f97316,#ea6c0a)" }}
-            >
-              Z
-            </div>
+            {avatarUrl
+              ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+              : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg,#f97316,#ea6c0a)" }}>{initials}</div>
+            }
           </button>
         </div>
       </header>
@@ -290,7 +301,7 @@ export default function TradeHeader({
       {showProfile && (
         <ProfilePanel
           pos={profilePos}
-          onClose={() => setShowProfile(false)}
+          onClose={() => { setShowProfile(false); loadAvatar(); }}
           onDepositClick={onDepositClick}
         />
       )}
