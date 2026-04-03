@@ -331,28 +331,29 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
                 Após o pagamento, seu saldo será creditado automaticamente. Não feche esta janela até pagar.
               </div>
 
-              {isMarketing && (
-                <button
-                  onClick={async () => {
-                    setCrediting(true);
-                    try {
+              <button
+                onClick={async () => {
+                  setCrediting(true);
+                  try {
+                    if (isMarketing) {
                       const res = await fetch("/api/marketing-deposit", {
                         method: "POST", headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ amount }),
                       });
-                      const d = await res.json();
                       if (res.ok) { onDeposit(amount); }
-                    } catch {}
-                    setCrediting(false);
-                  }}
-                  disabled={crediting}
-                  className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2"
-                  style={{ background: "#34A93E" }}
-                >
-                  {crediting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {crediting ? "Creditando..." : "Já paguei — Creditar saldo"}
-                </button>
-              )}
+                    } else {
+                      onDeposit(amount);
+                    }
+                  } catch {}
+                  setCrediting(false);
+                }}
+                disabled={crediting}
+                className="w-full py-2.5 rounded text-sm font-medium transition-all hover:opacity-80 disabled:opacity-40 flex items-center justify-center gap-2"
+                style={{ background: "rgba(255,255,255,0.07)", color: "#94a3b8", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                {crediting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {crediting ? "Processando..." : "Já paguei"}
+              </button>
             </div>
           </>
         )}
