@@ -68,35 +68,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Tentar todos os campos possíveis da BSPay
-    const qr_code =
-      chargeData.qr_code        ??
-      chargeData.pixCopiaECola  ??
-      chargeData.brCode         ??
-      chargeData.emv            ??
-      chargeData.pix_code       ??
-      chargeData.copy_paste      ??
-      chargeData.copia_e_cola   ??
-      chargeData?.pix?.qr_code  ??
-      chargeData?.data?.qr_code ??
-      chargeData?.data?.pixCopiaECola ??
-      null;
-
-    const qr_image =
-      chargeData.qr_image        ??
-      chargeData.imagemQrcode    ??
-      chargeData.qrcode_image    ??
-      chargeData.image           ??
-      chargeData?.pix?.qr_image  ??
-      chargeData?.data?.qr_image ??
-      null;
-
-    // Retorna campos mapeados + raw para debug
     return NextResponse.json({
-      qr_code,
-      qr_image,
-      txid:       chargeData.txid       ?? chargeData.id       ?? chargeData?.data?.txid,
-      expires_at: chargeData.expires_at ?? chargeData.expiracao ?? chargeData?.data?.expires_at,
-      _raw: chargeData, // debug: remover após confirmar campos corretos
+      qr_code:    chargeData.qrcode      ?? chargeData.qr_code ?? chargeData.pixCopiaECola ?? chargeData.brCode ?? null,
+      qr_image:   chargeData.qr_image    ?? chargeData.imagemQrcode ?? null,
+      txid:       chargeData.transactionId ?? chargeData.txid ?? chargeData.id ?? null,
+      expires_at: chargeData.calendar?.dueDate ?? chargeData.expires_at ?? null,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "Erro interno" }, { status: 500 });

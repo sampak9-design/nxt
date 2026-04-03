@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X, ChevronLeft, Search, Lock, CheckCircle2, Copy, Check, Loader2 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 const AMOUNTS = [60, 100, 250, 500, 1000, 1500, 2000, 4000];
 const MIN = 60;
@@ -160,13 +161,6 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
       });
       const d = await res.json();
       if (!res.ok) { setError(d.error ?? "Erro ao gerar PIX"); setLoading(false); return; }
-      // Debug: ver resposta completa da BSPay no console
-      console.log("[BSPay response]", d._raw);
-      if (!d.qr_code && !d.qr_image) {
-        setError(`Gateway retornou resposta inesperada. Verifique o console. Raw: ${JSON.stringify(d._raw ?? d)}`);
-        setLoading(false);
-        return;
-      }
       setQr(d);
       setStep("qr");
     } catch { setError("Erro de conexão"); }
@@ -315,9 +309,9 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
                   R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </div>
               </div>
-              {qr.qr_image && (
+              {qr.qr_code && (
                 <div className="p-3 rounded-xl bg-white">
-                  <img src={qr.qr_image} alt="QR Code PIX" className="w-48 h-48" />
+                  <QRCodeSVG value={qr.qr_code} size={192} />
                 </div>
               )}
               {qr.qr_code && (
