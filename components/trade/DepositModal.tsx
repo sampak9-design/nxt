@@ -38,165 +38,41 @@ interface Props {
   isMarketing?: boolean;
 }
 
-/* ── Copy-to-clipboard button ── */
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
-  const handle = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
   return (
-    <button onClick={handle}
-      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+    <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all w-full justify-center"
       style={{ background: copied ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.1)", color: copied ? "#4ade80" : "#e2e8f0" }}>
       {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-      {copied ? "Copiado!" : "Copiar código"}
+      {copied ? "Copiado!" : "Copiar código PIX"}
     </button>
   );
 }
 
-/* ── PIX QR Code screen ── */
-function PixQrScreen({ amount, onClose }: { amount: number; onClose: () => void }) {
-  const [name, setName]   = useState("");
-  const [cpf, setCpf]     = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [qr, setQr]       = useState<{ qr_code: string; qr_image?: string; txid?: string } | null>(null);
-
-  const handleGenerate = async () => {
-    if (!name || !cpf) { setError("Preencha nome e CPF."); return; }
-    setError("");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/pix-charge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, name, cpf }),
-      });
-      const d = await res.json();
-      if (!res.ok) { setError(d.error ?? "Erro ao gerar PIX"); setLoading(false); return; }
-      setQr(d);
-    } catch {
-      setError("Erro de conexão");
-    }
-    setLoading(false);
-  };
-
-  if (qr) {
-    return (
-      <div className="flex flex-col gap-4 px-4 py-5">
-        <div className="text-center">
-          <div className="text-xs text-gray-400 mb-1">Valor</div>
-          <div className="text-2xl font-bold text-white">
-            R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-          </div>
-        </div>
-
-        {/* QR image */}
-        {qr.qr_image && (
-          <div className="flex justify-center">
-            <div className="p-3 rounded-xl bg-white">
-              <img src={qr.qr_image} alt="QR Code PIX" className="w-44 h-44" />
-            </div>
-          </div>
-        )}
-
-        {/* Pix copia e cola */}
-        {qr.qr_code && (
-          <div className="flex flex-col gap-2">
-            <div className="text-xs text-gray-400">PIX Copia e Cola</div>
-            <div className="rounded-lg px-3 py-2 text-[11px] text-gray-300 break-all select-all"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", fontFamily: "monospace" }}>
-              {qr.qr_code}
-            </div>
-            <CopyButton text={qr.qr_code} />
-          </div>
-        )}
-
-        <div className="rounded-lg p-3 text-[11px] text-gray-400"
-          style={{ background: "rgba(255,165,0,0.08)", border: "1px solid rgba(255,165,0,0.15)" }}>
-          Após o pagamento, seu saldo será creditado automaticamente em até 1–6 horas. Não feche esta tela até confirmar o pagamento.
-        </div>
-
-        <button onClick={onClose}
-          className="w-full py-3 rounded font-semibold text-white text-sm transition-all hover:opacity-90"
-          style={{ background: "rgba(255,255,255,0.1)" }}>
-          Fechar
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-4 px-4 py-5">
-      <div>
-        <div className="text-xs text-gray-400 mb-1">Valor do depósito</div>
-        <div className="text-2xl font-bold text-white">
-          R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-        </div>
-      </div>
-
-      <div className="text-[11px] text-gray-400 p-3 rounded-lg"
-        style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-        Informe seus dados para gerar o QR Code PIX. Use apenas seu próprio CPF.
-      </div>
-
-      <div>
-        <div className="text-xs text-gray-400 mb-1">Nome completo</div>
-        <input type="text" value={name} onChange={e => setName(e.target.value)}
-          placeholder="Seu nome completo"
-          className="w-full px-3 py-2.5 rounded text-sm text-white focus:outline-none"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 16 }} />
-      </div>
-      <div>
-        <div className="text-xs text-gray-400 mb-1">CPF <span className="text-gray-600">11 dígitos</span></div>
-        <input type="text" value={cpf} onChange={e => setCpf(e.target.value)}
-          placeholder="000.000.000-00"
-          className="w-full px-3 py-2.5 rounded text-sm text-white focus:outline-none"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", fontSize: 16 }} />
-      </div>
-
-      {error && <p className="text-sm text-red-400">{error}</p>}
-
-      <button onClick={handleGenerate} disabled={loading || !name || !cpf}
-        className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        style={{ background: "#34A93E" }}>
-        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-        {loading ? "Gerando QR Code..." : "Gerar QR Code PIX"}
-      </button>
-    </div>
-  );
-}
-
-/* ── Marketing deposit (direct, no payment gateway) ── */
+/* ── Marketing deposit ── */
 function MarketingDeposit({ onDeposit, onClose }: { onDeposit: (n: number) => void; onClose: () => void }) {
   const [amount, setAmount] = useState(100);
   const [custom, setCustom] = useState("100");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [error, setError]   = useState("");
+  const [error, setError] = useState("");
 
   const selectAmount = (v: number) => { setAmount(v); setCustom(String(v)); };
 
   const handleProcess = async () => {
     if (amount < MIN) { setError(`Mínimo: R$ ${MIN}`); return; }
-    setError("");
-    setLoading(true);
+    setError(""); setLoading(true);
     try {
       const res = await fetch("/api/marketing-deposit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount }),
       });
       const d = await res.json();
       if (!res.ok) { setError(d.error ?? "Erro ao processar"); setLoading(false); return; }
       setSuccess(true);
       setTimeout(() => { onDeposit(amount); }, 1500);
-    } catch {
-      setError("Erro de conexão");
-      setLoading(false);
-    }
+    } catch { setError("Erro de conexão"); setLoading(false); }
   };
 
   return (
@@ -205,14 +81,12 @@ function MarketingDeposit({ onDeposit, onClose }: { onDeposit: (n: number) => vo
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="flex flex-col w-full md:w-[420px] md:rounded-xl overflow-hidden shadow-2xl"
         style={{ background: "#1a2236", maxHeight: "95dvh" }}>
-        <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+        <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
             <X className="w-4 h-4 text-white" />
           </button>
           <span className="font-semibold text-white">Depositar fundos</span>
         </div>
-
         <div className="overflow-y-auto flex-1 px-4 py-5 flex flex-col gap-4">
           {success ? (
             <div className="flex flex-col items-center gap-3 py-8">
@@ -232,21 +106,17 @@ function MarketingDeposit({ onDeposit, onClose }: { onDeposit: (n: number) => vo
               </div>
               <div className="grid grid-cols-4 gap-2">
                 {AMOUNTS.map(a => (
-                  <button key={a} onClick={() => selectAmount(a)}
-                    className="py-2 rounded text-xs font-semibold transition-all"
-                    style={{
-                      background: amount === a ? "#34A93E" : "rgba(255,255,255,0.07)",
-                      color:      amount === a ? "#fff" : "#94a3b8",
-                      border:     `1px solid ${amount === a ? "#34A93E" : "rgba(255,255,255,0.1)"}`,
-                    }}>
+                  <button key={a} onClick={() => selectAmount(a)} className="py-2 rounded text-xs font-semibold transition-all"
+                    style={{ background: amount === a ? "#34A93E" : "rgba(255,255,255,0.07)", color: amount === a ? "#fff" : "#94a3b8", border: `1px solid ${amount === a ? "#34A93E" : "rgba(255,255,255,0.1)"}` }}>
                     R$ {a.toLocaleString("pt-BR")}
                   </button>
                 ))}
               </div>
               {error && <p className="text-sm text-red-400">{error}</p>}
               <button onClick={handleProcess} disabled={loading || amount < MIN}
-                className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 style={{ background: "#34A93E" }}>
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {loading ? "Processando..." : `Processar R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
               </button>
             </>
@@ -257,24 +127,44 @@ function MarketingDeposit({ onDeposit, onClose }: { onDeposit: (n: number) => vo
   );
 }
 
-/* ── Main DepositModal ── */
+/* ── Main modal ── */
 export default function DepositModal({ onDeposit, onClose, isMarketing }: Props) {
-  const [step, setStep]     = useState<"method" | "amount" | "qr">("method");
-  const [method, setMethod] = useState<Method | null>(null);
-  const [search, setSearch] = useState("");
-  const [amount, setAmount] = useState(100);
+  const [step, setStep]           = useState<"method" | "form" | "qr">("method");
+  const [method, setMethod]       = useState<Method | null>(null);
+  const [search, setSearch]       = useState("");
+  const [amount, setAmount]       = useState(100);
   const [customAmount, setCustom] = useState("100");
-  const [promo, setPromo]   = useState("");
-  const [agreed, setAgreed] = useState(false);
+  const [name, setName]           = useState("");
+  const [lastName, setLastName]   = useState("");
+  const [cpf, setCpf]             = useState("");
+  const [promo, setPromo]         = useState("");
+  const [agreed, setAgreed]       = useState(false);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState("");
+  const [qr, setQr]               = useState<{ qr_code: string; qr_image?: string } | null>(null);
 
-  if (isMarketing) {
-    return <MarketingDeposit onDeposit={onDeposit} onClose={onClose} />;
-  }
+  if (isMarketing) return <MarketingDeposit onDeposit={onDeposit} onClose={onClose} />;
 
   const filtered    = METHODS.filter(m => !search || m.name.toLowerCase().includes(search.toLowerCase()));
   const recommended = filtered.filter(m => m.recommended);
   const others      = filtered.filter(m => !m.recommended);
   const selectAmount = (v: number) => { setAmount(v); setCustom(String(v)); };
+
+  const handleDeposit = async () => {
+    if (!agreed || !name || !cpf || amount < MIN) return;
+    setError(""); setLoading(true);
+    try {
+      const res = await fetch("/api/pix-charge", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, name: `${name} ${lastName}`.trim(), cpf }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setError(d.error ?? "Erro ao gerar PIX"); setLoading(false); return; }
+      setQr(d);
+      setStep("qr");
+    } catch { setError("Erro de conexão"); }
+    setLoading(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
@@ -286,8 +176,7 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
         {/* ── Step 1: Method ── */}
         {step === "method" && (
           <>
-            <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
               <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
                 <X className="w-4 h-4 text-white" />
               </button>
@@ -296,8 +185,8 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
             <div className="px-4 py-3 flex-shrink-0">
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "rgba(255,255,255,0.07)" }}>
                 <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                <input type="text" placeholder="Pesquisar por forma de pagamento"
-                  value={search} onChange={e => setSearch(e.target.value)}
+                <input type="text" placeholder="Pesquisar por forma de pagamento" value={search}
+                  onChange={e => setSearch(e.target.value)}
                   className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
                   style={{ fontSize: 16 }} />
               </div>
@@ -306,34 +195,30 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
               {recommended.length > 0 && (
                 <>
                   <div className="text-[11px] font-semibold text-gray-500 tracking-widest mb-2">RECOMENDADO</div>
-                  {recommended.map(m => (
-                    <MethodRow key={m.id} m={m} onSelect={() => { setMethod(m); setStep("amount"); }} />
-                  ))}
+                  {recommended.map(m => <MethodRow key={m.id} m={m} onSelect={() => { setMethod(m); setStep("form"); }} />)}
                 </>
               )}
               {others.length > 0 && (
                 <>
                   <div className="text-[11px] font-semibold text-gray-500 tracking-widest mt-4 mb-2">OUTROS MÉTODOS</div>
-                  {others.map(m => (
-                    <MethodRow key={m.id} m={m} onSelect={() => { setMethod(m); setStep("amount"); }} />
-                  ))}
+                  {others.map(m => <MethodRow key={m.id} m={m} onSelect={() => { setMethod(m); setStep("form"); }} />)}
                 </>
               )}
             </div>
           </>
         )}
 
-        {/* ── Step 2: Amount ── */}
-        {step === "amount" && method && (
+        {/* ── Step 2: Form (original format) ── */}
+        {step === "form" && method && (
           <>
-            <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
               <button onClick={() => setStep("method")} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
                 <ChevronLeft className="w-5 h-5 text-white" />
               </button>
               <span className="font-semibold text-white">{method.name}</span>
             </div>
             <div className="overflow-y-auto flex-1 px-4 py-4 flex flex-col gap-4">
+              {/* Amount */}
               <div>
                 <div className="text-xs text-gray-400 mb-1">Valor</div>
                 <input type="number" value={customAmount}
@@ -342,19 +227,16 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
                   style={{ borderBottom: "1px solid rgba(255,255,255,0.15)", paddingBottom: 6 }} />
                 <div className="text-xs text-gray-500 mt-1">Mínimo: R$ {MIN},00</div>
               </div>
+              {/* Chips */}
               <div className="grid grid-cols-4 gap-2">
                 {AMOUNTS.map(a => (
-                  <button key={a} onClick={() => selectAmount(a)}
-                    className="py-2 rounded text-xs font-semibold transition-all"
-                    style={{
-                      background: amount === a ? "#34A93E" : "rgba(255,255,255,0.07)",
-                      color:      amount === a ? "#fff" : "#94a3b8",
-                      border:     `1px solid ${amount === a ? "#34A93E" : "rgba(255,255,255,0.1)"}`,
-                    }}>
+                  <button key={a} onClick={() => selectAmount(a)} className="py-2 rounded text-xs font-semibold transition-all"
+                    style={{ background: amount === a ? "#34A93E" : "rgba(255,255,255,0.07)", color: amount === a ? "#fff" : "#94a3b8", border: `1px solid ${amount === a ? "#34A93E" : "rgba(255,255,255,0.1)"}` }}>
                     R$ {a.toLocaleString("pt-BR")}
                   </button>
                 ))}
               </div>
+              {/* Promo */}
               <div>
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
                   <span>PROMOÇÃO</span><span>· Exibir disponíveis (0)</span>
@@ -365,40 +247,86 @@ export default function DepositModal({ onDeposit, onClose, isMarketing }: Props)
                     style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
                   <button className="px-3 py-2 rounded text-sm text-gray-400" style={{ background: "rgba(255,255,255,0.06)" }}>Aplicar</button>
                 </div>
+                <div className="text-[11px] text-gray-500 mt-1">Um código promocional por depósito</div>
               </div>
-              <div className="text-[11px] text-gray-400 p-3 rounded"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                Nossa plataforma não permite CNPJ, CPF de terceiros e/ou métodos de pagamento de terceiros.
+              {/* Notice */}
+              <div className="text-[11px] text-gray-400 p-3 rounded" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                Nossa plataforma não permite CNPJ, CPF de terceiros e/ou métodos de pagamento de terceiros. 90% dos pagamentos são processados pelo provedor em até 5 minutos.
               </div>
+              {/* Name */}
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Nome</div>
+                <input type="text" placeholder="Nome" value={name} onChange={e => setName(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded text-sm text-white focus:outline-none"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+              </div>
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Sobrenome</div>
+                <input type="text" placeholder="Sobrenome" value={lastName} onChange={e => setLastName(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded text-sm text-white focus:outline-none"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+              </div>
+              <div>
+                <div className="text-xs text-gray-400 mb-1">CPF <span className="text-gray-600">11 dígitos</span></div>
+                <input type="text" placeholder="Digite seu CPF" value={cpf} onChange={e => setCpf(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded text-sm text-white focus:outline-none"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }} />
+              </div>
+              {/* Terms */}
               <label className="flex items-start gap-2 cursor-pointer">
                 <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} className="mt-1 accent-orange-500" />
                 <span className="text-xs text-gray-400">
-                  Eu aceito as <span className="text-orange-500">Termos e Condições</span>
+                  Eu, por meio deste, aceito as <span className="text-orange-500">Termos e Condições</span>
                 </span>
               </label>
-              <button
-                onClick={() => setStep("qr")}
-                disabled={!agreed || amount < MIN}
-                className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              {error && <p className="text-sm text-red-400">{error}</p>}
+              {/* CTA */}
+              <button onClick={handleDeposit}
+                disabled={!agreed || !name || !cpf || amount < MIN || loading}
+                className="w-full py-3.5 rounded font-bold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 style={{ background: "#34A93E" }}>
-                Continuar · R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {loading ? "Gerando PIX..." : `Depositar R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
               </button>
             </div>
           </>
         )}
 
-        {/* ── Step 3: QR Code PIX ── */}
-        {step === "qr" && (
+        {/* ── Step 3: QR Code ── */}
+        {step === "qr" && qr && (
           <>
-            <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-              <button onClick={() => setStep("amount")} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
+            <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              <button onClick={() => setStep("form")} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
                 <ChevronLeft className="w-5 h-5 text-white" />
               </button>
-              <span className="font-semibold text-white">PIX — QR Code</span>
+              <span className="font-semibold text-white">Pagar com PIX</span>
             </div>
-            <div className="overflow-y-auto flex-1">
-              <PixQrScreen amount={amount} onClose={onClose} />
+            <div className="overflow-y-auto flex-1 px-4 py-5 flex flex-col gap-4 items-center">
+              <div className="text-center">
+                <div className="text-xs text-gray-400">Valor a pagar</div>
+                <div className="text-2xl font-bold text-white mt-1">
+                  R$ {amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+              {qr.qr_image && (
+                <div className="p-3 rounded-xl bg-white">
+                  <img src={qr.qr_image} alt="QR Code PIX" className="w-48 h-48" />
+                </div>
+              )}
+              {qr.qr_code && (
+                <div className="w-full flex flex-col gap-2">
+                  <div className="text-xs text-gray-400">PIX Copia e Cola</div>
+                  <div className="rounded-lg px-3 py-2 text-[11px] text-gray-300 break-all select-all"
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", fontFamily: "monospace" }}>
+                    {qr.qr_code}
+                  </div>
+                  <CopyButton text={qr.qr_code} />
+                </div>
+              )}
+              <div className="w-full text-[11px] text-gray-400 p-3 rounded-lg text-center"
+                style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.15)" }}>
+                Após o pagamento, seu saldo será creditado automaticamente. Não feche esta janela até pagar.
+              </div>
             </div>
           </>
         )}
@@ -418,8 +346,7 @@ function MethodRow({ m, onSelect }: { m: Method; onSelect: () => void }) {
         <div className="text-xs text-gray-500">{m.time}</div>
       </div>
       {m.locked && (
-        <div className="flex items-center gap-1 px-2 py-1 rounded text-xs text-gray-400"
-          style={{ background: "rgba(255,255,255,0.06)" }}>
+        <div className="flex items-center gap-1 px-2 py-1 rounded text-xs text-gray-400" style={{ background: "rgba(255,255,255,0.06)" }}>
           <Lock className="w-3 h-3" /> Bloqueado
         </div>
       )}
