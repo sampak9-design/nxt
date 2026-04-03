@@ -299,6 +299,7 @@ export default function TradeHeader({
         <AssetPicker
           assets={allAssets}
           openTabIds={openTabIds}
+          activeTabId={activeTab.id}
           onSelect={addTab}
           onClose={() => setShowPicker(false)}
         />

@@ -62,11 +62,12 @@ const SIDEBAR: { key: Category; label: string }[] = [
 interface Props {
   assets: ApiAsset[];
   openTabIds: Set<string>;
+  activeTabId?: string;
   onSelect: (a: ApiAsset) => void;
   onClose: () => void;
 }
 
-export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: Props) {
+export default function AssetPicker({ assets, openTabIds, activeTabId, onSelect, onClose }: Props) {
   const [category, setCategory]   = useState<Category>("todos");
   const [search, setSearch]       = useState("");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -244,8 +245,9 @@ export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: P
             ) : (
               filtered.map((asset) => {
                 const iconUrl = getIconUrl(asset.id);
-                const isFav  = favorites.has(asset.id);
-                const isOpen = openTabIds.has(asset.id);
+                const isFav      = favorites.has(asset.id);
+                const isOpen     = openTabIds.has(asset.id);
+                const isActive   = asset.id === activeTabId;
 
                 return (
                   <div
@@ -254,6 +256,7 @@ export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: P
                     className="flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors hover:bg-white/[0.04]"
                     style={{
                       borderBottom: "1px solid rgba(255,255,255,0.03)",
+                      background: isActive ? "rgba(249,115,22,0.08)" : isOpen ? "rgba(255,255,255,0.03)" : undefined,
                     }}
                   >
                     {/* Icon */}
@@ -271,8 +274,13 @@ export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: P
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-sm font-semibold text-white truncate">{asset.name}</span>
-                        {isOpen && (
-                          <span className="hidden md:inline text-[9px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(249,115,22,0.2)", color: "#f97316" }}>
+                        {isActive && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(249,115,22,0.2)", color: "#f97316" }}>
+                            aberto
+                          </span>
+                        )}
+                        {!isActive && isOpen && (
+                          <span className="hidden md:inline text-[9px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(255,255,255,0.1)", color: "#94a3b8" }}>
                             aberto
                           </span>
                         )}
