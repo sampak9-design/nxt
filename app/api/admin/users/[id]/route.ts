@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const id = parseInt(params.id);
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id: idStr } = await params;
+  const id = parseInt(idStr);
   if (isNaN(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
   const body = await req.json();
