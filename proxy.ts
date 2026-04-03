@@ -15,5 +15,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/traderoom/:path*"],
+  matcher: ["/traderoom/:path*", "/withdraw/:path*"],
 };
