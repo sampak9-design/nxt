@@ -4,40 +4,56 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, Wallet } from "lucide-react";
 import ZyroLogo from "@/components/ZyroLogo";
 
-const PIX_LOGO = (
-  <svg viewBox="0 0 40 40" className="w-8 h-8">
+const PIX_LOGO_SMALL = (
+  <svg viewBox="0 0 40 40" className="w-8 h-8 flex-shrink-0">
     <rect width="40" height="40" rx="8" fill="#32BCAD"/>
     <path d="M20 8l5.3 5.3-5.3 5.3-5.3-5.3L20 8zm10 10l-5.3 5.3 5.3 5.3L35.3 23 30 18zm-10 10l5.3 5.3L20 38.6l-5.3-5.3L20 28zm-10-10l5.3 5.3L10 28.6 4.7 23.3 10 18z" fill="white"/>
   </svg>
 );
 
-const BANK_ICON = (
-  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.08)" }}>
+const PIX_LOGO_LARGE = (
+  <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: "#e8e8e8" }}>
+    <svg viewBox="0 0 40 40" className="w-10 h-10">
+      <path d="M20 8l5.3 5.3-5.3 5.3-5.3-5.3L20 8zm10 10l-5.3 5.3 5.3 5.3L35.3 23 30 18zm-10 10l5.3 5.3L20 38.6l-5.3-5.3L20 28zm-10-10l5.3 5.3L10 28.6 4.7 23.3 10 18z" fill="#32BCAD"/>
+    </svg>
+  </div>
+);
+
+const BANK_ICON_SMALL = (
+  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.06)" }}>
     <Wallet className="w-4 h-4 text-gray-400" />
   </div>
 );
 
+const BANK_ICON_LARGE = (
+  <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: "#e8e8e8" }}>
+    <Wallet className="w-10 h-10 text-gray-400" />
+  </div>
+);
+
 const METHODS = [
-  { id: "pix-cpf",    name: "PIX (CPF)",    time: "1 – 3 dias úteis", locked: false, logo: PIX_LOGO },
-  { id: "pix-phone",  name: "PIX (PHONE)",  time: "1 – 3 dias úteis", locked: false, logo: PIX_LOGO },
-  { id: "pix-email",  name: "PIX (E-MAIL)", time: "1 – 3 dias úteis", locked: false, logo: PIX_LOGO },
-  { id: "pix-random", name: "PIX (RANDOM)", time: "1 – 3 dias úteis", locked: false, logo: PIX_LOGO },
-  { id: "agibank",    name: "Agibank",       time: "1 – 8 dias úteis", locked: true,  logo: BANK_ICON },
-  { id: "bradesco",   name: "Banco Bradesco S.A.", time: "1 – 8 dias úteis", locked: true, logo: BANK_ICON },
-  { id: "itau",       name: "Itaú",          time: "1 – 8 dias úteis", locked: true,  logo: BANK_ICON },
-  { id: "nubank",     name: "Nubank",        time: "1 – 8 dias úteis", locked: true,  logo: BANK_ICON },
+  { id: "pix-cpf",    name: "PIX (CPF)",          time: "1 – 3 dias úteis", locked: false, logo: PIX_LOGO_SMALL,  logoLarge: PIX_LOGO_LARGE  },
+  { id: "pix-phone",  name: "PIX (PHONE)",         time: "1 – 3 dias úteis", locked: false, logo: PIX_LOGO_SMALL,  logoLarge: PIX_LOGO_LARGE  },
+  { id: "pix-email",  name: "PIX (E-MAIL)",        time: "1 – 3 dias úteis", locked: false, logo: PIX_LOGO_SMALL,  logoLarge: PIX_LOGO_LARGE  },
+  { id: "pix-random", name: "PIX (RANDOM)",        time: "1 – 3 dias úteis", locked: false, logo: PIX_LOGO_SMALL,  logoLarge: PIX_LOGO_LARGE  },
+  { id: "agibank",    name: "Agibank",              time: "1 – 8 dias úteis", locked: true,  logo: BANK_ICON_SMALL, logoLarge: BANK_ICON_LARGE },
+  { id: "bradesco",   name: "Banco Bradesco S.A.", time: "1 – 8 dias úteis", locked: true,  logo: BANK_ICON_SMALL, logoLarge: BANK_ICON_LARGE },
+  { id: "itau",       name: "Itaú",                time: "1 – 8 dias úteis", locked: true,  logo: BANK_ICON_SMALL, logoLarge: BANK_ICON_LARGE },
+  { id: "nubank",     name: "Nubank",              time: "1 – 8 dias úteis", locked: true,  logo: BANK_ICON_SMALL, logoLarge: BANK_ICON_LARGE },
 ];
 
 type Method = typeof METHODS[0];
 
 export default function WithdrawPage() {
-  const [selected, setSelected]       = useState<Method | null>(null);
-  const [realBalance, setRealBalance] = useState(0);
-  const [amount, setAmount]           = useState("");
-  const [pixKey, setPixKey]           = useState("");
-  const [name, setName]               = useState("");
-  const [cpf, setCpf]                 = useState("");
-  const [submitted, setSubmitted]     = useState(false);
+  // Desktop: starts with first method selected. Mobile: starts with none.
+  const [selected, setSelected]           = useState<Method>(METHODS[0]);
+  const [mobileSelected, setMobileSelected] = useState<Method | null>(null);
+  const [realBalance, setRealBalance]     = useState(0);
+  const [amount, setAmount]               = useState("");
+  const [pixKey, setPixKey]               = useState("");
+  const [name, setName]                   = useState("");
+  const [cpf, setCpf]                     = useState("");
+  const [submitted, setSubmitted]         = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me").then(r => r.json()).then(d => {
@@ -51,17 +67,17 @@ export default function WithdrawPage() {
 
   const handleSubmit = () => { if (!valid) return; setSubmitted(true); };
 
-  const MethodsList = () => (
+  const MethodsList = ({ activeId, onSelect }: { activeId: string | null; onSelect: (m: Method) => void }) => (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div className="px-4 py-3 text-xs font-semibold text-gray-500 border-b border-gray-100">Métodos de retirada</div>
       {METHODS.map((m) => (
         <button
           key={m.id}
-          onClick={() => { if (!m.locked) setSelected(m); }}
+          onClick={() => { if (!m.locked) onSelect(m); }}
           className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b border-gray-50 last:border-0"
           style={{
-            background: selected?.id === m.id ? "rgba(249,115,22,0.06)" : "transparent",
-            borderLeft: selected?.id === m.id ? "3px solid #f97316" : "3px solid transparent",
+            background: activeId === m.id ? "rgba(249,115,22,0.06)" : "transparent",
+            borderLeft: activeId === m.id ? "3px solid #f97316" : "3px solid transparent",
             opacity: m.locked ? 0.6 : 1,
             cursor: m.locked ? "default" : "pointer",
           }}
@@ -79,20 +95,21 @@ export default function WithdrawPage() {
     </div>
   );
 
-  const Form = ({ m }: { m: Method }) => (
+  const Form = ({ m, onBack }: { m: Method; onBack?: () => void }) => (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8">
-      {/* Back button — mobile only */}
-      <button onClick={() => setSelected(null)} className="flex md:hidden items-center gap-1 text-sm text-orange-500 mb-4">
-        <ChevronLeft className="w-4 h-4" /> Voltar
-      </button>
+      {onBack && (
+        <button onClick={onBack} className="flex items-center gap-1 text-sm text-orange-500 mb-4">
+          <ChevronLeft className="w-4 h-4" /> Voltar
+        </button>
+      )}
 
       {!canWithdraw ? (
-        <div className="flex flex-col items-center py-8 gap-4">
-          {m.logo}
-          <h2 className="text-xl font-bold text-gray-800">{m.name}</h2>
+        <div className="flex flex-col items-center py-10 gap-3">
+          {m.logoLarge}
+          <h2 className="text-xl font-bold text-gray-800 mt-2">{m.name}</h2>
           <p className="text-sm text-gray-500">Saldo REAL disponível: <strong>R$ {realBalance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></p>
           <p className="text-sm text-gray-400 text-center">Você não pode retirar fundos porque seu saldo é 0.</p>
-          <button onClick={() => window.location.href = "/traderoom"} className="px-8 py-3 rounded-lg font-bold text-white mt-2" style={{ background: "#34A93E" }}>
+          <button onClick={() => window.location.href = "/traderoom"} className="w-full py-3 rounded-lg font-bold text-white mt-2" style={{ background: "#34A93E" }}>
             Depositar
           </button>
           <a href="#" className="text-xs text-gray-400 underline">Condições de Retirada</a>
@@ -168,30 +185,31 @@ export default function WithdrawPage() {
             </div>
             <h2 className="text-xl font-bold text-gray-800 mb-2">Solicitação enviada!</h2>
             <p className="text-gray-500 text-sm mb-6">Sua retirada de <strong>R$ {amountNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong> foi solicitada.</p>
-            <button onClick={() => { setSubmitted(false); setAmount(""); setPixKey(""); setSelected(null); }} className="px-6 py-2 rounded font-semibold text-white text-sm" style={{ background: "#f97316" }}>
+            <button
+              onClick={() => { setSubmitted(false); setAmount(""); setPixKey(""); setMobileSelected(null); }}
+              className="px-6 py-2 rounded font-semibold text-white text-sm"
+              style={{ background: "#f97316" }}
+            >
               Nova retirada
             </button>
           </div>
         ) : (
           <>
-            {/* Mobile: show list OR form */}
+            {/* Mobile: list first, then form */}
             <div className="md:hidden">
-              {!selected ? <MethodsList /> : <Form m={selected} />}
+              {!mobileSelected
+                ? <MethodsList activeId={null} onSelect={setMobileSelected} />
+                : <Form m={mobileSelected} onBack={() => setMobileSelected(null)} />
+              }
             </div>
 
-            {/* Desktop: side by side */}
+            {/* Desktop: side by side, first method pre-selected */}
             <div className="hidden md:flex gap-6 items-start">
-              <div className="w-64 flex-shrink-0"><MethodsList /></div>
+              <div className="w-64 flex-shrink-0">
+                <MethodsList activeId={selected.id} onSelect={setSelected} />
+              </div>
               <div className="flex-1">
-                {selected
-                  ? <Form m={selected} />
-                  : (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 flex flex-col items-center justify-center gap-3 text-gray-400" style={{ minHeight: 300 }}>
-                      <Wallet className="w-10 h-10 text-gray-200" />
-                      <p className="text-sm">Selecione um método de retirada</p>
-                    </div>
-                  )
-                }
+                <Form m={selected} />
               </div>
             </div>
           </>

@@ -1255,6 +1255,9 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       let ws: WebSocket | null = null;
       let dead = false;
 
+      // Só atualiza o preço de referência a cada 2s — evita nervosismo visual
+      let lastDerivUpdate = 0;
+
       const connect = () => {
         if (dead) return;
         ws = new WebSocket("wss://ws.binaryws.com/websockets/v3?app_id=1089");
@@ -1264,10 +1267,14 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         ws.onmessage = (e) => {
           const d = JSON.parse(e.data);
           const q = d?.tick?.quote;
-          if (q && q > 0) realPriceRef.current = q;
+          const now = Date.now();
+          if (q && q > 0 && now - lastDerivUpdate >= 2000) {
+            lastDerivUpdate = now;
+            realPriceRef.current = q;
+          }
         };
         ws.onerror = () => ws?.close();
-        ws.onclose = () => { if (!dead) setTimeout(connect, 2000); }; // auto-reconnect
+        ws.onclose = () => { if (!dead) setTimeout(connect, 2000); };
       };
 
       connect();
@@ -1330,13 +1337,13 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         drift = current * 0.000015 * dir * signal.strength;
         noise = current * (Math.random() - 0.5) * 0.000003;
       } else if (isCrypto) {
-        // Crypto: fast convergence to Binance real price, moderate noise
+        // Crypto: polling 1s Binance — drift rápido, pouco ruído
         drift = (real - current) * 0.25;
         noise = current * (Math.random() - 0.5) * 0.000008;
       } else {
-        // Forex/metals/synthetics: same as crypto — mirrors Binance fluidity
-        drift = (real - current) * 0.25;
-        noise = current * (Math.random() - 0.5) * 0.000008;
+        // Forex: preço muda só a cada 2s — drift muito suave, ruído mínimo
+        drift = (real - current) * 0.03;
+        noise = current * (Math.random() - 0.5) * 0.000003;
       }
       // toFixed(7) avoids rounding killing sub-pip moves; priceFormat handles display
       const p = +(current + drift + noise).toFixed(7);
