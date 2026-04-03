@@ -29,6 +29,8 @@ type Tool = "cursor" | "hline" | "vline" | "trend" | "rect" | "freehand" | "eras
 
 /* ── Constants ──────────────────────────────────────────────────────── */
 
+const TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"];
+
 const TF_SEC: Record<string, number> = {
   "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400,
 };
@@ -726,12 +728,14 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const isDrawingFree  = useRef(false);
   const previewRef     = useRef<{ type: Tool; p1?: { x: number; y: number }; mx: number; my: number } | null>(null);
 
-  const [tf]                  = useState("1m");
+  const [tf, setTf]           = useState("1m");
   const [price, setPrice]     = useState<number | null>(null);
   const [, setUp]             = useState(true);
   const [loading, setLoading] = useState(true);
   const [tool, setTool]       = useState<Tool>("cursor");
   const [color, setColor]     = useState(COLORS[0]);
+  const [showDrawMenu, setShowDrawMenu] = useState(false);
+  const [showTfMenu, setShowTfMenu]     = useState(false);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; id: string } | null>(null);
@@ -1573,60 +1577,110 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative", overflow: "hidden" }}>
 
           {/* Floating toolbar — bottom-left */}
-          <div style={{
-            position: "absolute", bottom: 48, left: 12, zIndex: 6,
-            display: "flex", flexDirection: "column", gap: 6,
-          }}>
-            {TOOLS.map((t) => (
+          <div style={{ position: "absolute", bottom: 48, left: 12, zIndex: 6, display: "flex", flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
+
+            {/* Main icon column */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+
+              {/* Cursor */}
               <button
-                key={t.id}
-                title={t.title}
-                onClick={() => { setTool(t.id); pendingPt.current = null; previewRef.current = null; setCtxMenu(null); setSelectedId(null); }}
-                style={{
-                  width: 40, height: 40,
-                  borderRadius: 10,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: tool === t.id ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.82)",
-                  border: `1px solid ${tool === t.id ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
-                  color: tool === t.id ? "#f97316" : "#94a3b8",
-                  cursor: "pointer", transition: "all 0.15s",
+                title="Cursor"
+                onClick={() => { setTool("cursor"); setShowDrawMenu(false); setShowTfMenu(false); pendingPt.current = null; previewRef.current = null; setCtxMenu(null); setSelectedId(null); }}
+                style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
+                  background: tool === "cursor" && !showDrawMenu ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.82)",
+                  border: `1px solid ${tool === "cursor" && !showDrawMenu ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
+                  color: tool === "cursor" && !showDrawMenu ? "#f97316" : "#94a3b8",
                 }}
               >
-                {t.icon}
+                <MousePointer2 className="w-4 h-4" />
               </button>
-            ))}
 
-            {/* Color dots */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, paddingTop: 2 }}>
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  title={c}
-                  onClick={() => setColor(c)}
-                  style={{
-                    width: color === c ? 18 : 14, height: color === c ? 18 : 14,
-                    borderRadius: "50%", background: c, cursor: "pointer",
-                    outline: color === c ? `2px solid ${c}` : "none",
-                    outlineOffset: 2, transition: "all 0.15s",
-                  }}
-                />
-              ))}
+              {/* Drawing tools toggle */}
+              <button
+                title="Ferramentas de marcação"
+                onClick={() => { setShowDrawMenu(v => !v); setShowTfMenu(false); }}
+                style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
+                  background: showDrawMenu || (tool !== "cursor") ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.82)",
+                  border: `1px solid ${showDrawMenu || (tool !== "cursor") ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
+                  color: showDrawMenu || (tool !== "cursor") ? "#f97316" : "#94a3b8",
+                }}
+              >
+                <Pen className="w-4 h-4" />
+              </button>
+
+              {/* Timeframe toggle */}
+              <button
+                title="Timeframe"
+                onClick={() => { setShowTfMenu(v => !v); setShowDrawMenu(false); }}
+                style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
+                  background: showTfMenu ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.82)",
+                  border: `1px solid ${showTfMenu ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
+                  color: showTfMenu ? "#f97316" : "#94a3b8",
+                  fontSize: 11, fontWeight: 700,
+                }}
+              >
+                {tf}
+              </button>
             </div>
 
-            {/* Clear all */}
-            <button
-              title="Limpar tudo"
-              onClick={() => { persistedSetDrawings([]); pendingPt.current = null; previewRef.current = null; }}
-              style={{
-                width: 40, height: 40, borderRadius: 10,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: "rgba(15,20,35,0.82)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "#64748b", cursor: "pointer",
-              }}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {/* Drawing submenu */}
+            {showDrawMenu && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingBottom: 0 }}>
+                {TOOLS.filter(t => t.id !== "cursor").map((t) => (
+                  <button
+                    key={t.id}
+                    title={t.title}
+                    onClick={() => { setTool(t.id); setShowDrawMenu(false); pendingPt.current = null; previewRef.current = null; setCtxMenu(null); setSelectedId(null); }}
+                    style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
+                      background: tool === t.id ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.9)",
+                      border: `1px solid ${tool === t.id ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.12)"}`,
+                      color: tool === t.id ? "#f97316" : "#94a3b8",
+                    }}
+                  >
+                    {t.icon}
+                  </button>
+                ))}
+                {/* Colors */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, paddingTop: 2 }}>
+                  {COLORS.map((c) => (
+                    <button key={c} title={c} onClick={() => setColor(c)}
+                      style={{ width: color === c ? 18 : 14, height: color === c ? 18 : 14, borderRadius: "50%", background: c, cursor: "pointer",
+                        outline: color === c ? `2px solid ${c}` : "none", outlineOffset: 2, transition: "all 0.15s",
+                      }}
+                    />
+                  ))}
+                </div>
+                {/* Clear */}
+                <button
+                  title="Limpar tudo"
+                  onClick={() => { persistedSetDrawings([]); pendingPt.current = null; previewRef.current = null; }}
+                  style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                    background: "rgba(15,20,35,0.9)", border: "1px solid rgba(255,255,255,0.12)", color: "#64748b",
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Timeframe submenu */}
+            {showTfMenu && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {TIMEFRAMES.map((t) => (
+                  <button key={t} title={t}
+                    onClick={() => { setTf(t); setShowTfMenu(false); }}
+                    style={{ width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
+                      fontSize: 11, fontWeight: 700,
+                      background: tf === t ? "rgba(249,115,22,0.25)" : "rgba(15,20,35,0.9)",
+                      border: `1px solid ${tf === t ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.12)"}`,
+                      color: tf === t ? "#f97316" : "#94a3b8",
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           {/* Zoom controls — horizontal, centered bottom */}
           <div style={{ position: "absolute", bottom: 36, left: "50%", transform: "translateX(-50%)", zIndex: 5, display: "flex", flexDirection: "row", gap: 4 }}>
