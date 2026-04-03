@@ -254,7 +254,6 @@ export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: P
                     className="flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors hover:bg-white/[0.04]"
                     style={{
                       borderBottom: "1px solid rgba(255,255,255,0.03)",
-                      background: isOpen ? "rgba(249,115,22,0.05)" : undefined,
                     }}
                   >
                     {/* Icon */}
