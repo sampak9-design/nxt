@@ -167,6 +167,33 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryEntry[]>([]);
   const [hoverDirection, setHoverDirection] = useState<"up" | "down" | null>(null);
 
+  // Load trade history from server on mount
+  useEffect(() => {
+    fetch("/api/trades?limit=100")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!Array.isArray(data.trades)) return;
+        const entries: TradeHistoryEntry[] = data.trades.map((t: any) => ({
+          id:          t.id,
+          tabId:       t.asset_id,
+          tabName:     t.asset_name,
+          iconUrl:     null,
+          direction:   t.direction,
+          amount:      t.amount,
+          payout:      t.payout,
+          result:      t.result,
+          netProfit:   t.net_profit,
+          accountType: t.account_type,
+          entryPrice:  t.entry_price,
+          exitPrice:   t.exit_price,
+          startedAt:   t.started_at,
+          resolvedAt:  t.resolved_at,
+        }));
+        setTradeHistory(entries);
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     try { localStorage.setItem("xd_active_trades", JSON.stringify(activeTrades)); } catch {}
   }, [activeTrades]);
@@ -251,6 +278,30 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         const existing = new Set(h.map((e) => e.id));
         const fresh = historyEntries.filter((e) => !existing.has(e.id));
         return fresh.length ? [...fresh, ...h] : h;
+      });
+
+      // Persist each resolved trade to the server
+      historyEntries.forEach((e) => {
+        fetch("/api/trades", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id:           e.id,
+            account_type: e.accountType,
+            asset_id:     e.tabId,
+            asset_name:   e.tabName,
+            direction:    e.direction,
+            amount:       e.amount,
+            payout:       e.payout,
+            entry_price:  e.entryPrice,
+            exit_price:   e.exitPrice,
+            result:       e.result,
+            net_profit:   e.netProfit,
+            started_at:   e.startedAt,
+            resolved_at:  e.resolvedAt,
+            expires_at:   toResolve.find((t) => t.id === e.id)?.expiresAt ?? 0,
+          }),
+        }).catch(() => {});
       });
 
       const anyWin  = historyEntries.some((e) => e.result === "win");
