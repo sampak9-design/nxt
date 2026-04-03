@@ -113,14 +113,14 @@ export default function AssetPicker({ assets, openTabIds, onSelect, onClose }: P
           ...(typeof window !== "undefined" && window.innerWidth >= 768
             ? { top: 64, left: 60, right: "auto", bottom: "auto", width: 780, height: 540, borderRadius: 12 }
             : {}),
-          background: "#0d1117",
+          background: "#111622",
           border: "1px solid rgba(255,255,255,0.08)",
         }}
       >
         {/* ── Left sidebar — hidden on mobile ── */}
         <div
           className="hidden md:flex flex-shrink-0 flex-col pt-4 pb-3 overflow-y-auto"
-          style={{ width: 220, borderRight: "1px solid rgba(255,255,255,0.06)" }}
+          style={{ width: 220, background: "#161C2C", borderRight: "1px solid rgba(255,255,255,0.06)" }}
         >
           {/* Favoritos */}
           <button
