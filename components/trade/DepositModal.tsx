@@ -65,12 +65,12 @@ export default function DepositModal({ onDeposit, onClose }: Props) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.75)" }}
+      style={{ background: "rgba(0,0,0,0.6)" }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         className="flex flex-col w-full md:w-[420px] md:rounded-xl overflow-hidden shadow-2xl"
-        style={{ background: "#111", maxHeight: "95dvh" }}
+        style={{ background: "#1a2236", maxHeight: "95dvh" }}
       >
         {/* ── Step 1: Method selection ── */}
         {step === "method" && (
