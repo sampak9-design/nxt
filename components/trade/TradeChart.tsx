@@ -824,6 +824,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const indSeriesRef = useRef<Record<string, ISeriesApi<any> | null>>({});
   const [chartType, setChartType] = useState<"candlestick" | "line" | "area" | "bar">("candlestick");
   const chartTypeRef = useRef<"candlestick" | "line" | "area" | "bar">("candlestick");
+  const chartTypeInitRef = useRef(true);
   chartTypeRef.current = chartType;
   const [showChartMenu, setShowChartMenu] = useState(false);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
@@ -1713,6 +1714,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
   /* ── Chart type effect ── */
   useEffect(() => {
+    if (chartTypeInitRef.current) { chartTypeInitRef.current = false; return; }
     const chart = chartRef.current;
     if (!chart) return;
     const oldSeries = seriesRef.current;
