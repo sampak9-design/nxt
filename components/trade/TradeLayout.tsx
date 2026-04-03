@@ -144,7 +144,9 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
     } catch {}
     return defaultTabs[0];
   });
-  const [accountType, setAccountType] = useState<AccountType>("real");
+  const [accountType, setAccountType] = useState<AccountType>(() => {
+    try { return (localStorage.getItem("xd_account_type") as AccountType) ?? "real"; } catch { return "real"; }
+  });
   const [demoBalance, setDemoBalance] = useState(10000);
   const [realBalance, setRealBalance] = useState(0);
   const [isMarketing, setIsMarketing] = useState(false);
@@ -205,6 +207,10 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem("xd_account_type", accountType); } catch {}
+  }, [accountType]);
 
   useEffect(() => {
     try { localStorage.setItem("xd_active_trades", JSON.stringify(activeTrades)); } catch {}
