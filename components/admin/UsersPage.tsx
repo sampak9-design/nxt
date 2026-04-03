@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Eye, DollarSign, Star, StarOff } from "lucide-react";
+import { Search, Eye, DollarSign } from "lucide-react";
 
 type DbUser = {
   id: number;
@@ -82,7 +82,7 @@ export default function UsersPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                  {["Usuário", "Email", "Saldo Real", "Saldo Demo", "Marketing", "Ações"].map(h => (
+                  {["Usuário", "Email", "Saldo Real", "Saldo Demo", "Conta Marketing", "Ações"].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs text-gray-500 font-medium">{h}</th>
                   ))}
                 </tr>
@@ -108,28 +108,23 @@ export default function UsersPage() {
                     <td className="px-4 py-3 text-xs text-white font-mono">R$ {u.real_balance.toFixed(2)}</td>
                     <td className="px-4 py-3 text-xs text-gray-400 font-mono">R$ {u.demo_balance.toFixed(2)}</td>
                     <td className="px-4 py-3">
-                      {u.is_marketing ? (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-medium"
-                          style={{ background: "rgba(249,115,22,0.15)", color: "#f97316" }}>
-                          Marketing
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-600">—</span>
-                      )}
+                      <button
+                        onClick={() => toggleMarketing(u)}
+                        disabled={saving}
+                        className="px-3 py-1 rounded-full text-xs font-semibold transition-all hover:opacity-80 disabled:opacity-40"
+                        style={u.is_marketing
+                          ? { background: "rgba(249,115,22,0.2)", color: "#f97316", border: "1px solid rgba(249,115,22,0.4)" }
+                          : { background: "rgba(255,255,255,0.05)", color: "#64748b", border: "1px solid rgba(255,255,255,0.1)" }
+                        }
+                      >
+                        {u.is_marketing ? "✓ Marketing" : "+ Marketing"}
+                      </button>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => setSelected(u)}
-                          className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-gray-400 hover:text-white">
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => toggleMarketing(u)}
-                          title={u.is_marketing ? "Remover conta marketing" : "Marcar como conta marketing"}
-                          className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-                          style={{ color: u.is_marketing ? "#f97316" : "#64748b" }}>
-                          {u.is_marketing ? <Star className="w-3.5 h-3.5" fill="#f97316" /> : <StarOff className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
+                      <button onClick={() => setSelected(u)}
+                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-gray-400 hover:text-white">
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
                     </td>
                   </tr>
                 ))}
