@@ -1560,30 +1560,98 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const getTime = (chart: IChartApi, x: number): number =>
     coordToTime(x, chart, candles.current) ?? lastTime.current;
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (tool !== "freehand") return;
-    const chart  = chartRef.current;
+  /* ── Disable chart scroll/zoom when any drawing tool is active ── */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    chart.applyOptions(tool !== "cursor"
+      ? { handleScroll: false, handleScale: false }
+      : { handleScroll: true,  handleScale: true  });
+  }, [tool]);
+
+  /* ── Pointer handlers: cover mouse + touch uniformly ──────────── */
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const chart = chartRef.current;
     const series = seriesRef.current;
     if (!chart || !series) return;
-    const rect  = e.currentTarget.getBoundingClientRect();
-    const x     = e.clientX - rect.left;
-    const y     = e.clientY - rect.top;
-    const time  = getTime(chart, x);
-    const price = series.coordinateToPrice(y);
-    if (price === null || price === undefined) return;
-    isDrawingFree.current = true;
-    freehandRef.current = { id: `${Date.now()}`, points: [{ time, price }] };
+
+    if (tool === "freehand") {
+      el.setPointerCapture(e.pointerId);
+      const time  = getTime(chart, x);
+      const price = series.coordinateToPrice(y) as number | null;
+      if (price === null) return;
+      isDrawingFree.current = true;
+      freehandRef.current = { id: `${Date.now()}`, points: [{ time, price }] };
+    }
+
+    if (tool === "rect") {
+      el.setPointerCapture(e.pointerId);
+      const time  = getTime(chart, x);
+      const price = series.coordinateToPrice(y) as number | null;
+      if (price === null) return;
+      pendingPt.current = { x, y, time, price };
+    }
   };
 
-  const handleMouseUp = () => {
-    if (tool !== "freehand" || !freehandRef.current) return;
-    if (freehandRef.current.points.length > 2) {
-      const { id, points } = freehandRef.current;
-      persistedSetDrawings((d) => [...d, { id, type: "freehand", points, color }]);
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (tool === "freehand") {
+      if (!isDrawingFree.current || !freehandRef.current) return;
+      const chart  = chartRef.current;
+      const series = seriesRef.current;
+      if (!chart || !series) return;
+      const time  = getTime(chart, mx);
+      const price = series.coordinateToPrice(my) as number | null;
+      if (price !== null) freehandRef.current.points.push({ time, price });
+      return;
     }
-    freehandRef.current = null;
-    isDrawingFree.current = false;
-    setTool("cursor");
+
+    if (tool === "cursor" || tool === "erase" || tool === "hline" || tool === "vline") return;
+
+    // trend + rect: show live preview while pointer moves
+    const p1px = pendingPt.current ? { x: pendingPt.current.x, y: pendingPt.current.y } : undefined;
+    previewRef.current = { type: tool, p1: p1px, mx, my };
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const chart  = chartRef.current;
+    const series = seriesRef.current;
+
+    if (tool === "freehand") {
+      if (freehandRef.current && freehandRef.current.points.length > 2) {
+        const { id, points } = freehandRef.current;
+        persistedSetDrawings((d) => [...d, { id, type: "freehand" as const, points, color }]);
+      }
+      freehandRef.current = null;
+      isDrawingFree.current = false;
+      setTool("cursor");
+      return;
+    }
+
+    if (tool === "rect" && pendingPt.current && chart && series) {
+      const time  = getTime(chart, x);
+      const price = series.coordinateToPrice(y) as number | null;
+      const moved = Math.abs(x - pendingPt.current.x) > 4 || Math.abs(y - pendingPt.current.y) > 4;
+      if (price !== null && moved) {
+        const p1 = { time: pendingPt.current.time, price: pendingPt.current.price };
+        persistedSetDrawings((d) => [...d, { id: `${Date.now()}`, type: "rect" as const, p1, p2: { time, price }, color }]);
+      }
+      pendingPt.current  = null;
+      previewRef.current = null;
+      setTool("cursor");
+      return;
+    }
   };
 
   // Hit-test: find drawing near pixel (x, y), return its id or null
@@ -1628,7 +1696,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (tool === "freehand") return;
+    if (tool === "freehand" || tool === "rect") return;
     if (tool === "cursor") {
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -1693,46 +1761,21 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       });
       return;
     }
-    // Two-point tools (trend, rect)
-    if (!pendingPt.current) {
-      pendingPt.current = { x, y, time, price };
-    } else {
-      const p1 = { time: pendingPt.current.time, price: pendingPt.current.price };
-      const p2 = { time, price };
-      persistedSetDrawings((d) => [...d, { id, type: tool as "trend" | "rect", p1, p2, color }]);
-      pendingPt.current = null;
-      previewRef.current = null;
-      setTool("cursor");
-    }
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (tool === "cursor" || tool === "hline" || tool === "vline" || tool === "erase") return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-
-    // Freehand: accumulate points while mouse is held
-    if (tool === "freehand") {
-      if (isDrawingFree.current && freehandRef.current) {
-        const chart  = chartRef.current;
-        const series = seriesRef.current;
-        if (chart && series) {
-          const time  = getTime(chart, mx);
-          const price = series.coordinateToPrice(my);
-          if (price !== null && price !== undefined) {
-            freehandRef.current.points.push({ time, price });
-          }
-        }
+    // Trend: two-tap/click workflow
+    if (tool === "trend") {
+      if (!pendingPt.current) {
+        pendingPt.current = { x, y, time, price };
+      } else {
+        const p1 = { time: pendingPt.current.time, price: pendingPt.current.price };
+        const p2 = { time, price };
+        persistedSetDrawings((d) => [...d, { id, type: "trend" as const, p1, p2, color }]);
+        pendingPt.current  = null;
+        previewRef.current = null;
+        setTool("cursor");
       }
-      return;
     }
-
-    const p1px = pendingPt.current
-      ? { x: pendingPt.current.x, y: pendingPt.current.y }
-      : undefined;
-    previewRef.current = { type: tool, p1: p1px, mx, my };
   };
+
 
 
   /* ── Indicator series effect ── */
@@ -2104,11 +2147,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
           {/* Drawing overlay — only active when not in cursor mode so pan/zoom works */}
           {tool !== "cursor" && (
             <div
-              style={{ position: "absolute", inset: 0, cursor: tool === "erase" ? "cell" : "crosshair", zIndex: 3 }}
+              style={{ position: "absolute", inset: 0, cursor: tool === "erase" ? "cell" : "crosshair", zIndex: 3, touchAction: "none" }}
               onClick={handleCanvasClick}
-              onMouseMove={handleCanvasMouseMove}
-              onMouseDown={handleMouseDown}
-              onMouseUp={handleMouseUp}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
             />
           )}
           {/* Context menu on selected drawing */}
