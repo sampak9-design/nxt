@@ -923,16 +923,13 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     chartRef.current   = chart;
     seriesRef.current  = series;
 
-    // Canvas render loop — 60fps while drawing/active trade, 10fps otherwise
+    // Continuous rAF loop — canvas always stays in sync with chart coordinates
     let rafId: number;
-    let lastRender = 0;
-    const loop = (ts: number) => {
+    const loop = () => {
       const canvas = canvasRef.current;
       const s      = seriesRef.current;
-      const isActive = toolRef.current !== "cursor" || isDrawingFree.current || !!freehandRef.current || activeTradesRef.current.some(t => !t.result);
-      const interval = isActive ? 0 : 100; // 60fps when active, ~10fps when idle
-      if (canvas && s && ts - lastRender >= interval) {
-        lastRender = ts;
+      if (canvas && s) {
+        // Merge saved drawings + freehand in progress
         const all = freehandRef.current
           ? [...drawingsRef.current, { id: freehandRef.current.id, type: "freehand" as const, points: freehandRef.current.points, color: colorRef.current }]
           : drawingsRef.current;
