@@ -66,6 +66,7 @@ export default function WithdrawPage() {
   const [selected, setSelected]             = useState<Method>(METHODS[0]);
   const [mobileSelected, setMobileSelected] = useState<Method | null>(null);
   const [realBalance, setRealBalance]       = useState(0);
+  const [kycStatus, setKycStatus]           = useState<string | null>(null);
   const [amount, setAmount]                 = useState("");
   const [pixKey, setPixKey]                 = useState("");
   const [name, setName]                     = useState("");
@@ -76,6 +77,9 @@ export default function WithdrawPage() {
   useEffect(() => {
     fetch("/api/auth/me").then(r => r.json()).then(d => {
       if (d.user) setRealBalance(d.user.real_balance ?? 0);
+    }).catch(() => {});
+    fetch("/api/kyc/status").then(r => r.json()).then(d => {
+      setKycStatus(d.status ?? "none");
     }).catch(() => {});
   }, []);
 
@@ -223,6 +227,21 @@ export default function WithdrawPage() {
           <h1 className="text-2xl md:text-3xl font-bold" style={{ color: "#1f2937" }}>Retirada de fundos</h1>
           <p className="mt-1 text-sm" style={{ color: "#9ca3af" }}>Você tem 1 retirada(s) gratuita(s) até o final do mês.</p>
         </div>
+
+        {/* KYC warning banner */}
+        {kycStatus !== null && kycStatus !== "approved" && (
+          <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg text-sm"
+            style={{ background: "#fffbeb", border: "1px solid #fcd34d" }}>
+            <Info className="w-4 h-4 flex-shrink-0" style={{ color: "#d97706" }} />
+            <span style={{ color: "#92400e" }}>
+              <strong>Verificação de identidade necessária.</strong>{" "}
+              Para solicitar saques, você precisa verificar sua identidade.{" "}
+              <a href="/verify" className="underline font-semibold" style={{ color: "#d97706" }}>
+                Verificar agora
+              </a>
+            </span>
+          </div>
+        )}
 
         {submitted ? (
           <div className="p-10 text-center max-w-md mx-auto" style={{ background: "#fff", border: "1px solid #e8eaed", borderRadius: 12 }}>

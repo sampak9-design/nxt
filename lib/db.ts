@@ -54,5 +54,20 @@ db.exec(`
 // Migrations — safe to run multiple times
 try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN is_marketing INTEGER NOT NULL DEFAULT 0`); } catch {}
+try { db.exec(`ALTER TABLE users ADD COLUMN kyc_status TEXT NOT NULL DEFAULT 'none'`); } catch {}
+try { db.exec(`
+  CREATE TABLE IF NOT EXISTS kyc_documents (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id        INTEGER NOT NULL REFERENCES users(id),
+    full_name      TEXT NOT NULL,
+    cpf            TEXT NOT NULL,
+    doc_front_path TEXT NOT NULL,
+    doc_back_path  TEXT NOT NULL,
+    status         TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+    rejection_note TEXT,
+    submitted_at   INTEGER NOT NULL,
+    reviewed_at    INTEGER
+  )
+`); } catch {}
 
 export default db;

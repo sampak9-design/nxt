@@ -3,16 +3,17 @@
 import { useState } from "react";
 import {
   LayoutDashboard, Users, ArrowDownCircle, ArrowUpCircle,
-  Activity, BarChart2, Layers, LogOut, ChevronRight, Bell, TrendingUp, Plug,
+  Activity, BarChart2, Layers, LogOut, ChevronRight, Bell, TrendingUp, Plug, ShieldCheck,
 } from "lucide-react";
 
-export type AdminPage = "dashboard" | "users" | "deposits" | "withdrawals" | "trades" | "assets" | "reports" | "signals" | "integration";
+export type AdminPage = "dashboard" | "users" | "deposits" | "withdrawals" | "kyc" | "trades" | "assets" | "reports" | "signals" | "integration";
 
 const NAV: { id: AdminPage; label: string; icon: React.ReactNode; badge?: number }[] = [
   { id: "dashboard",   label: "Dashboard",   icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: "users",       label: "Usuários",    icon: <Users className="w-4 h-4" />,            badge: 1 },
   { id: "deposits",    label: "Depósitos",   icon: <ArrowDownCircle className="w-4 h-4" />,  badge: 2 },
   { id: "withdrawals", label: "Saques",      icon: <ArrowUpCircle className="w-4 h-4" />,    badge: 2 },
+  { id: "kyc",         label: "KYC",         icon: <ShieldCheck className="w-4 h-4" />,       badge: 0 },
   { id: "integration", label: "Integração",  icon: <Plug className="w-4 h-4" /> },
   { id: "trades",      label: "Operações",   icon: <Activity className="w-4 h-4" /> },
   { id: "assets",      label: "Ativos",      icon: <Layers className="w-4 h-4" /> },
