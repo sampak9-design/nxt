@@ -1110,15 +1110,90 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       chart.applyOptions({ handleScroll: true, handleScale: true });
     };
 
+    // Touch equivalents for mobile drag-to-move
+    const onTouchStart = (e: TouchEvent) => {
+      if (toolRef.current !== "cursor") return;
+      const touch = e.touches[0];
+      const s = seriesRef.current;
+      if (!s) return;
+      const rect = el.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      const closest = hitTest(x, y, s);
+      if (!closest) return;
+      e.preventDefault();
+      let handle: "p1" | "p2" | "body" = "body";
+      const d = drawingsRef.current.find((dr) => dr.id === closest);
+      if (d && (d.type === "trend" || d.type === "rect")) {
+        const ts = chart.timeScale();
+        const x1 = ts.timeToCoordinate(d.p1.time as UTCTimestamp) as number | null;
+        const y1 = s.priceToCoordinate(d.p1.price) as number | null;
+        const x2 = ts.timeToCoordinate(d.p2.time as UTCTimestamp) as number | null;
+        const y2 = s.priceToCoordinate(d.p2.price) as number | null;
+        if (x1 !== null && y1 !== null && Math.hypot(x1 - x, y1 - y) < 20) handle = "p1";
+        else if (x2 !== null && y2 !== null && Math.hypot(x2 - x, y2 - y) < 20) handle = "p2";
+      }
+      dragRef.current = { id: closest, startX: x, startY: y, handle };
+      chart.applyOptions({ handleScroll: false, handleScale: false });
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const s = seriesRef.current;
+      if (!s) return;
+      const rect = el.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top;
+      const dx = x - drag.startX;
+      const dy = y - drag.startY;
+      drag.startX = x; drag.startY = y;
+      const anchorX = el.offsetWidth / 2;
+      const anchorY = el.offsetHeight / 2;
+      const t0 = coordToTime(anchorX, chart, candles.current);
+      const t1 = coordToTime(anchorX + dx, chart, candles.current);
+      const p0 = s.coordinateToPrice(anchorY) as number | null;
+      const p1 = s.coordinateToPrice(anchorY + dy) as number | null;
+      if (!t0 || !t1 || p0 === null || p1 === null) return;
+      const deltaTime = t1 - t0;
+      const deltaPrice = (p1 as number) - (p0 as number);
+      persistedSetDrawings((prev) => prev.map((d) => {
+        if (d.id !== drag.id) return d;
+        if (d.type === "hline") return { ...d, price: d.price + deltaPrice };
+        if (d.type === "vline") return { ...d, time: d.time + deltaTime };
+        if (d.type === "trend" || d.type === "rect") {
+          if (drag.handle === "p1") return { ...d, p1: { time: d.p1.time + deltaTime, price: d.p1.price + deltaPrice } };
+          if (drag.handle === "p2") return { ...d, p2: { time: d.p2.time + deltaTime, price: d.p2.price + deltaPrice } };
+          return { ...d, p1: { time: d.p1.time + deltaTime, price: d.p1.price + deltaPrice }, p2: { time: d.p2.time + deltaTime, price: d.p2.price + deltaPrice } };
+        }
+        if (d.type === "freehand") return { ...d, points: d.points.map((p) => ({ time: p.time + deltaTime, price: p.price + deltaPrice })) };
+        return d;
+      }));
+    };
+
+    const onTouchEnd = () => {
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      chart.applyOptions({ handleScroll: true, handleScale: true });
+    };
+
     el.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
 
     return () => {
       chart.unsubscribeClick(handleChartClick);
       el.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      el.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
       cancelAnimationFrame(rafId);
       chart.remove();
       chartRef.current   = null;
@@ -1508,6 +1583,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     }
     freehandRef.current = null;
     isDrawingFree.current = false;
+    setTool("cursor");
   };
 
   // Hit-test: find drawing near pixel (x, y), return its id or null
@@ -1580,10 +1656,12 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
     if (tool === "hline") {
       persistedSetDrawings((d) => [...d, { id, type: "hline", price, color }]);
+      setTool("cursor"); pendingPt.current = null; previewRef.current = null;
       return;
     }
     if (tool === "vline") {
       persistedSetDrawings((d) => [...d, { id, type: "vline", time, color }]);
+      setTool("cursor"); pendingPt.current = null; previewRef.current = null;
       return;
     }
     if (tool === "erase") {
@@ -1624,6 +1702,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       persistedSetDrawings((d) => [...d, { id, type: tool as "trend" | "rect", p1, p2, color }]);
       pendingPt.current = null;
       previewRef.current = null;
+      setTool("cursor");
     }
   };
 
