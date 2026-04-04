@@ -1560,16 +1560,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const getTime = (chart: IChartApi, x: number): number =>
     coordToTime(x, chart, candles.current) ?? lastTime.current;
 
-  /* ── Disable chart scroll/zoom when any drawing tool is active ── */
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-    chart.applyOptions(tool !== "cursor"
-      ? { handleScroll: false, handleScale: false }
-      : { handleScroll: true,  handleScale: true  });
-  }, [tool]);
-
   /* ── Pointer handlers: cover mouse + touch uniformly ──────────── */
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
