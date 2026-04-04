@@ -1883,7 +1883,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative", overflow: "hidden" }}>
 
           {/* Floating toolbar — bottom-left */}
-          <div style={{ position: "absolute", bottom: 48, left: 12, zIndex: 6, display: "flex", flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
+          <div style={{ position: "absolute", bottom: 72, left: 12, zIndex: 6, display: "flex", flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
 
             {/* Main icon column */}
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
