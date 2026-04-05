@@ -57,8 +57,12 @@ function ProfileDropdown({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div ref={ref} className="absolute right-0 top-full mt-2 rounded-xl shadow-2xl overflow-hidden z-50"
-      style={{ width: 280, background: "#fff", border: "1px solid #e5e7eb" }}>
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.15)" }} onMouseDown={onClose} />
+
+      <div ref={ref} className="fixed right-0 top-0 h-full overflow-y-auto z-50 shadow-2xl"
+        style={{ width: 300, background: "#fff", borderLeft: "1px solid #e5e7eb" }}>
 
       <input ref={fileRef} type="file" accept="image/*" className="hidden"
         onChange={e => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); e.target.value = ""; }} />
@@ -110,6 +114,7 @@ function ProfileDropdown({ onClose }: { onClose: () => void }) {
         </button>
       ))}
     </div>
+    </>
   );
 }
 
