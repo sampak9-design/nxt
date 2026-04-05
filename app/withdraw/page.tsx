@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronLeft, Wallet, Clock, CheckCircle2, ChevronDown, Building2, Info } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, Wallet, CheckCircle2, ChevronDown, Building2, Info, XCircle, Clock, FileText, ArrowDownCircle, ArrowUpCircle, DollarSign, HelpCircle, LogOut, X } from "lucide-react";
 import ZyroLogo from "@/components/ZyroLogo";
 
+/* ── PIX icon ── */
 const PixIcon = ({ size = 20, color = "#32BCAD" }: { size?: number; color?: string }) => (
   <svg viewBox="0 0 40 40" width={size} height={size}>
     <path d="M20 8l5.3 5.3-5.3 5.3-5.3-5.3L20 8zm10 10l-5.3 5.3 5.3 5.3L35.3 23 30 18zm-10 10l5.3 5.3L20 38.6l-5.3-5.3L20 28zm-10-10l5.3 5.3L10 28.6 4.7 23.3 10 18z" fill={color}/>
@@ -18,7 +19,6 @@ const METHODS = [
   { id: "agibank",    name: "Agibank",              time: "1 - 8 dias úteis", locked: true,  isPix: false },
   { id: "bradesco",   name: "Banco Bradesco S.A.", time: "1 - 8 dias úteis", locked: true,  isPix: false },
 ];
-
 type Method = typeof METHODS[0];
 
 const FAQ_ITEMS = [
@@ -29,39 +29,140 @@ const FAQ_ITEMS = [
 ];
 
 function MethodIcon({ isPix }: { isPix: boolean }) {
-  if (isPix) {
-    return (
-      <div className="rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ width: 36, height: 36, background: "#32BCAD" }}>
-        <PixIcon size={20} color="white" />
-      </div>
-    );
-  }
+  if (isPix) return (
+    <div className="rounded-lg flex items-center justify-center flex-shrink-0" style={{ width: 36, height: 36, background: "#32BCAD" }}>
+      <PixIcon size={20} color="white" />
+    </div>
+  );
   return (
-    <div className="rounded-lg flex items-center justify-center flex-shrink-0"
-      style={{ width: 36, height: 36, background: "#f1f5f9" }}>
+    <div className="rounded-lg flex items-center justify-center flex-shrink-0" style={{ width: 36, height: 36, background: "#f1f5f9" }}>
       <Building2 style={{ width: 18, height: 18, color: "#9ca3af" }} />
     </div>
   );
 }
 
 function MethodIconLarge({ isPix }: { isPix: boolean }) {
-  if (isPix) {
-    return (
-      <div className="rounded-full flex items-center justify-center"
-        style={{ width: 80, height: 80, background: "#e6f7f6" }}>
-        <PixIcon size={40} color="#32BCAD" />
-      </div>
-    );
-  }
+  if (isPix) return (
+    <div className="rounded-full flex items-center justify-center" style={{ width: 80, height: 80, background: "#e6f7f6" }}>
+      <PixIcon size={40} color="#32BCAD" />
+    </div>
+  );
   return (
-    <div className="rounded-full flex items-center justify-center"
-      style={{ width: 80, height: 80, background: "#f1f5f9" }}>
+    <div className="rounded-full flex items-center justify-center" style={{ width: 80, height: 80, background: "#f1f5f9" }}>
       <Building2 style={{ width: 36, height: 36, color: "#9ca3af" }} />
     </div>
   );
 }
 
+/* ── Profile panel (right side) ── */
+function ProfilePanel({ onClose }: { onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [user, setUser] = useState<any>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [kycStatus, setKycStatus] = useState<string>("none");
+
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (d.user) { setUser(d.user); setAvatarUrl(d.user.avatar_url ? `${d.user.avatar_url}?t=${Date.now()}` : null); }
+    });
+    fetch("/api/kyc/status").then(r => r.json()).then(d => setKycStatus(d.status ?? "none"));
+  }, []);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [onClose]);
+
+  const handleAvatarUpload = async (file: File) => {
+    const fd = new FormData(); fd.append("avatar", file);
+    const res = await fetch("/api/user/avatar", { method: "POST", body: fd });
+    if (res.ok) { const d = await res.json(); setAvatarUrl(`${d.avatar_url}?t=${Date.now()}`); }
+  };
+
+  const initials = user ? `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase() : "Z";
+
+  const items = [
+    { icon: FileText,        label: "Verificação",          dot: kycStatus !== "approved" },
+    { icon: ArrowDownCircle, label: "Depositar" },
+    { icon: ArrowUpCircle,   label: "Retirar fundos" },
+    { icon: DollarSign,      label: "Histórico do saldo" },
+    { icon: Clock,           label: "Histórico de trading" },
+    { icon: HelpCircle,      label: "Serviço de suporte" },
+    { icon: LogOut,          label: "Sair", danger: true },
+  ];
+
+  const handleClick = (label: string) => {
+    if (label === "Sair") { fetch("/api/auth/logout", { method: "POST" }).finally(() => { window.location.href = "/"; }); return; }
+    if (label === "Retirar fundos") { onClose(); return; }
+    if (label === "Verificação") { window.location.href = "/verify"; return; }
+    if (label === "Depositar") { window.location.href = "/traderoom"; return; }
+    onClose();
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.15)" }} onMouseDown={onClose} />
+      <div ref={ref} className="fixed right-0 top-0 h-full overflow-y-auto z-50 shadow-2xl"
+        style={{ width: 300, background: "#fff", borderLeft: "1px solid #e5e7eb" }}>
+
+        <input ref={fileRef} type="file" accept="image/*" className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); e.target.value = ""; }} />
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "#f3f4f6" }}>
+          <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+            style={{ background: avatarUrl ? "transparent" : "linear-gradient(135deg,#f97316,#ea6c0a)" }}>
+            {avatarUrl ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+              : <span className="text-sm font-bold text-white">{initials}</span>}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-gray-800 truncate">{user?.email}</div>
+            <div className="text-xs text-gray-500">Conta real <span className="font-bold text-green-600">R${(user?.real_balance ?? 0).toFixed(2)}</span></div>
+          </div>
+          <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100">
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+        </div>
+
+        {/* Warning if KYC not approved */}
+        {kycStatus !== "approved" && (
+          <div className="mx-3 my-2 px-3 py-2 rounded-lg flex items-center gap-2 text-xs font-medium"
+            style={{ background: "#fff7ed", color: "#f97316" }}>
+            <span className="text-base">⚠️</span> Adicionar informações pessoais
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2 px-3 pb-3">
+          <button onClick={() => { window.location.href = "/traderoom"; }}
+            className="flex-1 py-2 rounded-lg text-sm font-bold text-white" style={{ background: "#22c55e" }}>
+            Depositar
+          </button>
+          <button onClick={() => { window.location.href = "/traderoom"; }}
+            className="flex-1 py-2 rounded-lg text-sm font-bold text-white" style={{ background: "#f97316" }}>
+            Negociar
+          </button>
+        </div>
+
+        <div className="border-t" style={{ borderColor: "#f3f4f6" }} />
+
+        {items.map(({ icon: Icon, label, dot, danger }: any) => (
+          <button key={label} onClick={() => handleClick(label)}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
+            style={{ color: danger ? "#ef4444" : "#374151" }}>
+            <Icon className="w-4 h-4 flex-shrink-0" style={{ color: danger ? "#ef4444" : "#9ca3af" }} />
+            <span className="flex-1 text-left">{label}</span>
+            {dot && <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ── Main page ── */
 export default function WithdrawPage() {
   const [selected, setSelected]             = useState<Method>(METHODS[0]);
   const [mobileSelected, setMobileSelected] = useState<Method | null>(null);
@@ -73,14 +174,19 @@ export default function WithdrawPage() {
   const [cpf, setCpf]                       = useState("");
   const [submitted, setSubmitted]           = useState(false);
   const [openFaq, setOpenFaq]               = useState<number | null>(null);
+  const [showProfile, setShowProfile]       = useState(false);
+  const [avatarUrl, setAvatarUrl]           = useState<string | null>(null);
+  const [initials, setInitials]             = useState("Z");
 
   useEffect(() => {
     fetch("/api/auth/me").then(r => r.json()).then(d => {
-      if (d.user) setRealBalance(d.user.real_balance ?? 0);
+      if (d.user) {
+        setRealBalance(d.user.real_balance ?? 0);
+        setInitials(`${d.user.first_name?.[0] ?? ""}${d.user.last_name?.[0] ?? ""}`.toUpperCase());
+        setAvatarUrl(d.user.avatar_url ? `${d.user.avatar_url}?t=${Date.now()}` : null);
+      }
     }).catch(() => {});
-    fetch("/api/kyc/status").then(r => r.json()).then(d => {
-      setKycStatus(d.status ?? "none");
-    }).catch(() => {});
+    fetch("/api/kyc/status").then(r => r.json()).then(d => setKycStatus(d.status ?? "none")).catch(() => {});
   }, []);
 
   const canWithdraw = realBalance > 0;
@@ -88,7 +194,6 @@ export default function WithdrawPage() {
   const valid       = canWithdraw && amountNum > 0 && amountNum <= realBalance && !!pixKey && !!name && !!cpf;
   const handleSubmit = () => { if (!valid) return; setSubmitted(true); };
 
-  /* ── Methods list content (sem card próprio) ── */
   const MethodsListContent = ({ activeId, onSelect }: { activeId: string | null; onSelect: (m: Method) => void }) => (
     <>
       <div className="px-4 py-3" style={{ borderBottom: "1px solid #f0f2f5" }}>
@@ -97,19 +202,15 @@ export default function WithdrawPage() {
       {METHODS.map((m, i) => {
         const isActive = activeId === m.id;
         return (
-          <button
-            key={m.id}
-            onClick={() => { if (!m.locked) onSelect(m); }}
+          <button key={m.id} onClick={() => { if (!m.locked) onSelect(m); }}
             className="w-full flex items-center gap-3 px-4 transition-colors"
             style={{
-              paddingTop: 12,
-              paddingBottom: 12,
+              paddingTop: 12, paddingBottom: 12,
               background: isActive ? "#f9fafb" : "transparent",
               borderLeft: isActive ? "3px solid #32BCAD" : "3px solid transparent",
               borderBottom: i < METHODS.length - 1 ? "1px solid #f4f6f8" : "none",
               cursor: m.locked ? "default" : "pointer",
-            }}
-          >
+            }}>
             <MethodIcon isPix={m.isPix} />
             <div className="flex-1 min-w-0 text-left">
               <div className="text-sm font-medium truncate" style={{ color: "#1f2937" }}>{m.name}</div>
@@ -126,7 +227,6 @@ export default function WithdrawPage() {
     </>
   );
 
-  /* ── Form content (sem card próprio) ── */
   const FormContent = ({ m, onBack }: { m: Method; onBack?: () => void }) => (
     <>
       {onBack && (
@@ -144,14 +244,11 @@ export default function WithdrawPage() {
             Saldo REAL disponível: <span className="font-bold" style={{ color: "#1f2937" }}>R$ {realBalance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
           </div>
           <p className="text-sm text-center" style={{ color: "#9ca3af" }}>Você não pode retirar fundos porque seu saldo é 0.</p>
-          <button
-            onClick={() => window.location.href = "/traderoom"}
+          <button onClick={() => window.location.href = "/traderoom"}
             className="py-3 font-bold text-white text-sm transition-all hover:opacity-90"
-            style={{ background: "#34A93E", borderRadius: 6, marginTop: 4, width: "75%", display: "block", marginLeft: "auto", marginRight: "auto" }}
-          >
+            style={{ background: "#34A93E", borderRadius: 6, marginTop: 4, width: "75%", display: "block", marginLeft: "auto", marginRight: "auto" }}>
             Depositar
           </button>
-          <a href="#" className="text-xs underline" style={{ color: "#9ca3af" }}>Condições de Retirada</a>
         </div>
       ) : (
         <div className="p-6 flex flex-col gap-4">
@@ -203,32 +300,46 @@ export default function WithdrawPage() {
   );
 
   return (
-    <div className="min-h-screen" style={{ background: "#f4f6f8" }}>
-      {/* Header */}
-      <header style={{ background: "#fff", borderBottom: "1px solid #e8eaed" }}>
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ZyroLogo size={28} />
-            <span className="text-lg font-bold" style={{ color: "#f97316" }}>ZyroOption</span>
+    <div className="min-h-screen bg-white" style={{ color: "#111827" }}>
+
+      {/* ── Header ── */}
+      <header className="h-14 flex items-center justify-between px-6 border-b bg-white" style={{ borderColor: "#e5e7eb" }}>
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.href = "/traderoom"}>
+          <ZyroLogo size={32} />
+          <span className="font-bold text-gray-800 text-base hidden sm:block">ZyroOption</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900">
+            <img src="https://flagcdn.com/20x15/br.png" alt="PT" />
+            <span className="hidden sm:block">Pt</span>
+          </button>
+          <div className="relative">
+            <button onClick={() => setShowProfile(v => !v)}
+              className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center"
+              style={{ border: "2px solid #f97316", background: avatarUrl ? "transparent" : "linear-gradient(135deg,#f97316,#ea6c0a)" }}>
+              {avatarUrl
+                ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                : <span className="text-sm font-bold text-white">{initials}</span>}
+            </button>
           </div>
-          <button
-            onClick={() => window.location.href = "/traderoom"}
-            className="px-5 py-2 font-semibold text-white text-sm transition-all hover:opacity-90"
-            style={{ background: "#f97316", borderRadius: 6 }}
-          >
+          <button onClick={() => window.location.href = "/traderoom"}
+            className="px-4 py-1.5 rounded-lg text-sm font-bold text-white" style={{ background: "#f97316" }}>
             Negociar
           </button>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 md:py-10">
-        {/* Page title */}
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl md:text-3xl font-bold" style={{ color: "#1f2937" }}>Retirada de fundos</h1>
-          <p className="mt-1 text-sm" style={{ color: "#9ca3af" }}>Você tem 1 retirada(s) gratuita(s) até o final do mês.</p>
-        </div>
+      {showProfile && <ProfilePanel onClose={() => setShowProfile(false)} />}
 
-        {/* KYC warning banner */}
+      {/* ── Sub-header ── */}
+      <div className="flex items-center px-6 py-3 border-b" style={{ borderColor: "#e5e7eb" }}>
+        <span className="text-sm font-medium text-gray-700">Retirada de fundos</span>
+      </div>
+
+      {/* ── Content ── */}
+      <div className="max-w-5xl mx-auto px-4 py-8">
+
+        {/* KYC warning */}
         {kycStatus !== null && kycStatus !== "approved" && (
           <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg text-sm"
             style={{ background: "#fffbeb", border: "1px solid #fcd34d" }}>
@@ -236,9 +347,7 @@ export default function WithdrawPage() {
             <span style={{ color: "#92400e" }}>
               <strong>Verificação de identidade necessária.</strong>{" "}
               Para solicitar saques, você precisa verificar sua identidade.{" "}
-              <a href="/verify" className="underline font-semibold" style={{ color: "#d97706" }}>
-                Verificar agora
-              </a>
+              <a href="/verify" className="underline font-semibold" style={{ color: "#d97706" }}>Verificar agora</a>
             </span>
           </div>
         )}
@@ -252,17 +361,15 @@ export default function WithdrawPage() {
             <p className="text-sm mb-6" style={{ color: "#6b7280" }}>
               Sua retirada de <strong style={{ color: "#1f2937" }}>R$ {amountNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong> foi solicitada com sucesso.
             </p>
-            <button
-              onClick={() => { setSubmitted(false); setAmount(""); setPixKey(""); setName(""); setCpf(""); setMobileSelected(null); }}
+            <button onClick={() => { setSubmitted(false); setAmount(""); setPixKey(""); setName(""); setCpf(""); setMobileSelected(null); }}
               className="px-8 py-3 font-semibold text-white text-sm transition-all hover:opacity-90"
-              style={{ background: "#34A93E", borderRadius: 6 }}
-            >
+              style={{ background: "#34A93E", borderRadius: 6 }}>
               Nova retirada
             </button>
           </div>
         ) : (
           <>
-            {/* Mobile: each panel is its own card */}
+            {/* Mobile */}
             <div className="md:hidden">
               {!mobileSelected ? (
                 <div className="overflow-hidden" style={{ background: "#fff", border: "1px solid #e8eaed", borderRadius: 12 }}>
@@ -275,7 +382,7 @@ export default function WithdrawPage() {
               )}
             </div>
 
-            {/* Desktop: ONE card with two columns side by side */}
+            {/* Desktop */}
             <div className="hidden md:block overflow-hidden" style={{ background: "#fff", border: "1px solid #e8eaed", borderRadius: 12 }}>
               <div className="grid" style={{ gridTemplateColumns: "280px 1fr" }}>
                 <div style={{ borderRight: "1px solid #e8eaed" }}>
@@ -308,22 +415,17 @@ export default function WithdrawPage() {
           <div className="overflow-hidden" style={{ background: "#fff", border: "1px solid #e8eaed", borderRadius: 12 }}>
             {FAQ_ITEMS.map((q, i) => (
               <div key={i} style={{ borderBottom: i < FAQ_ITEMS.length - 1 ? "1px solid #f0f2f5" : "none" }}>
-                <button
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between px-5 py-4 text-left"
-                >
+                <button onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="w-full flex items-center justify-between px-5 py-4 text-left">
                   <span className="text-sm" style={{ color: "#374151" }}>{q}</span>
-                  <ChevronDown
-                    className="w-4 h-4 flex-shrink-0 ml-3 transition-transform"
-                    style={{ color: "#9ca3af", transform: openFaq === i ? "rotate(180deg)" : "none" }}
-                  />
+                  <ChevronDown className="w-4 h-4 flex-shrink-0 ml-3 transition-transform"
+                    style={{ color: "#9ca3af", transform: openFaq === i ? "rotate(180deg)" : "none" }} />
                 </button>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Footer */}
         <div className="mt-6 flex items-center gap-1.5 pb-8">
           <Info className="w-4 h-4 flex-shrink-0" style={{ color: "#9ca3af" }} />
           <span className="text-sm" style={{ color: "#9ca3af" }}>Se precisar, fale com o suporte.</span>
