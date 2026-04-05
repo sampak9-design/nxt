@@ -86,7 +86,7 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
 
   return (
     <div
-      className="flex flex-col h-full border-r flex-shrink-0 w-full md:w-[280px]"
+      className="flex flex-col h-full border-r flex-shrink-0 overflow-hidden w-full md:w-[260px]"
       style={{ background: "var(--color-third)", borderColor: "var(--color-border)" }}
     >
       {/* Header */}
@@ -100,28 +100,53 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
         </button>
       </div>
 
-      {/* Filter */}
-      <div className="px-3 py-3 flex-shrink-0">
+      {/* Tab bar — same as portfolio */}
+      <div className="flex border-b flex-shrink-0" style={{ borderColor: "var(--color-border)" }}>
         <button
-          className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm text-gray-300"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}
+          className="px-4 py-2.5 text-xs font-bold tracking-widest"
+          style={{ color: "var(--color-primary)", borderBottom: "2px solid var(--color-primary)" }}
         >
-          <span>Finalizadas</span>
+          FINALIZADAS
+        </button>
+      </div>
+
+      {/* Filter dropdown — same style as portfolio */}
+      <div className="px-3 pt-3 pb-2 flex-shrink-0">
+        <button
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-300"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <span>Posições fechadas</span>
           <ChevronDown className="w-4 h-4 text-gray-500" />
         </button>
       </div>
 
-      {/* Account badge */}
-      <div className="px-3 pb-2 flex-shrink-0">
-        <span
-          className="text-[10px] font-bold px-2 py-0.5 rounded"
-          style={{
-            background: accountType === "practice" ? "rgba(249,115,22,0.15)" : "rgba(16,185,129,0.15)",
-            color: accountType === "practice" ? "#f97316" : "#10b981",
-          }}
-        >
-          {accountType === "practice" ? "CONTA DE PRÁTICA" : "CONTA REAL"}
-        </span>
+      {/* Summary card — same style as portfolio */}
+      <div className="mx-3 mb-3 rounded-lg overflow-hidden flex-shrink-0"
+        style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}>
+        <div className="flex items-center justify-between px-3 py-2.5 border-b"
+          style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <div>
+            <div className="text-[11px] font-bold text-white">RESULTADO</div>
+            <div className="text-[10px] text-gray-500">Operações finalizadas</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[12px] font-bold"
+              style={{ color: filtered.filter(e => e.result === "win").length >= filtered.filter(e => e.result !== "win").length ? "#4ade80" : "#f87171" }}>
+              {filtered.filter(e => e.result === "win").length}W / {filtered.filter(e => e.result !== "win").length}L
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-between px-3 py-2.5">
+          <div className="text-[11px] font-bold text-white">CONTA</div>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded"
+            style={{
+              background: accountType === "practice" ? "rgba(249,115,22,0.15)" : "rgba(16,185,129,0.15)",
+              color: accountType === "practice" ? "#f97316" : "#10b981",
+            }}>
+            {accountType === "practice" ? "PRÁTICA" : "REAL"}
+          </span>
+        </div>
       </div>
 
       {/* List */}

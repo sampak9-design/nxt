@@ -60,9 +60,8 @@ export default function PortfolioPanel({ activeTrades, onClose }: Props) {
 
   return (
     <div
-      className="flex flex-col h-full border-r flex-shrink-0 overflow-hidden"
+      className="flex flex-col h-full border-r flex-shrink-0 overflow-hidden w-full md:w-[260px]"
       style={{
-        width: 260,
         background: "var(--color-third)",
         borderColor: "var(--color-border)",
       }}
