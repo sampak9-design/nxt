@@ -86,8 +86,13 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
 
   return (
     <div
-      className="flex flex-col h-full border-r flex-shrink-0 overflow-hidden w-full md:w-[280px]"
-      style={{ background: "var(--color-third)", borderColor: "var(--color-border)" }}
+      className="flex flex-col h-full border-r flex-shrink-0 overflow-hidden"
+      style={{
+        width: "100%",
+        maxWidth: 280,
+        background: "var(--color-third)",
+        borderColor: "var(--color-border)",
+      }}
     >
       {/* Header */}
       <div

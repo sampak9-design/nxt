@@ -505,19 +505,15 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           </button>
         </div>
 
-        {/* Mobile panels overlay — force panels to fill screen */}
+        {/* Mobile panels overlay */}
         {sidebarPanel === "portfolio" && (
-          <div className="absolute inset-0 z-50" style={{ display: "flex" }}>
-            <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
-              <PortfolioPanel activeTrades={activeTrades} onClose={() => setSidebarPanel(null)} />
-            </div>
+          <div className="absolute inset-0 z-50">
+            <PortfolioPanel activeTrades={activeTrades} onClose={() => setSidebarPanel(null)} />
           </div>
         )}
         {sidebarPanel === "history" && (
-          <div className="absolute inset-0 z-50" style={{ display: "flex" }}>
-            <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
-              <HistoryPanel history={tradeHistory} accountType={accountType} onClose={() => setSidebarPanel(null)} />
-            </div>
+          <div className="absolute inset-0 z-50">
+            <HistoryPanel history={tradeHistory} accountType={accountType} onClose={() => setSidebarPanel(null)} />
           </div>
         )}
       </div>
