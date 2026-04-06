@@ -347,10 +347,10 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         )
       );
 
-      // Remove resolved trades after 5s
+      // Remove resolved trades after 10s (matches badge auto-dismiss)
       setTimeout(() => {
         setActiveTrades((prev) => prev.filter((t) => !t.result));
-      }, 5000);
+      }, 10000);
     };
   });
 
@@ -431,6 +431,8 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
                 onPriceChange={handlePriceChange}
                 expiryMs={selectedExpMs}
                 hoverDirection={hoverDirection}
+                livePriceRef={livePriceRef}
+                liveTimeRef={liveTimeRef}
               />
             ) : (
               /* 4-chart 2x2 grid */

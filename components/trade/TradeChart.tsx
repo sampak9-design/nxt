@@ -791,10 +791,12 @@ interface Props {
   onPriceChange: (price: number, time: number) => void;
   expiryMs: number;
   hoverDirection?: "up" | "down" | null;
+  livePriceRef?: { current: number };
+  liveTimeRef?:  { current: number };
 }
 
 /* ── Component ──────────────────────────────────────────────────────── */
-export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs, hoverDirection = null }: Props) {
+export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs, hoverDirection = null, livePriceRef, liveTimeRef }: Props) {
   const wrapRef      = useRef<HTMLDivElement>(null);
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const chartRef     = useRef<IChartApi | null>(null);
@@ -1525,6 +1527,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
       setUp(p >= lastPrice.current);
       lastPrice.current = p;
+      if (livePriceRef) livePriceRef.current = p;
       setPrice(p);
 
       const now  = Math.floor(Date.now() / 1000) - 3 * 3600; // BRT UTC-3
@@ -1537,6 +1540,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         const ctu = chartTypeRef.current;
         series.update(ctu === "line" || ctu === "area" ? { time: u.time, value: u.close } as any : u);
         lastTime.current = ct;
+        if (liveTimeRef) liveTimeRef.current = ct;
         onPriceChange(p, ct);
       } else {
         const n: Candle = { time: ct, open: last.close, high: Math.max(last.close, p), low: Math.min(last.close, p), close: p };
@@ -1544,6 +1548,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         const ctn = chartTypeRef.current;
         series.update(ctn === "line" || ctn === "area" ? { time: n.time, value: n.close } as any : n);
         lastTime.current = ct;
+        if (liveTimeRef) liveTimeRef.current = ct;
         onPriceChange(p, ct);
         // Persist forex candles on each new candle (crypto uses Binance OHLC)
         if (!BINANCE_MAP[tab.id.replace("-OTC", "")]) {
