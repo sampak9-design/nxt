@@ -165,8 +165,6 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
   const [selectedExpMs, setSelectedExpMs] = useState(60_000);
   const [livePrice, setLivePrice]     = useState(0);
   const [liveTime, setLiveTime]       = useState(0);
-  const livePriceRef = useRef(0);
-  const liveTimeRef  = useRef(0);
   const [showDeposit, setShowDeposit] = useState(false);
   const [sidebarPanel, setSidebarPanel] = useState<"portfolio" | "history" | null>(null);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryEntry[]>([]);
@@ -253,8 +251,6 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
 
   useEffect(() => {
     handlePriceChangeRef.current = (price: number, time: number) => {
-      livePriceRef.current = price;
-      liveTimeRef.current  = time;
       setLivePrice(price);
       setLiveTime(time);
 
@@ -347,10 +343,10 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         )
       );
 
-      // Remove resolved trades after 10s (matches badge auto-dismiss)
+      // Remove resolved trades after 5s
       setTimeout(() => {
         setActiveTrades((prev) => prev.filter((t) => !t.result));
-      }, 10000);
+      }, 5000);
     };
   });
 
@@ -368,8 +364,8 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
       tabIconUrl: activeTab.icon_url,
       direction,
       amount,
-      entryPrice: livePriceRef.current || livePrice,
-      entryTime:  liveTimeRef.current  || liveTime,
+      entryPrice: livePrice,
+      entryTime: liveTime,
       expiresAt: Date.now() + expiresMs,
       accountType,
       payout: activeTab.payout,
@@ -431,8 +427,6 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
                 onPriceChange={handlePriceChange}
                 expiryMs={selectedExpMs}
                 hoverDirection={hoverDirection}
-                livePriceRef={livePriceRef}
-                liveTimeRef={liveTimeRef}
               />
             ) : (
               /* 4-chart 2x2 grid */

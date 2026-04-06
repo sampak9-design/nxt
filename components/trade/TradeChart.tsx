@@ -480,38 +480,68 @@ function renderCanvas(
 
     const isUp    = trade.direction === "up";
     const color   = isUp ? "#22c55e" : "#ef4444";
+    const arrowSz = 8;
 
-    // Simple dot at the exact entry price
+    // Arrow pointing direction
     ctx.save();
     ctx.beginPath();
-    ctx.arc(entryX, entryY, 4, 0, Math.PI * 2);
+    if (isUp) {
+      const tip = entryY - 14;
+      ctx.moveTo(entryX, tip);
+      ctx.lineTo(entryX - arrowSz, tip + arrowSz * 1.4);
+      ctx.lineTo(entryX + arrowSz, tip + arrowSz * 1.4);
+    } else {
+      const tip = entryY + 14;
+      ctx.moveTo(entryX, tip);
+      ctx.lineTo(entryX - arrowSz, tip - arrowSz * 1.4);
+      ctx.lineTo(entryX + arrowSz, tip - arrowSz * 1.4);
+    }
+    ctx.closePath();
     ctx.fillStyle = color;
     ctx.fill();
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.lineWidth   = 1.5;
     ctx.stroke();
     ctx.restore();
 
     if (!trade.result) {
-      // Compact pill with amount, placed to the right of the entry dot on the price line
+      // Badge: colored pill with amount above the arrow, arrow indicator below
       const labelText = `R$${trade.amount}`;
       ctx.save();
       ctx.font         = "bold 11px sans-serif";
       ctx.textBaseline = "middle";
-      ctx.textAlign    = "left";
-      const tw = ctx.measureText(labelText).width;
-      const bw = tw + 12;
-      const bh = 18;
-      const bx = entryX + 8;
-      const by = entryY - bh / 2;
+      ctx.textAlign    = "center";
+      const tw  = ctx.measureText(labelText).width;
+      const bw  = tw + 12;
+      const bh  = 18;
+      const bx  = entryX - bw / 2;
+      const by  = isUp ? entryY - 14 - arrowSz * 1.4 - bh - 6 : entryY + 14 + arrowSz * 1.4 + 6;
 
+      // pill background
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.roundRect(bx, by, bw, bh, 4);
       ctx.fill();
 
+      // amount text white
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(labelText, bx + 6, entryY);
+      ctx.fillText(labelText, entryX, by + bh / 2);
+
+      // small direction triangle below/above badge pointing toward candle
+      const triSz = 4;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      if (isUp) {
+        ctx.moveTo(entryX - triSz, by + bh);
+        ctx.lineTo(entryX + triSz, by + bh);
+        ctx.lineTo(entryX, by + bh + triSz * 1.5);
+      } else {
+        ctx.moveTo(entryX - triSz, by);
+        ctx.lineTo(entryX + triSz, by);
+        ctx.lineTo(entryX, by - triSz * 1.5);
+      }
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
     }
   }
@@ -761,12 +791,10 @@ interface Props {
   onPriceChange: (price: number, time: number) => void;
   expiryMs: number;
   hoverDirection?: "up" | "down" | null;
-  livePriceRef?: { current: number };
-  liveTimeRef?:  { current: number };
 }
 
 /* ── Component ──────────────────────────────────────────────────────── */
-export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs, hoverDirection = null, livePriceRef, liveTimeRef }: Props) {
+export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs, hoverDirection = null }: Props) {
   const wrapRef      = useRef<HTMLDivElement>(null);
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const chartRef     = useRef<IChartApi | null>(null);
@@ -1201,11 +1229,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
       if (newBadges.length) {
         setBadges(prev => [...prev, ...newBadges]);
-        // Auto-remove after 10s (or click to dismiss)
+        // Auto-remove after 5s
         setTimeout(() => {
           const ids = new Set(newBadges.map(b => b.id));
           setBadges(prev => prev.filter(b => !ids.has(b.id)));
-        }, 10000);
+        }, 5000);
       }
     });
   }, [activeTrades]);
@@ -1497,7 +1525,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
       setUp(p >= lastPrice.current);
       lastPrice.current = p;
-      if (livePriceRef) livePriceRef.current = p;
       setPrice(p);
 
       const now  = Math.floor(Date.now() / 1000) - 3 * 3600; // BRT UTC-3
@@ -1510,7 +1537,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         const ctu = chartTypeRef.current;
         series.update(ctu === "line" || ctu === "area" ? { time: u.time, value: u.close } as any : u);
         lastTime.current = ct;
-        if (liveTimeRef) liveTimeRef.current = ct;
         onPriceChange(p, ct);
       } else {
         const n: Candle = { time: ct, open: last.close, high: Math.max(last.close, p), low: Math.min(last.close, p), close: p };
@@ -1518,7 +1544,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         const ctn = chartTypeRef.current;
         series.update(ctn === "line" || ctn === "area" ? { time: n.time, value: n.close } as any : n);
         lastTime.current = ct;
-        if (liveTimeRef) liveTimeRef.current = ct;
         onPriceChange(p, ct);
         // Persist forex candles on each new candle (crypto uses Binance OHLC)
         if (!BINANCE_MAP[tab.id.replace("-OTC", "")]) {
