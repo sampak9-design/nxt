@@ -480,89 +480,38 @@ function renderCanvas(
 
     const isUp    = trade.direction === "up";
     const color   = isUp ? "#22c55e" : "#ef4444";
-    const arrowSz = 8;
 
-    // Horizontal price-line dash extending right from entry — anchors marker on the price
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.lineWidth   = 1.5;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(entryX, entryY);
-    ctx.lineTo(canvas.width, entryY);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.restore();
-
-    // Arrow with TIP exactly on the price line
+    // Simple dot at the exact entry price
     ctx.save();
     ctx.beginPath();
-    if (isUp) {
-      // Up trade: arrow points UP at the price line from below
-      ctx.moveTo(entryX, entryY);                                  // tip on price
-      ctx.lineTo(entryX - arrowSz, entryY + arrowSz * 1.4);        // base below
-      ctx.lineTo(entryX + arrowSz, entryY + arrowSz * 1.4);
-    } else {
-      // Down trade: arrow points DOWN at the price line from above
-      ctx.moveTo(entryX, entryY);                                  // tip on price
-      ctx.lineTo(entryX - arrowSz, entryY - arrowSz * 1.4);        // base above
-      ctx.lineTo(entryX + arrowSz, entryY - arrowSz * 1.4);
-    }
-    ctx.closePath();
+    ctx.arc(entryX, entryY, 4, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.9)";
-    ctx.lineWidth   = 1.5;
-    ctx.stroke();
-
-    // Solid dot exactly on the price line
-    ctx.beginPath();
-    ctx.arc(entryX, entryY, 3, 0, Math.PI * 2);
-    ctx.fillStyle = "#ffffff";
-    ctx.fill();
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.restore();
 
     if (!trade.result) {
-      // Badge: colored pill with amount above the arrow, arrow indicator below
+      // Compact pill with amount, placed to the right of the entry dot on the price line
       const labelText = `R$${trade.amount}`;
       ctx.save();
       ctx.font         = "bold 11px sans-serif";
       ctx.textBaseline = "middle";
-      ctx.textAlign    = "center";
-      const tw  = ctx.measureText(labelText).width;
-      const bw  = tw + 12;
-      const bh  = 18;
-      const bx  = entryX - bw / 2;
-      const by  = isUp ? entryY + arrowSz * 1.4 + 8 : entryY - arrowSz * 1.4 - bh - 8;
+      ctx.textAlign    = "left";
+      const tw = ctx.measureText(labelText).width;
+      const bw = tw + 12;
+      const bh = 18;
+      const bx = entryX + 8;
+      const by = entryY - bh / 2;
 
-      // pill background
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.roundRect(bx, by, bw, bh, 4);
       ctx.fill();
 
-      // amount text white
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(labelText, entryX, by + bh / 2);
-
-      // small direction triangle below/above badge pointing toward candle
-      const triSz = 4;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      if (isUp) {
-        ctx.moveTo(entryX - triSz, by + bh);
-        ctx.lineTo(entryX + triSz, by + bh);
-        ctx.lineTo(entryX, by + bh + triSz * 1.5);
-      } else {
-        ctx.moveTo(entryX - triSz, by);
-        ctx.lineTo(entryX + triSz, by);
-        ctx.lineTo(entryX, by - triSz * 1.5);
-      }
-      ctx.closePath();
-      ctx.fill();
+      ctx.fillText(labelText, bx + 6, entryY);
       ctx.restore();
     }
   }
