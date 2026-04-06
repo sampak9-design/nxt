@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, Trash2, Image as ImageIcon, Save } from "lucide-react";
+import { Upload, Trash2, Image as ImageIcon, Save, Zap } from "lucide-react";
 
 export default function SettingsPage() {
   const [mapUrl, setMapUrl] = useState<string | null>(null);
@@ -9,7 +9,28 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [manipMode, setManipMode] = useState<"off" | "always" | "vip_safe">("always");
+  const [manipStats, setManipStats] = useState<Record<string, { up: number; down: number; count: number }>>({});
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const loadManip = () => {
+    fetch("/api/admin/otc-manip")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.mode) setManipMode(d.mode);
+        if (d?.stats) setManipStats(d.stats);
+      })
+      .catch(() => {});
+  };
+
+  const saveManipMode = async (m: "off" | "always" | "vip_safe") => {
+    setManipMode(m);
+    await fetch("/api/admin/otc-manip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: m }),
+    });
+  };
 
   const saveSettings = async () => {
     setSaving(true);
@@ -42,7 +63,12 @@ export default function SettingsPage() {
       .catch(() => {});
   };
 
-  useEffect(() => { loadCurrent(); }, []);
+  useEffect(() => {
+    loadCurrent();
+    loadManip();
+    const iv = setInterval(loadManip, 5000);
+    return () => clearInterval(iv);
+  }, []);
 
   const handleUpload = async (file: File) => {
     setError(null);
@@ -152,6 +178,82 @@ export default function SettingsPage() {
           </button>
           {savedFlash && <span className="text-xs text-emerald-400">✓ Salvo</span>}
         </div>
+      </div>
+
+      {/* OTC Manipulation */}
+      <div
+        className="rounded-xl p-5 mt-6"
+        style={{ background: "#161c2c", border: "1px solid rgba(255,255,255,0.06)" }}
+      >
+        <div className="flex items-center gap-2 mb-1">
+          <Zap className="w-4 h-4 text-orange-500" />
+          <h2 className="text-sm font-semibold text-white">Manipulação OTC</h2>
+        </div>
+        <p className="text-xs text-gray-500 mb-4">
+          Controla a manipulação de preço dos ativos OTC nos últimos 10 segundos antes da expiração.
+          Modo suave — drift gradual contra o lado com maior volume de apostas.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-5">
+          {([
+            { id: "off",      label: "Desligado",      desc: "Preço real sem manipulação" },
+            { id: "always",   label: "Casa sempre ganha", desc: "Força contra a maioria" },
+            { id: "vip_safe", label: "VIP seguro",     desc: "Só manipula não-VIP" },
+          ] as const).map((opt) => {
+            const active = manipMode === opt.id;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => saveManipMode(opt.id)}
+                className="text-left p-3 rounded-lg transition-colors"
+                style={{
+                  background: active ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${active ? "#f97316" : "rgba(255,255,255,0.06)"}`,
+                }}
+              >
+                <div className="text-[13px] font-semibold" style={{ color: active ? "#f97316" : "#e2e8f0" }}>
+                  {opt.label}
+                </div>
+                <div className="text-[11px] text-gray-500 mt-0.5">{opt.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Live exposure table */}
+        <div className="text-[10px] tracking-[0.12em] font-semibold text-gray-500 mb-2">
+          EXPOSIÇÃO AO VIVO
+        </div>
+        {Object.keys(manipStats).length === 0 ? (
+          <div className="text-xs text-gray-600 py-4 text-center">Sem trades abertas no momento.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="text-gray-500">
+                  <th className="text-left py-2 px-2 font-medium">Ativo</th>
+                  <th className="text-right py-2 px-2 font-medium">Trades</th>
+                  <th className="text-right py-2 px-2 font-medium">UP (R$)</th>
+                  <th className="text-right py-2 px-2 font-medium">DOWN (R$)</th>
+                  <th className="text-right py-2 px-2 font-medium">Casa força</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(manipStats).map(([asset, s]) => (
+                  <tr key={asset} style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                    <td className="py-2 px-2 text-white font-medium">{asset}</td>
+                    <td className="py-2 px-2 text-right text-gray-300">{s.count}</td>
+                    <td className="py-2 px-2 text-right text-emerald-400">{s.up.toFixed(2)}</td>
+                    <td className="py-2 px-2 text-right text-red-400">{s.down.toFixed(2)}</td>
+                    <td className="py-2 px-2 text-right text-orange-400 font-semibold">
+                      {s.up > s.down ? "↓ DOWN" : s.down > s.up ? "↑ UP" : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
