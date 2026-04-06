@@ -12,6 +12,7 @@ import ReportsPage    from "@/components/admin/ReportsPage";
 import SignalsPage    from "@/components/admin/SignalsPage";
 import IntegrationPage from "@/components/admin/IntegrationPage";
 import KycPage        from "@/components/admin/KycPage";
+import SettingsPage   from "@/components/admin/SettingsPage";
 
 export default function AdminPage() {
   const [page, setPage] = useState<AdminPage>("dashboard");
@@ -27,6 +28,7 @@ export default function AdminPage() {
     signals:     <SignalsPage />,
     reports:     <ReportsPage />,
     integration: <IntegrationPage />,
+    settings:    <SettingsPage />,
   }[page];
 
   return (

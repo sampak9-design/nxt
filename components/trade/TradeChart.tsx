@@ -827,6 +827,13 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const chartTypeInitRef = useRef(true);
   chartTypeRef.current = chartType;
   const [showChartMenu, setShowChartMenu] = useState(false);
+  const [worldMapUrl, setWorldMapUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/world-map", { method: "HEAD" })
+      .then((r) => { if (r.ok) setWorldMapUrl("/api/admin/world-map"); })
+      .catch(() => {});
+  }, []);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; id: string } | null>(null);
@@ -895,7 +902,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     const chart = createChart(el, {
       autoSize: true,
       layout: {
-        background: { type: ColorType.Solid, color: "#111622" },
+        background: { type: ColorType.Solid, color: "rgba(17,22,34,0)" },
         textColor: "rgba(255,255,255,0.45)",
       },
       grid: {
@@ -2091,8 +2098,25 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
               >{icon}</button>
             ))}
           </div>
+          {/* World map background — sits below the chart canvas */}
+          {worldMapUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={worldMapUrl}
+              alt=""
+              aria-hidden="true"
+              style={{
+                position: "absolute", inset: 0, width: "100%", height: "100%",
+                objectFit: "contain", opacity: 0.18, pointerEvents: "none", zIndex: 0,
+                background: "#111622",
+              }}
+            />
+          )}
+          {!worldMapUrl && (
+            <div style={{ position: "absolute", inset: 0, background: "#111622", zIndex: 0 }} />
+          )}
           {/* wrapRef fills parent — autoSize ResizeObserver watches this element */}
-          <div ref={wrapRef} style={{ width: "100%", height: "100%", position: "absolute", inset: 0 }} />
+          <div ref={wrapRef} style={{ width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 1 }} />
 
           {/* Loading overlay */}
           {loading && (
