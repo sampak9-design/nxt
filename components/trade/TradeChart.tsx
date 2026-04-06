@@ -2134,12 +2134,12 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
               style={{
                 position: "absolute", inset: 0, width: "100%", height: "100%",
                 objectFit: "cover", objectPosition: "center", opacity: 0.18, pointerEvents: "none", zIndex: 0,
-                background: "#2c3142",
+                background: "#111622",
               }}
             />
           )}
           {!worldMapUrl && (
-            <div style={{ position: "absolute", inset: 0, background: "#2c3142", zIndex: 0 }} />
+            <div style={{ position: "absolute", inset: 0, background: "#111622", zIndex: 0 }} />
           )}
           {/* wrapRef fills parent — autoSize ResizeObserver watches this element */}
           <div ref={wrapRef} style={{ width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 1 }} />
@@ -2148,7 +2148,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
           {loading && (
             <div style={{
               position: "absolute", inset: 0, zIndex: 10,
-              background: "#2c3142",
+              background: "#111622",
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14,
             }}>
               <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"
