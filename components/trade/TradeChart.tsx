@@ -2133,7 +2133,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
               aria-hidden="true"
               style={{
                 position: "absolute", inset: 0, width: "100%", height: "100%",
-                objectFit: "contain", opacity: 0.18, pointerEvents: "none", zIndex: 0,
+                objectFit: "cover", objectPosition: "center", opacity: 0.18, pointerEvents: "none", zIndex: 0,
                 background: "#111622",
               }}
             />
