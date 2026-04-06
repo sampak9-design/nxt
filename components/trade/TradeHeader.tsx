@@ -20,6 +20,8 @@ interface Props {
   realBalance: number;
   onDepositClick: () => void;
   onReloadDemo: () => void;
+  chartGrid: number;
+  setChartGrid: (n: number) => void;
 }
 
 export default function TradeHeader({
@@ -28,8 +30,19 @@ export default function TradeHeader({
   accountType, setAccountType,
   demoBalance, realBalance,
   onDepositClick, onReloadDemo,
+  chartGrid, setChartGrid,
 }: Props) {
   const [showPicker, setShowPicker] = useState(false);
+  const [showGridMenu, setShowGridMenu] = useState(false);
+  const gridMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showGridMenu) return;
+    const h = (e: MouseEvent) => {
+      if (gridMenuRef.current && !gridMenuRef.current.contains(e.target as Node)) setShowGridMenu(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [showGridMenu]);
   const [showBalancePanel, setShowBalancePanel] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [panelPos, setPanelPos] = useState({ top: 0, right: 0 });
@@ -102,6 +115,70 @@ export default function TradeHeader({
           <span className="text-xs font-semibold text-white">{activeTab.name}</span>
           <ChevronDown className="w-3 h-3 text-gray-400" />
         </button>
+
+        {/* Chart grid layout button */}
+        <div ref={gridMenuRef} className="hidden md:block relative flex-shrink-0">
+          <button
+            title="Configuração dos gráficos"
+            onClick={() => setShowGridMenu(v => !v)}
+            style={{
+              width: 36, height: 36, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
+              background: showGridMenu || chartGrid > 1 ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.06)",
+              border: `1px solid ${showGridMenu || chartGrid > 1 ? "rgba(249,115,22,0.5)" : "transparent"}`,
+              color: showGridMenu || chartGrid > 1 ? "#f97316" : "#94a3b8",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <rect x="1" y="1" width="6" height="6" rx="1" />
+              <rect x="9" y="1" width="6" height="6" rx="1" />
+              <rect x="1" y="9" width="6" height="6" rx="1" />
+              <rect x="9" y="9" width="6" height="6" rx="1" />
+            </svg>
+          </button>
+          {showGridMenu && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 9999,
+              background: "rgba(13,17,28,0.98)", borderRadius: 12, padding: "14px 16px",
+              border: "1px solid rgba(255,255,255,0.12)", minWidth: 240,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+            }}>
+              <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, letterSpacing: "0.1em", marginBottom: 12 }}>CONFIGURAÇÃO DOS GRÁFICOS</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 11, color: "#94a3b8", width: 64, flexShrink: 0 }}>1 gráfico</span>
+                  <button
+                    onClick={() => { setChartGrid(1); setShowGridMenu(false); }}
+                    style={{
+                      width: 36, height: 28, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                      background: chartGrid === 1 ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.06)",
+                      border: `1px solid ${chartGrid === 1 ? "#f97316" : "rgba(255,255,255,0.1)"}`,
+                    }}
+                  >
+                    <svg width="18" height="14" viewBox="0 0 18 14" fill={chartGrid === 1 ? "#f97316" : "#64748b"}><rect x="1" y="1" width="16" height="12" rx="1.5" /></svg>
+                  </button>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 11, color: "#94a3b8", width: 64, flexShrink: 0 }}>4 gráficos</span>
+                  <button
+                    onClick={() => { setChartGrid(4); setShowGridMenu(false); }}
+                    style={{
+                      width: 36, height: 28, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                      background: chartGrid === 4 ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.06)",
+                      border: `1px solid ${chartGrid === 4 ? "#f97316" : "rgba(255,255,255,0.1)"}`,
+                    }}
+                  >
+                    <svg width="18" height="14" viewBox="0 0 18 14" fill={chartGrid === 4 ? "#f97316" : "#64748b"}>
+                      <rect x="1" y="1" width="7" height="5.5" rx="1" />
+                      <rect x="10" y="1" width="7" height="5.5" rx="1" />
+                      <rect x="1" y="7.5" width="7" height="5.5" rx="1" />
+                      <rect x="10" y="7.5" width="7" height="5.5" rx="1" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Desktop: Asset Tabs */}
         <div className="hidden md:flex items-center gap-1 flex-1 min-w-0 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-hide h-full py-1.5">
