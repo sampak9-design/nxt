@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import {
   BriefcaseBusiness, History, BellRing, Users,
   Medal, Newspaper, Zap, LifeBuoy, Cog, ChevronRight,
 } from "lucide-react";
+import SettingsModal from "./SettingsModal";
 
 type SidebarPanel = "portfolio" | "history" | null;
 
@@ -15,6 +17,7 @@ interface Props {
 
 export default function TradeSidebar({ activePanel, setActivePanel, openTradeCount }: Props) {
   const toggle = (p: SidebarPanel) => setActivePanel(activePanel === p ? null : p);
+  const [showSettings, setShowSettings] = useState(false);
 
   return (
     <aside
@@ -77,12 +80,13 @@ export default function TradeSidebar({ activePanel, setActivePanel, openTradeCou
 
       <div className="flex flex-col items-center gap-0.5">
         {[
-          { icon: LifeBuoy, label: "Ajuda" },
-          { icon: Cog,      label: "Config." },
-        ].map(({ icon: Icon, label }) => (
+          { icon: LifeBuoy, label: "Ajuda",   onClick: () => {} },
+          { icon: Cog,      label: "Config.", onClick: () => setShowSettings(true) },
+        ].map(({ icon: Icon, label, onClick }) => (
           <button
             key={label}
             title={label}
+            onClick={onClick}
             className="flex flex-col items-center gap-1 w-full px-2 py-2.5 rounded text-xs transition-colors"
             style={{ color: "var(--color-icons)" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text)")}
@@ -99,6 +103,7 @@ export default function TradeSidebar({ activePanel, setActivePanel, openTradeCou
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </aside>
   );
 }
