@@ -30,13 +30,24 @@ function tone(
   osc.stop(startTime + duration);
 }
 
-/** Short click when an order is placed */
+/** Soft, pleasant pop when an order is placed */
 export function playOrderOpen() {
   const ac = ctx();
   if (!ac) return;
   const t = ac.currentTime;
-  tone(ac, 880, t,        0.07, 0.3, "square");
-  tone(ac, 1320, t + 0.06, 0.08, 0.2, "sine");
+  // Quick descending sine "blip" — soft and modern
+  const osc  = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(700, t);
+  osc.frequency.exponentialRampToValueAtTime(380, t + 0.12);
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(0.18, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+  osc.start(t);
+  osc.stop(t + 0.18);
 }
 
 /** Ascending chime on win */

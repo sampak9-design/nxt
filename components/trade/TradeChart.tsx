@@ -1186,7 +1186,12 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("touchend", onTouchEnd);
 
+    // Re-render badges/markers on pan/zoom so they stay anchored to their candle
+    const onRangeChange = () => setCandlesVersion(v => v + 1);
+    chart.timeScale().subscribeVisibleLogicalRangeChange(onRangeChange);
+
     return () => {
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRangeChange);
       chart.unsubscribeClick(handleChartClick);
       el.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("mousemove", onMouseMove);
@@ -1229,11 +1234,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
       if (newBadges.length) {
         setBadges(prev => [...prev, ...newBadges]);
-        // Auto-remove after 5s
-        setTimeout(() => {
-          const ids = new Set(newBadges.map(b => b.id));
-          setBadges(prev => prev.filter(b => !ids.has(b.id)));
-        }, 5000);
+        // Stays anchored to the candle until clicked — no auto-dismiss
       }
     });
   }, [activeTrades]);
