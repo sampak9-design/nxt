@@ -44,7 +44,7 @@ export default function SettingsModal({ onClose }: Props) {
       {/* Close button — top-left */}
       <button
         onClick={onClose}
-        className="absolute top-4 left-4 w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+        className="absolute top-3 left-3 md:top-4 md:left-4 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-colors z-10"
         style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8" }}
         title="Fechar"
       >
@@ -54,14 +54,37 @@ export default function SettingsModal({ onClose }: Props) {
       {/* Content container */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex-shrink-0 flex items-center justify-center py-6">
-          <h1 className="text-2xl font-semibold text-white">Definições</h1>
+        <div className="flex-shrink-0 flex items-center justify-center py-4 md:py-6">
+          <h1 className="text-xl md:text-2xl font-semibold text-white">Definições</h1>
+        </div>
+
+        {/* Mobile: horizontal scroll tabs */}
+        <div className="md:hidden flex-shrink-0 overflow-x-auto scrollbar-hide border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <div className="flex gap-1 px-3 pb-2">
+            {TABS.map((t) => {
+              const active = activeTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  className="flex-shrink-0 px-3 py-2 text-xs whitespace-nowrap rounded-lg transition-colors"
+                  style={{
+                    background: active ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.04)",
+                    color: active ? "#f97316" : "#cbd5e1",
+                    border: `1px solid ${active ? "rgba(249,115,22,0.4)" : "transparent"}`,
+                  }}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Body: sidebar + content */}
-        <div className="flex-1 flex overflow-hidden px-6 md:px-12 pb-6 gap-8 max-w-[1200px] w-full mx-auto">
-          {/* Left sidebar tabs */}
-          <div className="w-64 flex-shrink-0 flex flex-col">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden px-4 md:px-12 pb-6 gap-4 md:gap-8 max-w-[1200px] w-full mx-auto">
+          {/* Desktop sidebar tabs */}
+          <div className="hidden md:flex w-64 flex-shrink-0 flex-col">
             <div
               className="rounded-xl overflow-hidden"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
@@ -93,7 +116,7 @@ export default function SettingsModal({ onClose }: Props) {
           </div>
 
           {/* Right content */}
-          <div className="flex-1 overflow-y-auto pr-2">
+          <div className="flex-1 overflow-y-auto md:pr-2 min-h-0">
             {activeTab === "aparencia" && <AparenciaTab
               selectedTheme={selectedTheme} setSelectedTheme={setSelectedTheme}
               showWorldMap={showWorldMap} setShowWorldMap={setShowWorldMap}
@@ -133,7 +156,7 @@ function AparenciaTab({
   return (
     <div className="flex flex-col gap-7">
       {/* Two selects */}
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
         <Field label="Fuso horário">
           <Select value="(UTC-3) São Paulo" />
         </Field>
@@ -147,7 +170,7 @@ function AparenciaTab({
         <div className="text-[10px] tracking-[0.12em] font-semibold text-gray-500 mb-3">
           AJUSTES DE TEMA
         </div>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {THEMES.map((t) => (
             <button
               key={t.id}
@@ -178,7 +201,7 @@ function AparenciaTab({
         <div className="text-[10px] tracking-[0.12em] font-semibold text-gray-500 mb-3">
           ESCALA DE INTERFACE
         </div>
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
           {SCALES.map((s) => (
             <button
               key={s}
@@ -197,7 +220,7 @@ function AparenciaTab({
       </div>
 
       {/* Customize menu */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         <button
           className="px-4 py-2.5 rounded-lg text-[13px] font-medium transition-colors"
           style={{ background: "rgba(255,255,255,0.06)", color: "#e2e8f0", border: "1px solid rgba(255,255,255,0.08)" }}
@@ -211,7 +234,7 @@ function AparenciaTab({
 
       {/* Open positions section */}
       <div className="pt-4 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-        <div className="flex gap-5 mb-5">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-5 mb-5">
           {/* preview image */}
           <div className="w-44 h-24 rounded-lg overflow-hidden flex-shrink-0 relative" style={{ background: "linear-gradient(135deg, #0f1422, #1a2036)" }}>
             <svg viewBox="0 0 160 80" className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
@@ -231,7 +254,7 @@ function AparenciaTab({
           </div>
         </div>
 
-        <div className="flex gap-5">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-5">
           <div className="w-44 h-24 rounded-lg overflow-hidden flex-shrink-0 relative" style={{ background: "linear-gradient(135deg, #0f1422, #1a2036)" }}>
             <svg viewBox="0 0 160 80" className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
               <path d="M0,50 L20,40 L40,55 L60,30 L80,35 L100,20 L120,25 L140,45 L160,35" stroke="#ffffff" strokeWidth="1" fill="none" opacity="0.6" />
