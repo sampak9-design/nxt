@@ -21,7 +21,7 @@ export default function TradeSidebar({ activePanel, setActivePanel, openTradeCou
       className="hidden lg:flex flex-col w-20 h-full border-r py-2 flex-shrink-0 overflow-y-auto"
       style={{ borderColor: "var(--color-border)", background: "var(--color-third)" }}
     >
-      <div className="flex flex-col items-center gap-0.5 flex-1">
+      <div className="flex flex-col items-center gap-0.5">
         {/* Portfolio */}
         <button
           onClick={() => toggle("portfolio")}
