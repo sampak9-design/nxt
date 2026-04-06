@@ -169,6 +169,8 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
   const [sidebarPanel, setSidebarPanel] = useState<"portfolio" | "history" | null>(null);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryEntry[]>([]);
   const [hoverDirection, setHoverDirection] = useState<"up" | "down" | null>(null);
+  const [chartGrid, setChartGrid] = useState<number>(1);
+  const [showGridMenu, setShowGridMenu] = useState(false);
 
   // Load user info (balance + marketing flag) on mount
   useEffect(() => {
@@ -416,27 +418,128 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         {sidebarPanel === "history" && (
           <HistoryPanel history={tradeHistory} accountType={accountType} onClose={() => setSidebarPanel(null)} />
         )}
-        <div className="flex-1 flex overflow-hidden">
-          <TradeChart
-            tab={activeTab}
-            activeTrades={activeTabTrades}
-            onPriceChange={handlePriceChange}
-            expiryMs={selectedExpMs}
-            hoverDirection={hoverDirection}
-          />
-          <TradePanel
-            tab={activeTab}
-            accountType={accountType}
-            balance={balance}
-            currentPrice={livePrice}
-            activeTrades={activeTabTrades}
-            onTrade={handleTrade}
-            expiryMs={selectedExpMs}
-            onExpiryChange={setSelectedExpMs}
-            onSwitchAccount={() => accountType === "practice" ? setAccountType("real") : setAccountType("practice")}
-            onDepositClick={() => setShowDeposit(true)}
-            onHoverChange={setHoverDirection}
-          />
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          {/* Grid layout button */}
+          <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", background: "var(--color-third)", borderBottom: "1px solid var(--color-border)", flexShrink: 0, zIndex: 20 }}>
+            <button
+              title="Configuração dos gráficos"
+              onClick={() => setShowGridMenu(v => !v)}
+              style={{
+                width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
+                background: showGridMenu || chartGrid > 1 ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.05)",
+                border: `1px solid ${showGridMenu || chartGrid > 1 ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
+                color: showGridMenu || chartGrid > 1 ? "#f97316" : "#94a3b8",
+              }}
+            >
+              {/* 2x2 grid icon */}
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <rect x="1" y="1" width="6" height="6" rx="1" />
+                <rect x="9" y="1" width="6" height="6" rx="1" />
+                <rect x="1" y="9" width="6" height="6" rx="1" />
+                <rect x="9" y="9" width="6" height="6" rx="1" />
+              </svg>
+            </button>
+
+            {/* Grid menu popup */}
+            {showGridMenu && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 4px)", right: 8, zIndex: 50,
+                background: "rgba(13,17,28,0.98)", borderRadius: 12, padding: "14px 16px",
+                border: "1px solid rgba(255,255,255,0.12)", minWidth: 240,
+                boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+              }}>
+                <div style={{ fontSize: 10, color: "#64748b", fontWeight: 700, letterSpacing: "0.1em", marginBottom: 12 }}>CONFIGURAÇÃO DOS GRÁFICOS</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {/* 1 chart */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 11, color: "#94a3b8", width: 64, flexShrink: 0 }}>1 gráfico</span>
+                    <button
+                      onClick={() => { setChartGrid(1); setShowGridMenu(false); }}
+                      style={{
+                        width: 36, height: 28, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                        background: chartGrid === 1 ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.06)",
+                        border: `1px solid ${chartGrid === 1 ? "#f97316" : "rgba(255,255,255,0.1)"}`,
+                      }}
+                    >
+                      <svg width="18" height="14" viewBox="0 0 18 14" fill={chartGrid === 1 ? "#f97316" : "#64748b"}><rect x="1" y="1" width="16" height="12" rx="1.5" /></svg>
+                    </button>
+                  </div>
+                  {/* 4 charts */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 11, color: "#94a3b8", width: 64, flexShrink: 0 }}>4 gráficos</span>
+                    <button
+                      onClick={() => { setChartGrid(4); setShowGridMenu(false); }}
+                      style={{
+                        width: 36, height: 28, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                        background: chartGrid === 4 ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.06)",
+                        border: `1px solid ${chartGrid === 4 ? "#f97316" : "rgba(255,255,255,0.1)"}`,
+                      }}
+                    >
+                      <svg width="18" height="14" viewBox="0 0 18 14" fill={chartGrid === 4 ? "#f97316" : "#64748b"}>
+                        <rect x="1" y="1" width="7" height="5.5" rx="1" />
+                        <rect x="10" y="1" width="7" height="5.5" rx="1" />
+                        <rect x="1" y="7.5" width="7" height="5.5" rx="1" />
+                        <rect x="10" y="7.5" width="7" height="5.5" rx="1" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: 2, background: chartGrid > 1 ? "#f97316" : "rgba(255,255,255,0.15)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {chartGrid > 1 && <span style={{ color: "#fff", fontSize: 8 }}>✓</span>}
+                  </div>
+                  <span style={{ fontSize: 10, color: "#64748b" }}>Lembrar do número de gráficos (o primeiro gráfico será o ativo).</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-1 overflow-hidden min-h-0">
+            {chartGrid === 1 ? (
+              <TradeChart
+                tab={activeTab}
+                activeTrades={activeTabTrades}
+                onPriceChange={handlePriceChange}
+                expiryMs={selectedExpMs}
+                hoverDirection={hoverDirection}
+              />
+            ) : (
+              /* 4-chart 2x2 grid */
+              <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 2, overflow: "hidden", background: "rgba(0,0,0,0.3)" }}>
+                {[0, 1, 2, 3].map((i) => {
+                  const gridTab = openTabs[i] ?? openTabs[openTabs.length - 1];
+                  const isActive = i === 0;
+                  return (
+                    <div key={i} style={{ position: "relative", overflow: "hidden", minWidth: 0, minHeight: 0 }}>
+                      {isActive && (
+                        <div style={{ position: "absolute", top: 6, left: 6, zIndex: 10, background: "#f97316", borderRadius: 4, padding: "2px 6px", fontSize: 9, fontWeight: 700, color: "#fff", letterSpacing: "0.06em" }}>ATIVO</div>
+                      )}
+                      <TradeChart
+                        tab={gridTab}
+                        activeTrades={isActive ? activeTabTrades : activeTrades.filter(t => t.tabId === gridTab.id)}
+                        onPriceChange={isActive ? handlePriceChange : () => {}}
+                        expiryMs={selectedExpMs}
+                        hoverDirection={isActive ? hoverDirection : null}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <TradePanel
+              tab={activeTab}
+              accountType={accountType}
+              balance={balance}
+              currentPrice={livePrice}
+              activeTrades={activeTabTrades}
+              onTrade={handleTrade}
+              expiryMs={selectedExpMs}
+              onExpiryChange={setSelectedExpMs}
+              onSwitchAccount={() => accountType === "practice" ? setAccountType("real") : setAccountType("practice")}
+              onDepositClick={() => setShowDeposit(true)}
+              onHoverChange={setHoverDirection}
+            />
+          </div>
         </div>
       </div>
 
