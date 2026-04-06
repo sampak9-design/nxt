@@ -1238,7 +1238,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         entryPrice: anchor.entryPrice,
       };
       setBadges(prev => [...prev, badge]);
-      // Stays anchored to the candle until clicked — no auto-dismiss
+      // Auto-dismiss after 5s (or click to dismiss)
+      setTimeout(() => {
+        setBadges(prev => prev.filter(b => b.id !== badge.id));
+      }, 5000);
     });
   }, [activeTrades]);
 
