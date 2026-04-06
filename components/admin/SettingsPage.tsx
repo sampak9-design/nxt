@@ -1,13 +1,30 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, Trash2, Image as ImageIcon } from "lucide-react";
+import { Upload, Trash2, Image as ImageIcon, Save } from "lucide-react";
 
 export default function SettingsPage() {
   const [mapUrl, setMapUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const saveSettings = async () => {
+    setSaving(true);
+    try {
+      await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ world_map_url: mapUrl ?? "" }),
+      });
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 1800);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const loadCurrent = () => {
     fetch("/api/admin/settings")
@@ -106,15 +123,7 @@ export default function SettingsPage() {
 
           {mapUrl && (
             <button
-              onClick={async () => {
-                if (!confirm("Remover a imagem atual?")) return;
-                await fetch("/api/admin/settings", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ world_map_url: "" }),
-                });
-                setMapUrl(null);
-              }}
+              onClick={() => setMapUrl(null)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
               style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
             >
@@ -122,6 +131,21 @@ export default function SettingsPage() {
               Remover
             </button>
           )}
+
+          <button
+            onClick={saveSettings}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ml-auto"
+            style={{
+              background: saving ? "rgba(255,255,255,0.04)" : "#22c55e",
+              color: saving ? "#64748b" : "#fff",
+              cursor: saving ? "not-allowed" : "pointer",
+            }}
+          >
+            <Save className="w-4 h-4" />
+            {saving ? "Salvando…" : "Salvar"}
+          </button>
+          {savedFlash && <span className="text-xs text-emerald-400">✓ Salvo</span>}
         </div>
       </div>
     </div>
