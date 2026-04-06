@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Clock, HelpCircle, X, Trophy } from "lucide-react";
 import type { Tab, ActiveTrade, AccountType } from "./TradeLayout";
+import { useChartColors } from "@/lib/useChartColors";
 
 const EXPIRATIONS: { label: string; ms: number }[] = [
   { label: "00:30", ms: 30_000 },
@@ -52,6 +53,7 @@ export default function TradePanel({
   onHoverChange,
   mobile,
 }: Props) {
+  const colors = useChartColors();
   const [amount, setAmount] = useState(10);
 
   const expIdx      = EXPIRATIONS.findIndex((e) => e.ms === expiryMs);
@@ -130,7 +132,7 @@ export default function TradePanel({
             onMouseLeave={() => onHoverChange?.(null)}
             disabled={!canTrade}
             className="flex-1 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-40"
-            style={{ background: "linear-gradient(180deg,#2ecc71,#219a52)", height: 48 }}
+            style={{ background: colors.buy, height: 48 }}
           >
             <TrendingUp className="w-5 h-5" strokeWidth={2.5} />
             <span className="text-[15px] tracking-widest">ACIMA</span>
@@ -141,7 +143,7 @@ export default function TradePanel({
             onMouseLeave={() => onHoverChange?.(null)}
             disabled={!canTrade}
             className="flex-1 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-40"
-            style={{ background: "linear-gradient(180deg,#e74c3c,#a93226)", height: 48 }}
+            style={{ background: colors.sell, height: 48 }}
           >
             <TrendingDown className="w-5 h-5" strokeWidth={2.5} />
             <span className="text-[15px] tracking-widest">ABAIXO</span>
@@ -268,7 +270,7 @@ export default function TradePanel({
             onMouseLeave={() => onHoverChange?.(null)}
             disabled={!canTrade}
             className="w-full rounded-xl font-bold text-white flex flex-col items-center justify-center gap-1.5 transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: "linear-gradient(180deg,#2ecc71,#219a52)", paddingTop: 18, paddingBottom: 18 }}
+            style={{ background: colors.buy, paddingTop: 18, paddingBottom: 18 }}
           >
             <TrendingUp className="w-6 h-6" strokeWidth={2.5} />
             <span className="text-[15px] tracking-widest">ACIMA</span>
@@ -279,7 +281,7 @@ export default function TradePanel({
             onMouseLeave={() => onHoverChange?.(null)}
             disabled={!canTrade}
             className="w-full rounded-xl font-bold text-white flex flex-col items-center justify-center gap-1.5 transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: "linear-gradient(180deg,#e74c3c,#a93226)", paddingTop: 18, paddingBottom: 18 }}
+            style={{ background: colors.sell, paddingTop: 18, paddingBottom: 18 }}
           >
             <TrendingDown className="w-6 h-6" strokeWidth={2.5} />
             <span className="text-[15px] tracking-widest">ABAIXO</span>
