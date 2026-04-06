@@ -1229,11 +1229,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
       if (newBadges.length) {
         setBadges(prev => [...prev, ...newBadges]);
-        // Auto-remove after 5s
+        // Auto-remove after 10s (or click to dismiss)
         setTimeout(() => {
           const ids = new Set(newBadges.map(b => b.id));
           setBadges(prev => prev.filter(b => !ids.has(b.id)));
-        }, 5000);
+        }, 10000);
       }
     });
   }, [activeTrades]);
