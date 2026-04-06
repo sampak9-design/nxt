@@ -1217,25 +1217,28 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const chart  = chartRef.current;
       const series = seriesRef.current;
       if (!chart || !series) return;
-      const newBadges: typeof badges = [];
+
+      // Sum net result of all newly-resolved trades into a SINGLE badge
+      let net = 0;
       for (const trade of resolved) {
-        const entY = series.priceToCoordinate(trade.entryPrice) as number | null;
-        if (entY === null) continue;
-        const won    = trade.result === "win";
-        const profit = won ? +(trade.amount * trade.payout / 100).toFixed(2) : trade.amount;
-        newBadges.push({
-          id:         trade.id,
-          text:       won ? `+$${profit}` : `-$${profit}`,
-          color:      won ? "#22c55e" : "#ef4444",
-          entryTime:  trade.entryTime,
-          entryPrice: trade.entryPrice,
-        });
+        const won = trade.result === "win";
+        net += won ? +(trade.amount * trade.payout / 100) : -trade.amount;
         shownBadgeIds.current.add(trade.id);
       }
-      if (newBadges.length) {
-        setBadges(prev => [...prev, ...newBadges]);
-        // Stays anchored to the candle until clicked — no auto-dismiss
-      }
+      net = +net.toFixed(2);
+
+      // Anchor the badge on the last resolved trade's entry
+      const anchor = resolved[resolved.length - 1];
+      const sign   = net >= 0 ? "+" : "-";
+      const badge  = {
+        id:         `sum-${Date.now()}`,
+        text:       `${sign}R$${Math.abs(net)}`,
+        color:      net >= 0 ? "#22c55e" : "#ef4444",
+        entryTime:  anchor.entryTime,
+        entryPrice: anchor.entryPrice,
+      };
+      setBadges(prev => [...prev, badge]);
+      // Stays anchored to the candle until clicked — no auto-dismiss
     });
   }, [activeTrades]);
 
