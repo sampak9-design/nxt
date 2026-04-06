@@ -18,7 +18,6 @@ import {
   CandlestickChart, AreaChart, Activity,
 } from "lucide-react";
 import type { Tab, ActiveTrade } from "./TradeLayout";
-import { useChartColors } from "@/lib/useChartColors";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 type Candle = { time: UTCTimestamp; open: number; high: number; low: number; close: number };
@@ -828,33 +827,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const chartTypeInitRef = useRef(true);
   chartTypeRef.current = chartType;
   const [showChartMenu, setShowChartMenu] = useState(false);
-  const colors = useChartColors();
-  const colorsRef = useRef(colors);
-  colorsRef.current = colors;
   const [worldMapUrl, setWorldMapUrl] = useState<string | null>(null);
-
-  // Apply admin-customized colors when they load/change
-  useEffect(() => {
-    const c = chartRef.current;
-    const s = seriesRef.current;
-    if (c) {
-      c.applyOptions({
-        grid: {
-          vertLines: { color: colors.grid },
-          horzLines: { color: colors.grid },
-        },
-      });
-    }
-    if (s) {
-      try {
-        (s as any).applyOptions({
-          upColor: colors.buy,   downColor: colors.sell,
-          borderUpColor: colors.buy, borderDownColor: colors.sell,
-          wickUpColor: colors.buy,   wickDownColor: colors.sell,
-        });
-      } catch {}
-    }
-  }, [colors]);
 
   useEffect(() => {
     fetch("/api/admin/world-map", { method: "HEAD" })
@@ -1267,7 +1240,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const badge  = {
         id:         `sum-${Date.now()}`,
         text:       `${sign}R$${Math.abs(net)}`,
-        color:      net >= 0 ? colorsRef.current.win : colorsRef.current.lose,
+        color:      net >= 0 ? "#22c55e" : "#ef4444",
         entryTime:  anchor.entryTime,
         entryPrice: anchor.entryPrice,
       };
