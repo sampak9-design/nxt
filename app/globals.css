@@ -25,6 +25,30 @@
   --color-candle-sell: #ef4444;
 }
 
+/* Theme: Dark (even darker) */
+html.theme-dark {
+  --color-third: #0b0f18;
+  --color-background: #05080f;
+  --color-text: #ffffff;
+  --color-border: rgba(255,255,255,0.08);
+  --color-grid: #131823;
+  --color-icons: #64748b;
+}
+html.theme-dark body { background: #0b0f18; }
+
+/* Theme: Light */
+html.theme-light {
+  --color-third: #ffffff;
+  --color-background: #f5f6f8;
+  --color-text: #0f172a;
+  --color-text-hover: #475569;
+  --color-text-disabled: #94a3b8;
+  --color-border: rgba(0,0,0,0.08);
+  --color-grid: #e5e7eb;
+  --color-icons: #64748b;
+}
+html.theme-light body { background: #f5f6f8; color: #0f172a; }
+
 * {
   box-sizing: border-box;
 }

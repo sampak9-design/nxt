@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, ChevronDown } from "lucide-react";
 
 type TabKey = "aparencia" | "negociacao" | "atalhos" | "notificacoes" | "privacidade" | "conta";
@@ -19,17 +19,38 @@ const TABS: { key: TabKey; label: string }[] = [
 ];
 
 const THEMES = [
-  { id: "dark",    bg: "linear-gradient(135deg, #0f1422 0%, #1a2036 100%)", label: "Padrão" },
-  { id: "mclaren", bg: "linear-gradient(135deg, #1a0f0a 0%, #3d1a0f 100%)", label: "McLaren" },
-  { id: "orange",  bg: "linear-gradient(135deg, #1a0a00 0%, #4d1a00 100%)", label: "Laranja" },
-  { id: "light",   bg: "linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)", label: "Claro" },
+  { id: "padrao", bg: "linear-gradient(135deg, #111622 0%, #1a2036 100%)", label: "Padrão" },
+  { id: "dark",   bg: "linear-gradient(135deg, #05080f 0%, #0b0f18 100%)", label: "Escuro" },
+  { id: "light",  bg: "linear-gradient(135deg, #ffffff 0%, #e8eaef 100%)", label: "Claro" },
 ];
+
+const THEME_CLASSES: Record<string, string> = {
+  padrao: "",
+  dark:   "theme-dark",
+  light:  "theme-light",
+};
+
+function applyTheme(id: string) {
+  if (typeof document === "undefined") return;
+  const html = document.documentElement;
+  html.classList.remove("theme-dark", "theme-light");
+  const cls = THEME_CLASSES[id];
+  if (cls) html.classList.add(cls);
+  try { localStorage.setItem("xd_theme", id); } catch {}
+}
+
+function loadTheme(): string {
+  if (typeof window === "undefined") return "padrao";
+  try { return localStorage.getItem("xd_theme") || "padrao"; } catch { return "padrao"; }
+}
 
 const SCALES = [80, 90, 100, 110, 120];
 
 export default function SettingsModal({ onClose }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("aparencia");
-  const [selectedTheme, setSelectedTheme] = useState("dark");
+  const [selectedTheme, setSelectedTheme] = useState<string>(() => loadTheme());
+
+  useEffect(() => { applyTheme(selectedTheme); }, [selectedTheme]);
   const [showWorldMap, setShowWorldMap] = useState(true);
   const [scale, setScale] = useState(100);
   const [showLine, setShowLine] = useState(true);

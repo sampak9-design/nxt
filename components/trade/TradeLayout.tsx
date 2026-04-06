@@ -213,6 +213,17 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
     try { localStorage.setItem("xd_account_type", accountType); } catch {}
   }, [accountType]);
 
+  // Apply saved theme on mount
+  useEffect(() => {
+    try {
+      const t = localStorage.getItem("xd_theme") || "padrao";
+      const html = document.documentElement;
+      html.classList.remove("theme-dark", "theme-light");
+      if (t === "dark") html.classList.add("theme-dark");
+      else if (t === "light") html.classList.add("theme-light");
+    } catch {}
+  }, []);
+
   useEffect(() => {
     try { localStorage.setItem("xd_active_trades", JSON.stringify(activeTrades)); } catch {}
   }, [activeTrades]);
