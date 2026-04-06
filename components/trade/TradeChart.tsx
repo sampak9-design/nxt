@@ -838,6 +838,32 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const [badges, setBadges] = useState<{ id: string; text: string; color: string; entryTime: number; entryPrice: number }[]>([]);
+  const badgeRefs = useRef<Map<string, { el: HTMLDivElement; b: { entryTime: number; entryPrice: number } }>>(new Map());
+
+  // rAF loop: keep badge DOM positions glued to their candle on every frame
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const chart  = chartRef.current;
+      const series = seriesRef.current;
+      if (chart && series) {
+        badgeRefs.current.forEach(({ el, b }) => {
+          const bx = chart.timeScale().timeToCoordinate(b.entryTime as UTCTimestamp) as number | null;
+          const by = series.priceToCoordinate(b.entryPrice) as number | null;
+          if (bx === null || by === null) {
+            el.style.visibility = "hidden";
+          } else {
+            el.style.visibility = "visible";
+            el.style.left = `${bx}px`;
+            el.style.top  = `${by}px`;
+          }
+        });
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   // Persist drawings per tab+tf — survives re-renders, tab switches, and page refresh
   const LS_KEY = "xd_drawings";
@@ -2139,19 +2165,17 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
             ref={canvasRef}
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 2 }}
           />
-          {/* Result badges — positions recalculated every render so they follow zoom/pan */}
+          {/* Result badges — positions updated each frame via rAF (see effect below) */}
           {badges.map(b => {
-            const chart  = chartRef.current;
-            const series = seriesRef.current;
-            if (!chart || !series) return null;
-            const bx = chart.timeScale().timeToCoordinate(b.entryTime as UTCTimestamp) as number | null;
-            const by = series.priceToCoordinate(b.entryPrice) as number | null;
-            if (bx === null || by === null) return null;
             return (
-              <div key={b.id} onClick={() => setBadges(prev => prev.filter(x => x.id !== b.id))}
+              <div
+                key={b.id}
+                ref={(el) => { if (el) badgeRefs.current.set(b.id, { el, b }); else badgeRefs.current.delete(b.id); }}
+                onClick={() => setBadges(prev => prev.filter(x => x.id !== b.id))}
                 style={{
                   position: "absolute", zIndex: 8, cursor: "pointer",
-                  left: bx, top: by,
+                  left: 0, top: 0,
+                  visibility: "hidden",
                   transform: "translate(-50%, -50%)",
                   background: b.color,
                   borderRadius: 10, padding: "8px 20px",
