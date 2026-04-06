@@ -22,6 +22,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className="h-full">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('xd_theme');if(t==='dark')document.documentElement.classList.add('theme-dark');else if(t==='light')document.documentElement.classList.add('theme-light');}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col antialiased">{children}</body>
     </html>
   );
