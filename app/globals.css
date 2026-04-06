@@ -10,8 +10,8 @@
   /* Platform CSS vars (matching real platform) */
   --color-primary: #f97316;
   --color-secondary: #ea6c0a;
-  --color-third: #161C2C;
-  --color-background: #111622;
+  --color-third: #2c3142;
+  --color-background: #2c3142;
   --color-text: #FFFFFF;
   --color-text-hover: #869DC0;
   --color-text-disabled: #64748b;
@@ -54,11 +54,11 @@ html.theme-light body { background: #f5f6f8; color: #0f172a; }
 }
 
 html {
-  background: #161C2C;
+  background: #2c3142;
 }
 
 body {
-  background: #161C2C;
+  background: #2c3142;
   color: hsl(var(--foreground));
   font-family: 'Roboto', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
