@@ -482,25 +482,46 @@ function renderCanvas(
     const color   = isUp ? "#22c55e" : "#ef4444";
     const arrowSz = 8;
 
-    // Arrow pointing direction
+    // Horizontal price-line dash extending right from entry — anchors marker on the price
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(entryX, entryY);
+    ctx.lineTo(canvas.width, entryY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Arrow with TIP exactly on the price line
     ctx.save();
     ctx.beginPath();
     if (isUp) {
-      const tip = entryY - 14;
-      ctx.moveTo(entryX, tip);
-      ctx.lineTo(entryX - arrowSz, tip + arrowSz * 1.4);
-      ctx.lineTo(entryX + arrowSz, tip + arrowSz * 1.4);
+      // Up trade: arrow points UP at the price line from below
+      ctx.moveTo(entryX, entryY);                                  // tip on price
+      ctx.lineTo(entryX - arrowSz, entryY + arrowSz * 1.4);        // base below
+      ctx.lineTo(entryX + arrowSz, entryY + arrowSz * 1.4);
     } else {
-      const tip = entryY + 14;
-      ctx.moveTo(entryX, tip);
-      ctx.lineTo(entryX - arrowSz, tip - arrowSz * 1.4);
-      ctx.lineTo(entryX + arrowSz, tip - arrowSz * 1.4);
+      // Down trade: arrow points DOWN at the price line from above
+      ctx.moveTo(entryX, entryY);                                  // tip on price
+      ctx.lineTo(entryX - arrowSz, entryY - arrowSz * 1.4);        // base above
+      ctx.lineTo(entryX + arrowSz, entryY - arrowSz * 1.4);
     }
     ctx.closePath();
     ctx.fillStyle = color;
     ctx.fill();
     ctx.strokeStyle = "rgba(255,255,255,0.9)";
     ctx.lineWidth   = 1.5;
+    ctx.stroke();
+
+    // Solid dot exactly on the price line
+    ctx.beginPath();
+    ctx.arc(entryX, entryY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.restore();
 
@@ -515,7 +536,7 @@ function renderCanvas(
       const bw  = tw + 12;
       const bh  = 18;
       const bx  = entryX - bw / 2;
-      const by  = isUp ? entryY - 14 - arrowSz * 1.4 - bh - 6 : entryY + 14 + arrowSz * 1.4 + 6;
+      const by  = isUp ? entryY + arrowSz * 1.4 + 8 : entryY - arrowSz * 1.4 - bh - 8;
 
       // pill background
       ctx.fillStyle = color;
