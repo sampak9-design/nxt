@@ -14,11 +14,16 @@ export default function SettingsPage() {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch("/api/admin/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ world_map_url: mapUrl ?? "" }),
-      });
+      if (!mapUrl) {
+        // Delete the actual file as well
+        await fetch("/api/admin/world-map", { method: "DELETE" });
+      } else {
+        await fetch("/api/admin/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ world_map_url: mapUrl }),
+        });
+      }
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 1800);
     } finally {

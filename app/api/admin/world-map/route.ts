@@ -35,6 +35,16 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ url });
 }
 
+export async function DELETE() {
+  if (fs.existsSync(MAP_DIR)) {
+    for (const f of fs.readdirSync(MAP_DIR)) {
+      try { fs.unlinkSync(path.join(MAP_DIR, f)); } catch {}
+    }
+  }
+  db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)").run("world_map_url", "");
+  return NextResponse.json({ ok: true });
+}
+
 export async function GET() {
   if (!fs.existsSync(MAP_DIR)) return new NextResponse(null, { status: 404 });
   for (const ext of ["png", "jpg", "webp", "svg", "gif"]) {
