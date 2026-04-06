@@ -1493,9 +1493,21 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   /* ── real-time price feed ─────────────────────────────────────────── */
   useEffect(() => {
     const base = tab.id.replace("-OTC", "");
-    const derivSym = DERIV_SYMBOL[base];
+    const isOtc = tab.id.endsWith("-OTC") && !BINANCE_MAP[base]; // OTC forex → our engine
+    const derivSym = isOtc ? null : DERIV_SYMBOL[base];
 
-    if (derivSym) {
+    if (isOtc) {
+      // OTC forex → poll our /api/otc/tick at 1s for the live price
+      let dead = false;
+      const fetchReal = async () => {
+        if (dead) return;
+        const p = await fetchPrice(tab.id);
+        if (p && p > 0) realPriceRef.current = p;
+      };
+      fetchReal();
+      const iv = setInterval(fetchReal, 1000);
+      return () => { dead = true; clearInterval(iv); };
+    } else if (derivSym) {
       // Forex → persistent Deriv WebSocket tick subscription (real-time stream)
       let ws: WebSocket | null = null;
       let dead = false;
