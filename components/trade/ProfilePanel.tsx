@@ -5,6 +5,7 @@ import {
   Crown, Camera, ArrowDownCircle, ArrowUpCircle,
   FileText, HelpCircle, DollarSign, Clock, Key, Settings, LogOut, Copy, X,
 } from "lucide-react";
+import SettingsModal from "./SettingsModal";
 
 interface Props {
   pos: { top: number; right: number };
@@ -39,6 +40,7 @@ export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
   const fileRef  = useRef<HTMLInputElement>(null);
   const [user, setUser]         = useState<User | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Load current user
   useEffect(() => {
@@ -53,14 +55,15 @@ export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
       .catch(() => {});
   }, []);
 
-  // Close on outside click
+  // Close on outside click (disabled while settings modal is open)
   useEffect(() => {
+    if (showSettings) return;
     const h = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
-  }, [onClose]);
+  }, [onClose, showSettings]);
 
   const handleAvatarUpload = async (file: File) => {
     const fd = new FormData();
@@ -80,6 +83,7 @@ export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
     if (label === "Depositar fundos") { onClose(); onDepositClick(); return; }
     if (label === "Retirar fundos") { window.location.href = "/withdraw"; return; }
     if (label === "Verificar documentos") { window.location.href = "/verify"; return; }
+    if (label === "Configurações") { setShowSettings(true); return; }
     if (label === "Sair") {
       fetch("/api/auth/logout", { method: "POST" }).finally(() => {
         window.location.href = "/";
@@ -217,6 +221,7 @@ export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
           </div>
         )}
       </div>
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </>
   );
 }
