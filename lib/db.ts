@@ -51,6 +51,17 @@ db.exec(`
   );
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS otc_asset_config (
+    asset           TEXT PRIMARY KEY,
+    base            REAL NOT NULL,
+    vol             REAL NOT NULL,
+    mean_reversion  REAL NOT NULL DEFAULT 0.0002,
+    wick_intensity  REAL NOT NULL DEFAULT 1.2,
+    decimals        INTEGER NOT NULL DEFAULT 5
+  );
+`);
+
 // Migrations — safe to run multiple times
 try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN is_marketing INTEGER NOT NULL DEFAULT 0`); } catch {}

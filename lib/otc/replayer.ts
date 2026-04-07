@@ -27,6 +27,8 @@ export type AssetParams = {
   base:    number;  // reference price (seed value)
   vol:     number;  // annualized volatility (e.g. 0.07 = 7%)
   decimals: number; // price decimals for formatting
+  meanReversion?: number; // 0..0.005, default 0.0002
+  wickIntensity?: number; // 0.5..3, default 1.2
 };
 
 // ── 21 OTC assets ───────────────────────────────────────────────────────
@@ -59,9 +61,49 @@ export function isOtcAsset(symbol: string): boolean {
   return base in OTC_ASSETS;
 }
 
+// ── Per-asset config overrides from DB (cached, refreshed every 10s) ────
+let dbOverrides: Record<string, Partial<AssetParams>> = {};
+let lastConfigLoad = 0;
+function loadConfigOverrides() {
+  const now = Date.now();
+  if (now - lastConfigLoad < 10_000) return;
+  lastConfigLoad = now;
+  try {
+    // Lazy import to avoid bundling sqlite into client
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const db = require("@/lib/db").default;
+    const rows = db.prepare("SELECT * FROM otc_asset_config").all() as Array<{
+      asset: string; base: number; vol: number;
+      mean_reversion: number; wick_intensity: number; decimals: number;
+    }>;
+    const next: Record<string, Partial<AssetParams>> = {};
+    for (const r of rows) {
+      next[r.asset] = {
+        base: r.base, vol: r.vol,
+        meanReversion: r.mean_reversion,
+        wickIntensity: r.wick_intensity,
+        decimals: r.decimals,
+      };
+    }
+    dbOverrides = next;
+  } catch { /* server-only — ignore on client */ }
+}
+
+/** Forces an immediate reload (called by admin save endpoint). Also clears caches. */
+export function invalidateConfig() {
+  lastConfigLoad = 0;
+  loadConfigOverrides();
+  walkCache.clear();
+  minuteCandleCache.clear();
+}
+
 export function getOtcParams(symbol: string): AssetParams | null {
   const base = symbol.replace("-OTC", "");
-  return OTC_ASSETS[base] ?? null;
+  const builtin = OTC_ASSETS[base];
+  if (!builtin) return null;
+  loadConfigOverrides();
+  const ov = dbOverrides[base];
+  return ov ? { ...builtin, ...ov } : builtin;
 }
 
 // ── Deterministic PRNG (Mulberry32) ─────────────────────────────────────
@@ -117,7 +159,8 @@ function getMinutePrice(params: AssetParams, minuteIdx: number): number {
     const z = randn(rand);
     state.price = state.price * Math.exp(-sigma * sigma / 2 * dt + sigma * Math.sqrt(dt) * z);
     // Mean reversion: pull weakly back to base so price doesn't drift forever
-    state.price = state.price + (params.base - state.price) * 0.0002;
+    const mr = params.meanReversion ?? 0.0002;
+    state.price = state.price + (params.base - state.price) * mr;
     state.lastIdx = next;
   }
   return state.price;
@@ -137,10 +180,11 @@ function minuteCandleAt(params: AssetParams, minuteIdx: number): OtcCandle {
   const subRand = mulberry32(params.seed * 1_000_003 + minuteIdx + 7);
   let high = Math.max(open, close);
   let low  = Math.min(open, close);
+  const wickIntensity = params.wickIntensity ?? 1.2;
   const range = Math.abs(close - open) + params.base * 0.0001;
   for (let i = 0; i < 6; i++) {
     const z = (subRand() - 0.5) * 2; // -1..1
-    const tip = (open + close) / 2 + z * range * 1.2;
+    const tip = (open + close) / 2 + z * range * wickIntensity;
     if (tip > high) high = tip;
     if (tip < low)  low  = tip;
   }

@@ -3,10 +3,10 @@
 import { useState } from "react";
 import {
   LayoutDashboard, Users, ArrowDownCircle, ArrowUpCircle,
-  Activity, BarChart2, Layers, LogOut, ChevronRight, Bell, TrendingUp, Plug, ShieldCheck, Settings,
+  Activity, BarChart2, Layers, LogOut, ChevronRight, Bell, TrendingUp, Plug, ShieldCheck, Settings, Sliders,
 } from "lucide-react";
 
-export type AdminPage = "dashboard" | "users" | "deposits" | "withdrawals" | "kyc" | "trades" | "assets" | "reports" | "signals" | "integration" | "settings";
+export type AdminPage = "dashboard" | "users" | "deposits" | "withdrawals" | "kyc" | "trades" | "assets" | "reports" | "signals" | "integration" | "settings" | "otc_config";
 
 const NAV: { id: AdminPage; label: string; icon: React.ReactNode; badge?: number }[] = [
   { id: "dashboard",   label: "Dashboard",   icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -19,6 +19,7 @@ const NAV: { id: AdminPage; label: string; icon: React.ReactNode; badge?: number
   { id: "assets",      label: "Ativos",      icon: <Layers className="w-4 h-4" /> },
   { id: "signals",     label: "Sinais OTC",  icon: <TrendingUp className="w-4 h-4" /> },
   { id: "reports",     label: "Relatórios",  icon: <BarChart2 className="w-4 h-4" /> },
+  { id: "otc_config",  label: "Ativos OTC",  icon: <Sliders className="w-4 h-4" /> },
   { id: "settings",    label: "Configurações", icon: <Settings className="w-4 h-4" /> },
 ];
 
