@@ -62,6 +62,20 @@ db.exec(`
   );
 `);
 
+// Migrations for advanced OTC config columns
+const otcCols = [
+  ["spike_chance",      "REAL DEFAULT 0.005"],
+  ["spike_magnitude",   "REAL DEFAULT 0.0008"],
+  ["momentum_strength", "REAL DEFAULT 0.3"],
+  ["momentum_duration", "REAL DEFAULT 90"],
+  ["drift_bias",        "REAL DEFAULT 0"],
+  ["liquidity",         "REAL DEFAULT 1.0"],
+  ["seasonality_on",    "INTEGER DEFAULT 1"],
+];
+for (const [col, type] of otcCols) {
+  try { db.exec(`ALTER TABLE otc_asset_config ADD COLUMN ${col} ${type}`); } catch {}
+}
+
 // Migrations — safe to run multiple times
 try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN is_marketing INTEGER NOT NULL DEFAULT 0`); } catch {}
