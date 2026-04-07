@@ -1497,7 +1497,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     const derivSym = isOtc ? null : DERIV_SYMBOL[base];
 
     if (isOtc) {
-      // OTC forex → poll our /api/otc/tick at 1s for the live price
+      // OTC forex → poll our /api/otc/tick at 250ms for snappy live price
       let dead = false;
       const fetchReal = async () => {
         if (dead) return;
@@ -1505,7 +1505,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         if (p && p > 0) realPriceRef.current = p;
       };
       fetchReal();
-      const iv = setInterval(fetchReal, 1000);
+      const iv = setInterval(fetchReal, 250);
       return () => { dead = true; clearInterval(iv); };
     } else if (derivSym) {
       // Forex → persistent Deriv WebSocket tick subscription (real-time stream)
@@ -1585,6 +1585,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const signal  = signalRef.current;
 
       const isCrypto = !!BINANCE_MAP[tab.id.replace("-OTC", "")];
+      const isOtcSynth = tab.id.endsWith("-OTC") && !isCrypto;
 
       let drift: number;
       let noise: number;
@@ -1593,6 +1594,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         const dir = signal.direction === "up" ? 1 : -1;
         drift = current * 0.000015 * dir * signal.strength;
         noise = current * (Math.random() - 0.5) * 0.000003;
+      } else if (isOtcSynth) {
+        // OTC synthetic: server polled every 250ms — converge fast
+        drift = (real - current) * 0.45;
+        noise = current * (Math.random() - 0.5) * 0.000010;
       } else if (isCrypto) {
         // Crypto: polling 1s Binance — drift rápido, pouco ruído
         drift = (real - current) * 0.25;

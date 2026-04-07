@@ -334,10 +334,12 @@ export function getCurrentCandle(
   const elapsedMs = Math.max(subTickMs, nowMs - candleStartMs);
   const ticks = Math.floor(elapsedMs / subTickMs);
 
+  // Effective sigma boosted ~6x so intra-candle motion looks like real forex
+  // (real forex moves much more per second relative to its annualized vol).
   const sigmaBase = params.vol * globalConfig.volMultiplier * modeMultiplier() *
-                    seasonalityFactor(candleStart, params) / (params.liquidity ?? 1);
+                    seasonalityFactor(candleStart, params) / (params.liquidity ?? 1) * 6;
   const dt = (subTickMs / 1000) / (252 * 24 * 60 * 60);
-  const drift = (params.driftBias ?? 0) * 0.0000005;
+  const drift = (params.driftBias ?? 0) * 0.000002;
   const mr = (params.meanReversion ?? 0.0002) * 0.05; // softer mean reversion intra-candle
 
   // Anchor for mean reversion: the previous closed candle's close
