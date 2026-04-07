@@ -197,12 +197,16 @@ type WalkState = { lastIdx: number; price: number };
 const walkCache: Map<string, WalkState> = new Map();
 const minuteCandleCache: Map<string, OtcCandle> = new Map();
 
+// Fixed anchor: 2024-01-01 00:00:00 UTC (in minutes since epoch)
+// Walking always starts from here so the same minute always yields the same price.
+const FIXED_ANCHOR_MIN = Math.floor(new Date("2024-01-01T00:00:00Z").getTime() / 60_000);
+
 function getMinutePrice(params: AssetParams, minuteIdx: number): number {
   const key = `${params.seed}`;
   let state = walkCache.get(key);
-  if (!state || state.lastIdx > minuteIdx) {
-    const anchorIdx = minuteIdx - 60 * 24 * 60;
-    state = { lastIdx: anchorIdx, price: params.base };
+  // Always start the walk at the FIXED anchor; cache forward progress only.
+  if (!state || state.lastIdx > minuteIdx || state.lastIdx < FIXED_ANCHOR_MIN) {
+    state = { lastIdx: FIXED_ANCHOR_MIN, price: params.base };
     walkCache.set(key, state);
   }
   const baseSigma = params.vol * globalConfig.volMultiplier * modeMultiplier();
@@ -308,7 +312,9 @@ export function getHistoricalCandles(
   return candles;
 }
 
-/** Live forming candle with sub-second tick walk + momentum / spikes. */
+/** Live forming candle. Walks the price tick-by-tick from candle open up to
+ *  nowMs, with mean-reversion pullbacks and small momentum windows so the
+ *  movement looks like real forex (not monotonic). */
 export function getCurrentCandle(
   symbol: string,
   tfSec: number,
@@ -319,37 +325,49 @@ export function getCurrentCandle(
   const nowSec = nowMs / 1000;
   const currentIdx = Math.floor(nowSec / tfSec);
   const candleStart = currentIdx * tfSec;
-  const open = getMinutePrice(params, Math.floor(candleStart / 60) - 1);
+  const candleStartMs = candleStart * 1000;
+  const openMinute = Math.floor(candleStart / 60);
+  const open = getMinutePrice(params, openMinute - 1);
 
-  // 250ms sub-tick walk from candleStart up to nowMs
+  // Sub-tick (250ms)
   const subTickMs = 250;
-  const totalMs = Math.max(subTickMs, Math.floor((nowMs - candleStart * 1000) / subTickMs) * subTickMs);
-  const ticks = totalMs / subTickMs;
+  const elapsedMs = Math.max(subTickMs, nowMs - candleStartMs);
+  const ticks = Math.floor(elapsedMs / subTickMs);
 
   const sigmaBase = params.vol * globalConfig.volMultiplier * modeMultiplier() *
                     seasonalityFactor(candleStart, params) / (params.liquidity ?? 1);
-  // Per-tick dt: 250ms in years
   const dt = (subTickMs / 1000) / (252 * 24 * 60 * 60);
   const drift = (params.driftBias ?? 0) * 0.0000005;
+  const mr = (params.meanReversion ?? 0.0002) * 0.05; // softer mean reversion intra-candle
 
-  // Momentum: regime that picks a direction for ~momentumDuration seconds
+  // Anchor for mean reversion: the previous closed candle's close
+  const anchor = open;
+
+  // Momentum: 5-second windows that flip direction independently → natural pullbacks
   const momStrength = params.momentumStrength ?? 0.3;
-  const momDuration = params.momentumDuration ?? 90; // seconds
-  const momRand = mulberry32(params.seed * 7919 + Math.floor(nowSec / momDuration));
-  const momentumDir = momRand() < 0.5 ? -1 : 1;
-  const momentumDriftPerTick = momentumDir * momStrength * sigmaBase * 0.00002;
+  const momWindowSec = 5;
 
   let s = open;
   let high = open, low = open;
   for (let i = 1; i <= ticks; i++) {
-    const tickSeed = params.seed * 1_000_003 + currentIdx * 100_000 + i;
+    // Deterministic seed from absolute second so reload === reload
+    const absMs = candleStartMs + i * subTickMs;
+    const tickSeed = params.seed * 1_000_003 + Math.floor(absMs / subTickMs);
     const rand = mulberry32(tickSeed);
     const z = randn(rand);
     s = s * Math.exp((drift - sigmaBase * sigmaBase / 2) * dt + sigmaBase * Math.sqrt(dt) * z);
-    s += momentumDriftPerTick * s;
 
-    // Spike chance per second (so divide by 4 since we tick every 250ms)
-    const spikeChance = ((params.spikeChance ?? 0.005) * globalConfig.spikeMultiplier) / 240; // /240 for per-tick rate
+    // Mean revert toward anchor (small force) — creates pullbacks
+    s = s + (anchor - s) * mr;
+
+    // Momentum bias for the current 5s window (changes direction often)
+    const winIdx = Math.floor((absMs / 1000) / momWindowSec);
+    const winRand = mulberry32(params.seed * 7919 + winIdx);
+    const momDir = winRand() < 0.5 ? -1 : 1;
+    s += momDir * momStrength * sigmaBase * 0.000005 * s;
+
+    // Spikes (rare)
+    const spikeChance = ((params.spikeChance ?? 0.005) * globalConfig.spikeMultiplier) / 240;
     if (rand() < spikeChance) {
       const dir = rand() < 0.5 ? -1 : 1;
       const mag = (params.spikeMagnitude ?? 0.0008) * (0.4 + rand());
