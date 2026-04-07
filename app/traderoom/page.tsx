@@ -101,10 +101,8 @@ const ASSETS: ApiAsset[] = [
   { id: "NZDCAD-OTC", symbol: "NZDCAD-OTC", name: "NZD/CAD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "NZDCHF-OTC", symbol: "NZDCHF-OTC", name: "NZD/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "NZDJPY-OTC", symbol: "NZDJPY-OTC", name: "NZD/JPY (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "NZDUSD-OTC", symbol: "NZDUSD-OTC", name: "NZD/USD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "USDCAD-OTC", symbol: "USDCAD-OTC", name: "USD/CAD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "USDCHF-OTC", symbol: "USDCHF-OTC", name: "USD/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "USDJPY-OTC", symbol: "USDJPY-OTC", name: "USD/JPY (OTC)", is_active: true, payout_m1: 82, payout_m5: 84, payout_m15: 85, payout_h1: 87, icon_url: null },
 
   // ── OTC crypto (still uses Binance feed) ─────────────────────────────────
   { id: "BTCUSD-OTC", symbol: "BTCUSD-OTC", name: "BTC/USD (OTC)", is_active: true, payout_m1: 76, payout_m5: 78, payout_m15: 79, payout_h1: 81, icon_url: null },

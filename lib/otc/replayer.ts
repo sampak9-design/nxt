@@ -43,10 +43,8 @@ export const OTC_ASSETS: Record<string, AssetParams> = {
   NZDCAD: { base: 0.805, decimals: 5 },
   NZDCHF: { base: 0.530, decimals: 5 },
   NZDJPY: { base: 90.50, decimals: 3 },
-  NZDUSD: { base: 0.592, decimals: 5 },
   USDCAD: { base: 1.362, decimals: 5 },
   USDCHF: { base: 0.893, decimals: 5 },
-  USDJPY: { base: 149.8, decimals: 3 },
 };
 
 export function isOtcAsset(symbol: string): boolean {
