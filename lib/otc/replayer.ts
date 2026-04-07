@@ -312,9 +312,9 @@ export function getHistoricalCandles(
   return candles;
 }
 
-/** Live forming candle. Walks the price tick-by-tick from candle open up to
- *  nowMs, with mean-reversion pullbacks and small momentum windows so the
- *  movement looks like real forex (not monotonic). */
+/** Live forming candle. Interpolates between the previous closed candle's
+ *  close and the deterministic next-minute close, with small intra-candle
+ *  oscillations. Always continuous with historical data on reload. */
 export function getCurrentCandle(
   symbol: string,
   tfSec: number,
@@ -325,67 +325,71 @@ export function getCurrentCandle(
   const nowSec = nowMs / 1000;
   const currentIdx = Math.floor(nowSec / tfSec);
   const candleStart = currentIdx * tfSec;
-  const candleStartMs = candleStart * 1000;
-  const openMinute = Math.floor(candleStart / 60);
-  const open = getMinutePrice(params, openMinute - 1);
+  const candleEnd = candleStart + tfSec;
 
-  // Sub-tick (250ms)
-  const subTickMs = 250;
-  const elapsedMs = Math.max(subTickMs, nowMs - candleStartMs);
-  const ticks = Math.floor(elapsedMs / subTickMs);
+  // Anchors come from the deterministic minute walk — same source as history.
+  // tfSec is always a multiple of 60 (1m/5m/15m), so we use minute boundaries.
+  const startMin = Math.floor(candleStart / 60);
+  const endMin   = Math.floor(candleEnd / 60);
+  const open  = getMinutePrice(params, startMin - 1); // == close of previous candle
+  const target = getMinutePrice(params, endMin - 1);  // where this candle will close
 
-  // Effective sigma boosted ~6x so intra-candle motion looks like real forex
-  // (real forex moves much more per second relative to its annualized vol).
-  const sigmaBase = params.vol * globalConfig.volMultiplier * modeMultiplier() *
-                    seasonalityFactor(candleStart, params) / (params.liquidity ?? 1) * 6;
-  const dt = (subTickMs / 1000) / (252 * 24 * 60 * 60);
-  const drift = (params.driftBias ?? 0) * 0.000002;
-  const mr = (params.meanReversion ?? 0.0002) * 0.05; // softer mean reversion intra-candle
+  // Linear progress through the candle (0..1)
+  const progress = Math.min(1, Math.max(0, (nowMs / 1000 - candleStart) / tfSec));
 
-  // Anchor for mean reversion: the previous closed candle's close
-  const anchor = open;
+  // Base interpolated price along open → target
+  const baseLine = open + (target - open) * progress;
 
-  // Momentum: 5-second windows that flip direction independently → natural pullbacks
+  // Per-second oscillation around the baseline so motion looks alive.
+  // Deterministic by absolute second — same on every client.
+  const sec = Math.floor(nowMs / 1000);
+  const oscRand = mulberry32(params.seed * 6151 + sec);
+  const oscRand2 = mulberry32(params.seed * 13327 + Math.floor(sec / 5));
+  // Two layers of noise:
+  //   - micro: sub-pip wiggle every second
+  //   - momentum: small directional bias for 5s windows
+  const microNoise = (oscRand() - 0.5) * params.base * 0.00015;
+  const momDir = oscRand2() < 0.5 ? -1 : 1;
   const momStrength = params.momentumStrength ?? 0.3;
-  const momWindowSec = 5;
+  const momPush = momDir * momStrength * params.base * 0.00010 *
+                  Math.sin((sec % 5) / 5 * Math.PI);
 
-  let s = open;
-  let high = open, low = open;
-  for (let i = 1; i <= ticks; i++) {
-    // Deterministic seed from absolute second so reload === reload
-    const absMs = candleStartMs + i * subTickMs;
-    const tickSeed = params.seed * 1_000_003 + Math.floor(absMs / subTickMs);
-    const rand = mulberry32(tickSeed);
-    const z = randn(rand);
-    s = s * Math.exp((drift - sigmaBase * sigmaBase / 2) * dt + sigmaBase * Math.sqrt(dt) * z);
+  let close = baseLine + microNoise + momPush;
 
-    // Mean revert toward anchor (small force) — creates pullbacks
-    s = s + (anchor - s) * mr;
-
-    // Momentum bias for the current 5s window (changes direction often)
-    const winIdx = Math.floor((absMs / 1000) / momWindowSec);
-    const winRand = mulberry32(params.seed * 7919 + winIdx);
-    const momDir = winRand() < 0.5 ? -1 : 1;
-    s += momDir * momStrength * sigmaBase * 0.000005 * s;
-
-    // Spikes (rare)
-    const spikeChance = ((params.spikeChance ?? 0.005) * globalConfig.spikeMultiplier) / 240;
-    if (rand() < spikeChance) {
-      const dir = rand() < 0.5 ? -1 : 1;
-      const mag = (params.spikeMagnitude ?? 0.0008) * (0.4 + rand());
-      s = s * (1 + dir * mag);
-    }
-
-    if (s > high) high = s;
-    if (s < low)  low  = s;
+  // Compute high/low across the candle so far by sampling each second
+  let high = Math.max(open, close);
+  let low  = Math.min(open, close);
+  const totalSec = Math.max(1, Math.floor(nowSec - candleStart));
+  for (let i = 0; i <= totalSec; i++) {
+    const t = candleStart + i;
+    const r = mulberry32(params.seed * 6151 + t);
+    const r2 = mulberry32(params.seed * 13327 + Math.floor(t / 5));
+    const p = open + (target - open) * (i / tfSec)
+            + (r() - 0.5) * params.base * 0.00015
+            + (r2() < 0.5 ? -1 : 1) * momStrength * params.base * 0.00010 *
+              Math.sin((i % 5) / 5 * Math.PI);
+    if (p > high) high = p;
+    if (p < low)  low  = p;
   }
+
+  // Spike (rare, deterministic)
+  const spikeRand = mulberry32(params.seed * 982451653 + Math.floor(sec / 4));
+  const spikeChance = (params.spikeChance ?? 0.005) * globalConfig.spikeMultiplier;
+  if (spikeRand() < spikeChance) {
+    const dir = spikeRand() < 0.5 ? -1 : 1;
+    const mag = (params.spikeMagnitude ?? 0.0008) * (0.4 + spikeRand());
+    close = close * (1 + dir * mag);
+    if (close > high) high = close;
+    if (close < low)  low  = close;
+  }
+
   const dec = params.decimals;
   return {
     time:  candleStart,
     open:  +open.toFixed(dec + 2),
     high:  +high.toFixed(dec + 2),
     low:   +low.toFixed(dec + 2),
-    close: +s.toFixed(dec + 2),
+    close: +close.toFixed(dec + 2),
   };
 }
 
