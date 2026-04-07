@@ -52,9 +52,11 @@ export function getOtcParams(symbol: string): AssetParams | null {
 
 // ── Time mapping ────────────────────────────────────────────────────────
 // minute_idx in DB is sequential 0..N-1 per asset (0 = oldest, N-1 = newest).
-// Playback STARTS at index 0 the moment the server boots and walks forward.
-// realMinNow → 0; realMinNow + 1 → 1; ...; loops on overflow.
-const REPLAY_ANCHOR_MIN = Math.floor(Date.now() / 60000);
+// Playback starts at PLAYBACK_OFFSET so we have history context behind the
+// live candle. Live candle == idx PLAYBACK_OFFSET; chart history = idx 0..N-1
+// behind it. Each real minute that passes advances the live idx by +1.
+const PLAYBACK_OFFSET   = 600;  // 10h of "history" visible at boot
+const BOOT_REAL_MIN     = Math.floor(Date.now() / 60000);
 const assetRangeCache: Map<string, number> = new Map();
 
 function getAssetRange(asset: string): number {
@@ -72,8 +74,9 @@ function getAssetRange(asset: string): number {
 function virtualMinuteIdx(realMin: number, asset: string): number {
   const range = getAssetRange(asset);
   if (range <= 0) return 0;
-  const offset = realMin - REPLAY_ANCHOR_MIN;
-  return ((offset % range) + range) % range;
+  // Map real time to historical idx, anchored so live=PLAYBACK_OFFSET at boot
+  const idx = (realMin - BOOT_REAL_MIN) + PLAYBACK_OFFSET;
+  return ((idx % range) + range) % range;
 }
 
 // ── DB lookup with caching ──────────────────────────────────────────────
