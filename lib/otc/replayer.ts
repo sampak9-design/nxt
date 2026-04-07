@@ -312,9 +312,9 @@ export function getHistoricalCandles(
   return candles;
 }
 
-/** Live forming candle. Interpolates between the previous closed candle's
- *  close and the deterministic next-minute close, with small intra-candle
- *  oscillations. Always continuous with historical data on reload. */
+/** Live forming candle. Uses IDENTICAL math to the historical candle so when
+ *  the minute closes, the live candle === the future historical candle. The
+ *  close, high, low are scaled by progress (0..1) through the candle. */
 export function getCurrentCandle(
   symbol: string,
   tfSec: number,
@@ -325,68 +325,23 @@ export function getCurrentCandle(
   const nowSec = nowMs / 1000;
   const currentIdx = Math.floor(nowSec / tfSec);
   const candleStart = currentIdx * tfSec;
-  const candleEnd = candleStart + tfSec;
+  const progress = Math.min(1, Math.max(0, (nowSec - candleStart) / tfSec));
 
-  // Anchors come from the deterministic minute walk — same source as history.
-  // tfSec is always a multiple of 60 (1m/5m/15m), so we use minute boundaries.
-  const startMin = Math.floor(candleStart / 60);
-  const endMin   = Math.floor(candleEnd / 60);
-  const open  = getMinutePrice(params, startMin - 1); // == close of previous candle
-  const target = getMinutePrice(params, endMin - 1);  // where this candle will close
+  // Get the FUTURE/full candle as it will appear in history
+  const future = candleForEpoch(params, tfSec, candleStart);
 
-  // Linear progress through the candle (0..1)
-  const progress = Math.min(1, Math.max(0, (nowMs / 1000 - candleStart) / tfSec));
-
-  // Base interpolated price along open → target
-  const baseLine = open + (target - open) * progress;
-
-  // Per-second oscillation around the baseline so motion looks alive.
-  // Deterministic by absolute second — same on every client.
-  const sec = Math.floor(nowMs / 1000);
-  const oscRand = mulberry32(params.seed * 6151 + sec);
-  const oscRand2 = mulberry32(params.seed * 13327 + Math.floor(sec / 5));
-  // Two layers of noise:
-  //   - micro: sub-pip wiggle every second
-  //   - momentum: small directional bias for 5s windows
-  const microNoise = (oscRand() - 0.5) * params.base * 0.00015;
-  const momDir = oscRand2() < 0.5 ? -1 : 1;
-  const momStrength = params.momentumStrength ?? 0.3;
-  const momPush = momDir * momStrength * params.base * 0.00010 *
-                  Math.sin((sec % 5) / 5 * Math.PI);
-
-  let close = baseLine + microNoise + momPush;
-
-  // Compute high/low across the candle so far by sampling each second
-  let high = Math.max(open, close);
-  let low  = Math.min(open, close);
-  const totalSec = Math.max(1, Math.floor(nowSec - candleStart));
-  for (let i = 0; i <= totalSec; i++) {
-    const t = candleStart + i;
-    const r = mulberry32(params.seed * 6151 + t);
-    const r2 = mulberry32(params.seed * 13327 + Math.floor(t / 5));
-    const p = open + (target - open) * (i / tfSec)
-            + (r() - 0.5) * params.base * 0.00015
-            + (r2() < 0.5 ? -1 : 1) * momStrength * params.base * 0.00010 *
-              Math.sin((i % 5) / 5 * Math.PI);
-    if (p > high) high = p;
-    if (p < low)  low  = p;
-  }
-
-  // Spike (rare, deterministic)
-  const spikeRand = mulberry32(params.seed * 982451653 + Math.floor(sec / 4));
-  const spikeChance = (params.spikeChance ?? 0.005) * globalConfig.spikeMultiplier;
-  if (spikeRand() < spikeChance) {
-    const dir = spikeRand() < 0.5 ? -1 : 1;
-    const mag = (params.spikeMagnitude ?? 0.0008) * (0.4 + spikeRand());
-    close = close * (1 + dir * mag);
-    if (close > high) high = close;
-    if (close < low)  low  = close;
-  }
+  // Interpolate close from open toward future close
+  const close = future.open + (future.close - future.open) * progress;
+  // Wicks grow proportionally with progress (start small, reach full at close)
+  const upperWick = future.high - Math.max(future.open, future.close);
+  const lowerWick = Math.min(future.open, future.close) - future.low;
+  const high = Math.max(future.open, close) + upperWick * progress;
+  const low  = Math.min(future.open, close) - lowerWick * progress;
 
   const dec = params.decimals;
   return {
     time:  candleStart,
-    open:  +open.toFixed(dec + 2),
+    open:  +future.open.toFixed(dec + 2),
     high:  +high.toFixed(dec + 2),
     low:   +low.toFixed(dec + 2),
     close: +close.toFixed(dec + 2),
