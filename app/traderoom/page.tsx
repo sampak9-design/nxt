@@ -83,12 +83,11 @@ const ASSETS: ApiAsset[] = [
   { id: "OTC_SSMI",  symbol: "OTC_SSMI",  name: "Swiss 20 (OTC)",          is_active: true, payout_m1: 73, payout_m5: 75, payout_m15: 76, payout_h1: 78, icon_url: null },
   { id: "OTC_SX5E",  symbol: "OTC_SX5E",  name: "Euro 50 (OTC)",           is_active: true, payout_m1: 73, payout_m5: 75, payout_m15: 76, payout_h1: 78, icon_url: null },
 
-  // ── OTC forex pairs (24/7, synthetic engine) ─────────────────────────────
+  // ── OTC forex pairs (24/7, real Deriv historical replay starting 2025-07-30) ─
   { id: "AUDCAD-OTC", symbol: "AUDCAD-OTC", name: "AUD/CAD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "AUDCHF-OTC", symbol: "AUDCHF-OTC", name: "AUD/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "AUDJPY-OTC", symbol: "AUDJPY-OTC", name: "AUD/JPY (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "AUDNZD-OTC", symbol: "AUDNZD-OTC", name: "AUD/NZD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "CADCHF-OTC", symbol: "CADCHF-OTC", name: "CAD/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "EURAUD-OTC", symbol: "EURAUD-OTC", name: "EUR/AUD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "EURCHF-OTC", symbol: "EURCHF-OTC", name: "EUR/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "EURGBP-OTC", symbol: "EURGBP-OTC", name: "EUR/GBP (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
@@ -97,12 +96,6 @@ const ASSETS: ApiAsset[] = [
   { id: "GBPCHF-OTC", symbol: "GBPCHF-OTC", name: "GBP/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "GBPJPY-OTC", symbol: "GBPJPY-OTC", name: "GBP/JPY (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
   { id: "GBPNZD-OTC", symbol: "GBPNZD-OTC", name: "GBP/NZD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "GBPUSD-OTC", symbol: "GBPUSD-OTC", name: "GBP/USD (OTC)", is_active: true, payout_m1: 82, payout_m5: 84, payout_m15: 85, payout_h1: 87, icon_url: null },
-  { id: "NZDCAD-OTC", symbol: "NZDCAD-OTC", name: "NZD/CAD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "NZDCHF-OTC", symbol: "NZDCHF-OTC", name: "NZD/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "NZDJPY-OTC", symbol: "NZDJPY-OTC", name: "NZD/JPY (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "USDCAD-OTC", symbol: "USDCAD-OTC", name: "USD/CAD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "USDCHF-OTC", symbol: "USDCHF-OTC", name: "USD/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
 
   // ── OTC crypto (still uses Binance feed) ─────────────────────────────────
   { id: "BTCUSD-OTC", symbol: "BTCUSD-OTC", name: "BTC/USD (OTC)", is_active: true, payout_m1: 76, payout_m5: 78, payout_m15: 79, payout_h1: 81, icon_url: null },

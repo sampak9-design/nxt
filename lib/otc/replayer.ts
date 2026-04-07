@@ -24,13 +24,12 @@ export type AssetParams = {
   decimals: number;
 };
 
-// 21 OTC forex pairs — defaults used as fallback if DB is empty
+// 12 OTC forex pairs (all with 252 days of historical data)
 export const OTC_ASSETS: Record<string, AssetParams> = {
   AUDCAD: { base: 0.910, decimals: 5 },
   AUDCHF: { base: 0.580, decimals: 5 },
   AUDJPY: { base: 96.30, decimals: 3 },
   AUDNZD: { base: 1.090, decimals: 5 },
-  CADCHF: { base: 0.655, decimals: 5 },
   EURAUD: { base: 1.690, decimals: 5 },
   EURCHF: { base: 0.969, decimals: 5 },
   EURGBP: { base: 0.855, decimals: 5 },
@@ -39,12 +38,6 @@ export const OTC_ASSETS: Record<string, AssetParams> = {
   GBPCHF: { base: 1.130, decimals: 5 },
   GBPJPY: { base: 190.1, decimals: 3 },
   GBPNZD: { base: 2.170, decimals: 5 },
-  GBPUSD: { base: 1.268, decimals: 5 },
-  NZDCAD: { base: 0.805, decimals: 5 },
-  NZDCHF: { base: 0.530, decimals: 5 },
-  NZDJPY: { base: 90.50, decimals: 3 },
-  USDCAD: { base: 1.362, decimals: 5 },
-  USDCHF: { base: 0.893, decimals: 5 },
 };
 
 export function isOtcAsset(symbol: string): boolean {
@@ -58,8 +51,10 @@ export function getOtcParams(symbol: string): AssetParams | null {
 }
 
 // ── Time mapping ────────────────────────────────────────────────────────
-// minute_idx in DB is sequential 0..N-1 per asset. Each asset may have a
-// different range. We loop over (now mod assetRange) to get the virtual idx.
+// minute_idx in DB is sequential 0..N-1 per asset (0 = oldest, N-1 = newest).
+// Playback STARTS at index 0 the moment the server boots and walks forward.
+// realMinNow → 0; realMinNow + 1 → 1; ...; loops on overflow.
+const REPLAY_ANCHOR_MIN = Math.floor(Date.now() / 60000);
 const assetRangeCache: Map<string, number> = new Map();
 
 function getAssetRange(asset: string): number {
@@ -77,7 +72,8 @@ function getAssetRange(asset: string): number {
 function virtualMinuteIdx(realMin: number, asset: string): number {
   const range = getAssetRange(asset);
   if (range <= 0) return 0;
-  return ((realMin % range) + range) % range;
+  const offset = realMin - REPLAY_ANCHOR_MIN;
+  return ((offset % range) + range) % range;
 }
 
 // ── DB lookup with caching ──────────────────────────────────────────────
