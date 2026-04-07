@@ -1,17 +1,14 @@
 /**
- * OTC Synthetic Candle Generator (Advanced)
+ * OTC Replayer — serves real Deriv 2023 M1 candles from local SQLite as if
+ * they were live data, looping through the year continuously.
  *
- * Realistic forex-like price simulation with:
- * - Geometric Brownian Motion (GBM) base
- * - Mean reversion to anchor price
- * - Intra-day seasonality (London/NY/Asian session volatility)
- * - Momentum / micro-trends (regime switching)
- * - Random spikes (news events)
- * - Per-asset drift bias
- * - Global volatility multiplier
- * - Sub-second tick resolution (250ms)
+ * Time mapping:
+ *   - Real `now` is converted to a "virtual" epoch inside the 2023 record.
+ *   - virtualEpoch = RECORD_START + (now % RECORD_DURATION)
+ *   - This means the historical year plays continuously, looping forever.
  *
- * All randomness is deterministic given (asset, time) so all clients agree.
+ * Manipulation (lib/otc/manipulation.ts) is applied on top of the real data
+ * for the live (forming) candle, NOT on the historical lookups.
  */
 
 export type OtcCandle = {
@@ -23,115 +20,34 @@ export type OtcCandle = {
 };
 
 export type AssetParams = {
-  seed:           number;
-  base:           number;
-  vol:            number;  // annualized volatility
-  decimals:       number;
-  meanReversion?: number;  // 0..0.005
-  wickIntensity?: number;  // 0.3..3
-  spikeChance?:   number;  // 0..0.05 (per minute)
-  spikeMagnitude?: number; // 0..0.005 (% move)
-  momentumStrength?: number; // 0..1
-  momentumDuration?: number; // seconds avg
-  driftBias?:     number;  // -1..+1 (perm directional bias)
-  liquidity?:     number;  // 0.3..2 (lower=larger moves)
-  seasonalityOn?: boolean;
+  base:     number;
+  decimals: number;
 };
 
-// ── 21 OTC assets — defaults ────────────────────────────────────────────
+// 21 OTC forex pairs — defaults used as fallback if DB is empty
 export const OTC_ASSETS: Record<string, AssetParams> = {
-  AUDCAD: { seed: 11, base: 0.910, vol: 0.055, decimals: 5 },
-  AUDCHF: { seed: 12, base: 0.580, vol: 0.060, decimals: 5 },
-  AUDJPY: { seed: 13, base: 96.30, vol: 0.080, decimals: 3 },
-  AUDNZD: { seed: 14, base: 1.090, vol: 0.045, decimals: 5 },
-  CADCHF: { seed: 15, base: 0.655, vol: 0.055, decimals: 5 },
-  EURAUD: { seed: 16, base: 1.690, vol: 0.060, decimals: 5 },
-  EURCHF: { seed: 17, base: 0.969, vol: 0.050, decimals: 5 },
-  EURGBP: { seed: 18, base: 0.855, vol: 0.050, decimals: 5 },
-  EURJPY: { seed: 19, base: 162.5, vol: 0.080, decimals: 3 },
-  EURUSD: { seed: 20, base: 1.085, vol: 0.070, decimals: 5 },
-  GBPCHF: { seed: 21, base: 1.130, vol: 0.065, decimals: 5 },
-  GBPJPY: { seed: 22, base: 190.1, vol: 0.090, decimals: 3 },
-  GBPNZD: { seed: 23, base: 2.170, vol: 0.070, decimals: 5 },
-  GBPUSD: { seed: 24, base: 1.268, vol: 0.070, decimals: 5 },
-  NZDCAD: { seed: 25, base: 0.805, vol: 0.055, decimals: 5 },
-  NZDCHF: { seed: 26, base: 0.530, vol: 0.060, decimals: 5 },
-  NZDJPY: { seed: 27, base: 90.50, vol: 0.080, decimals: 3 },
-  NZDUSD: { seed: 28, base: 0.592, vol: 0.070, decimals: 5 },
-  USDCAD: { seed: 29, base: 1.362, vol: 0.060, decimals: 5 },
-  USDCHF: { seed: 30, base: 0.893, vol: 0.060, decimals: 5 },
-  USDJPY: { seed: 31, base: 149.8, vol: 0.080, decimals: 3 },
+  AUDCAD: { base: 0.910, decimals: 5 },
+  AUDCHF: { base: 0.580, decimals: 5 },
+  AUDJPY: { base: 96.30, decimals: 3 },
+  AUDNZD: { base: 1.090, decimals: 5 },
+  CADCHF: { base: 0.655, decimals: 5 },
+  EURAUD: { base: 1.690, decimals: 5 },
+  EURCHF: { base: 0.969, decimals: 5 },
+  EURGBP: { base: 0.855, decimals: 5 },
+  EURJPY: { base: 162.5, decimals: 3 },
+  EURUSD: { base: 1.085, decimals: 5 },
+  GBPCHF: { base: 1.130, decimals: 5 },
+  GBPJPY: { base: 190.1, decimals: 3 },
+  GBPNZD: { base: 2.170, decimals: 5 },
+  GBPUSD: { base: 1.268, decimals: 5 },
+  NZDCAD: { base: 0.805, decimals: 5 },
+  NZDCHF: { base: 0.530, decimals: 5 },
+  NZDJPY: { base: 90.50, decimals: 3 },
+  NZDUSD: { base: 0.592, decimals: 5 },
+  USDCAD: { base: 1.362, decimals: 5 },
+  USDCHF: { base: 0.893, decimals: 5 },
+  USDJPY: { base: 149.8, decimals: 3 },
 };
-
-// ── Global config (multipliers across all assets) ───────────────────────
-type GlobalConfig = {
-  volMultiplier:    number; // 0.3..3
-  marketMode:       "calm" | "normal" | "nervous";
-  spikeMultiplier:  number; // 0..3
-  seasonalityOn:    boolean;
-};
-const DEFAULT_GLOBAL: GlobalConfig = {
-  volMultiplier:   1.0,
-  marketMode:      "normal",
-  spikeMultiplier: 1.0,
-  seasonalityOn:   true,
-};
-let globalConfig: GlobalConfig = { ...DEFAULT_GLOBAL };
-
-export function getGlobalConfig(): GlobalConfig { return { ...globalConfig }; }
-export function setGlobalConfig(patch: Partial<GlobalConfig>) {
-  globalConfig = { ...globalConfig, ...patch };
-  invalidateConfig();
-}
-
-// ── Per-asset DB overrides ──────────────────────────────────────────────
-let dbOverrides: Record<string, Partial<AssetParams>> = {};
-let lastConfigLoad = 0;
-function loadConfigOverrides() {
-  const now = Date.now();
-  if (now - lastConfigLoad < 5_000) return;
-  lastConfigLoad = now;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const db = require("@/lib/db").default;
-    const rows = db.prepare("SELECT * FROM otc_asset_config").all() as Array<any>;
-    const next: Record<string, Partial<AssetParams>> = {};
-    for (const r of rows) {
-      next[r.asset] = {
-        base: r.base, vol: r.vol,
-        meanReversion:    r.mean_reversion,
-        wickIntensity:    r.wick_intensity,
-        decimals:         r.decimals,
-        spikeChance:      r.spike_chance ?? undefined,
-        spikeMagnitude:   r.spike_magnitude ?? undefined,
-        momentumStrength: r.momentum_strength ?? undefined,
-        momentumDuration: r.momentum_duration ?? undefined,
-        driftBias:        r.drift_bias ?? undefined,
-        liquidity:        r.liquidity ?? undefined,
-        seasonalityOn:    r.seasonality_on != null ? r.seasonality_on === 1 : undefined,
-      };
-    }
-    dbOverrides = next;
-
-    // Load global config too
-    const gRows = db.prepare("SELECT key, value FROM settings WHERE key LIKE 'otc_global_%'").all() as Array<{ key: string; value: string }>;
-    const g: Partial<GlobalConfig> = {};
-    for (const row of gRows) {
-      if (row.key === "otc_global_vol_mult") g.volMultiplier = parseFloat(row.value);
-      if (row.key === "otc_global_mode")     g.marketMode = row.value as any;
-      if (row.key === "otc_global_spike_mult") g.spikeMultiplier = parseFloat(row.value);
-      if (row.key === "otc_global_seasonality") g.seasonalityOn = row.value === "1";
-    }
-    globalConfig = { ...DEFAULT_GLOBAL, ...g };
-  } catch { /* server-only */ }
-}
-
-export function invalidateConfig() {
-  lastConfigLoad = 0;
-  loadConfigOverrides();
-  walkCache.clear();
-  minuteCandleCache.clear();
-}
 
 export function isOtcAsset(symbol: string): boolean {
   const base = symbol.replace("-OTC", "");
@@ -140,161 +56,74 @@ export function isOtcAsset(symbol: string): boolean {
 
 export function getOtcParams(symbol: string): AssetParams | null {
   const base = symbol.replace("-OTC", "");
-  const builtin = OTC_ASSETS[base];
-  if (!builtin) return null;
-  loadConfigOverrides();
-  const ov = dbOverrides[base];
-  return ov ? { ...builtin, ...ov } : builtin;
+  return OTC_ASSETS[base] ?? null;
 }
 
-// ── PRNG ────────────────────────────────────────────────────────────────
-function mulberry32(seed: number) {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0;
-    a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+// ── Time mapping ────────────────────────────────────────────────────────
+// minute_idx in DB is sequential 0..N-1 per asset. Each asset may have a
+// different range. We loop over (now mod assetRange) to get the virtual idx.
+const assetRangeCache: Map<string, number> = new Map();
+
+function getAssetRange(asset: string): number {
+  if (assetRangeCache.has(asset)) return assetRangeCache.get(asset)!;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const db = require("@/lib/db").default;
+    const row = db.prepare("SELECT MAX(minute_idx) + 1 AS n FROM otc_history WHERE asset = ?").get(asset) as { n: number | null } | undefined;
+    const n = row?.n ?? 0;
+    assetRangeCache.set(asset, n);
+    return n;
+  } catch { return 0; }
 }
 
-function randn(rand: () => number): number {
-  let u = 0, v = 0;
-  while (u === 0) u = rand();
-  while (v === 0) v = rand();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+function virtualMinuteIdx(realMin: number, asset: string): number {
+  const range = getAssetRange(asset);
+  if (range <= 0) return 0;
+  return ((realMin % range) + range) % range;
 }
 
-// ── Seasonality factor based on UTC hour ────────────────────────────────
-// Approximates real forex session volatility:
-//   Asian (00-07 UTC):    0.6x
-//   London open (08-12):  1.4x
-//   London/NY overlap (13-16): 1.7x
-//   NY (17-21):           1.2x
-//   After hours (22-23):  0.5x
-function seasonalityFactor(epochSec: number, params: AssetParams): number {
-  const enabled = params.seasonalityOn ?? true;
-  if (!enabled || !globalConfig.seasonalityOn) return 1;
-  const hour = (Math.floor(epochSec / 3600) + 24) % 24;
-  if (hour >= 0  && hour <= 7)  return 0.6;
-  if (hour >= 8  && hour <= 12) return 1.4;
-  if (hour >= 13 && hour <= 16) return 1.7;
-  if (hour >= 17 && hour <= 21) return 1.2;
-  return 0.5;
-}
+// ── DB lookup with caching ──────────────────────────────────────────────
+type DbRow = { open: number; high: number; low: number; close: number };
+const lookupCache: Map<string, DbRow | null> = new Map();
+let cacheHits = 0;
+let cacheMisses = 0;
 
-function modeMultiplier(): number {
-  switch (globalConfig.marketMode) {
-    case "calm":    return 0.5;
-    case "nervous": return 2.0;
-    default:        return 1.0;
+function lookupMinute(asset: string, virtualMinIdx: number): DbRow | null {
+  const key = `${asset}:${virtualMinIdx}`;
+  if (lookupCache.has(key)) {
+    cacheHits++;
+    return lookupCache.get(key) ?? null;
   }
-}
-
-// ── Walk state ──────────────────────────────────────────────────────────
-type WalkState = { lastIdx: number; price: number };
-const walkCache: Map<string, WalkState> = new Map();
-const minuteCandleCache: Map<string, OtcCandle> = new Map();
-
-// Fixed anchor: 2024-01-01 00:00:00 UTC (in minutes since epoch)
-// Walking always starts from here so the same minute always yields the same price.
-const FIXED_ANCHOR_MIN = Math.floor(new Date("2024-01-01T00:00:00Z").getTime() / 60_000);
-
-function getMinutePrice(params: AssetParams, minuteIdx: number): number {
-  const key = `${params.seed}`;
-  let state = walkCache.get(key);
-  // Always start the walk at the FIXED anchor; cache forward progress only.
-  if (!state || state.lastIdx > minuteIdx || state.lastIdx < FIXED_ANCHOR_MIN) {
-    state = { lastIdx: FIXED_ANCHOR_MIN, price: params.base };
-    walkCache.set(key, state);
-  }
-  const baseSigma = params.vol * globalConfig.volMultiplier * modeMultiplier();
-  const dt = 1 / (252 * 24 * 60);
-  const mr = params.meanReversion ?? 0.0002;
-  const drift = (params.driftBias ?? 0) * 0.000002; // tiny per-minute bias
-  const liq = params.liquidity ?? 1.0;
-
-  while (state.lastIdx < minuteIdx) {
-    const next = state.lastIdx + 1;
-    const rand = mulberry32(params.seed * 1_000_003 + next);
-    const z = randn(rand);
-    const sigma = baseSigma * seasonalityFactor(next * 60, params) / liq;
-
-    state.price = state.price * Math.exp((drift - sigma * sigma / 2) * dt + sigma * Math.sqrt(dt) * z);
-    state.price = state.price + (params.base - state.price) * mr;
-
-    // Random spike
-    const spikeChance = (params.spikeChance ?? 0.005) * globalConfig.spikeMultiplier;
-    if (rand() < spikeChance) {
-      const dir = rand() < 0.5 ? -1 : 1;
-      const mag = (params.spikeMagnitude ?? 0.0008) * (0.5 + rand());
-      state.price = state.price * (1 + dir * mag);
+  cacheMisses++;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const db = require("@/lib/db").default;
+    const row = db.prepare(
+      "SELECT open, high, low, close FROM otc_history WHERE asset = ? AND minute_idx = ?"
+    ).get(asset, virtualMinIdx) as DbRow | undefined;
+    const result = row ?? null;
+    if (lookupCache.size > 100_000) {
+      // Trim oldest 20k
+      const it = lookupCache.keys();
+      for (let i = 0; i < 20_000; i++) lookupCache.delete(it.next().value as string);
     }
-
-    state.lastIdx = next;
+    lookupCache.set(key, result);
+    return result;
+  } catch {
+    return null;
   }
-  return state.price;
 }
 
-function minuteCandleAt(params: AssetParams, minuteIdx: number): OtcCandle {
-  const key = `${params.seed}:${minuteIdx}`;
-  const cached = minuteCandleCache.get(key);
-  if (cached) return cached;
-
-  const open = getMinutePrice(params, minuteIdx - 1);
-  const close = getMinutePrice(params, minuteIdx);
-  const subRand = mulberry32(params.seed * 1_000_003 + minuteIdx + 7);
-  let high = Math.max(open, close);
-  let low  = Math.min(open, close);
-  const wickIntensity = params.wickIntensity ?? 1.2;
-  const range = Math.abs(close - open) + params.base * 0.0001;
-  for (let i = 0; i < 8; i++) {
-    const z = (subRand() - 0.5) * 2;
-    const tip = (open + close) / 2 + z * range * wickIntensity;
-    if (tip > high) high = tip;
-    if (tip < low)  low  = tip;
-  }
-  const dec = params.decimals;
-  const candle: OtcCandle = {
-    time: minuteIdx * 60,
-    open:  +open.toFixed(dec + 2),
-    high:  +high.toFixed(dec + 2),
-    low:   +low.toFixed(dec + 2),
-    close: +close.toFixed(dec + 2),
-  };
-  if (minuteCandleCache.size > 50_000) {
-    const it = minuteCandleCache.keys();
-    for (let i = 0; i < 10_000; i++) minuteCandleCache.delete(it.next().value as string);
-  }
-  minuteCandleCache.set(key, candle);
-  return candle;
-}
-
-function candleForEpoch(params: AssetParams, tfSec: number, epoch: number): OtcCandle {
-  const candleIdx = Math.floor(epoch / tfSec);
-  const minutesPerCandle = Math.max(1, Math.floor(tfSec / 60));
-  const startMinute = candleIdx * minutesPerCandle;
-
-  let open = 0, high = -Infinity, low = Infinity, close = 0;
-  for (let i = 0; i < minutesPerCandle; i++) {
-    const m = minuteCandleAt(params, startMinute + i);
-    if (i === 0) open = m.open;
-    if (m.high > high) high = m.high;
-    if (m.low  < low)  low  = m.low;
-    close = m.close;
-  }
-  const dec = params.decimals;
-  return {
-    time: candleIdx * tfSec,
-    open:  +open.toFixed(dec + 2),
-    high:  +high.toFixed(dec + 2),
-    low:   +low.toFixed(dec + 2),
-    close: +close.toFixed(dec + 2),
-  };
+/** Cleared by admin endpoints when something changes. */
+export function invalidateConfig() {
+  lookupCache.clear();
 }
 
 // ── Public API ──────────────────────────────────────────────────────────
+
+/** Returns the last `count` closed candles for the given asset+timeframe.
+ *  Each real timestamp is mapped through the virtual time function so the
+ *  returned candles align with what `getCurrentCandle` will produce next. */
 export function getHistoricalCandles(
   symbol: string,
   tfSec: number,
@@ -303,18 +132,46 @@ export function getHistoricalCandles(
 ): OtcCandle[] {
   const params = getOtcParams(symbol);
   if (!params) return [];
-  const currentIdx = Math.floor(nowSec / tfSec);
+  const base = symbol.replace("-OTC", "");
+  const minutesPerCandle = Math.max(1, Math.floor(tfSec / 60));
+
   const candles: OtcCandle[] = [];
+  // Iterate from `count` candles ago up to (but not including) the current candle
+  const currentCandleStart = Math.floor(nowSec / tfSec) * tfSec;
+
   for (let i = count; i >= 1; i--) {
-    const epoch = (currentIdx - i) * tfSec;
-    candles.push(candleForEpoch(params, tfSec, epoch));
+    const candleStart = currentCandleStart - i * tfSec;
+    const startMinReal = Math.floor(candleStart / 60);
+    let open = 0, high = -Infinity, low = Infinity, close = 0;
+    let hadData = false;
+
+    for (let m = 0; m < minutesPerCandle; m++) {
+      const vMin = virtualMinuteIdx(startMinReal + m, base);
+      const row = lookupMinute(base, vMin);
+      if (!row) continue;
+      if (!hadData) { open = row.open; hadData = true; }
+      if (row.high > high) high = row.high;
+      if (row.low  < low)  low  = row.low;
+      close = row.close;
+    }
+
+    if (hadData) {
+      const dec = params.decimals;
+      candles.push({
+        time:  candleStart,
+        open:  +open.toFixed(dec + 2),
+        high:  +high.toFixed(dec + 2),
+        low:   +low.toFixed(dec + 2),
+        close: +close.toFixed(dec + 2),
+      });
+    }
   }
   return candles;
 }
 
-/** Live forming candle. Uses IDENTICAL math to the historical candle so when
- *  the minute closes, the live candle === the future historical candle. The
- *  close, high, low are scaled by progress (0..1) through the candle. */
+/** Returns the current (still-forming) candle. The historical "future" candle
+ *  is interpolated by progress through the candle so the close moves smoothly
+ *  toward the eventual close from the historical record. */
 export function getCurrentCandle(
   symbol: string,
   tfSec: number,
@@ -322,29 +179,42 @@ export function getCurrentCandle(
 ): OtcCandle | null {
   const params = getOtcParams(symbol);
   if (!params) return null;
+  const base = symbol.replace("-OTC", "");
   const nowSec = nowMs / 1000;
-  const currentIdx = Math.floor(nowSec / tfSec);
-  const candleStart = currentIdx * tfSec;
+  const candleStart = Math.floor(nowSec / tfSec) * tfSec;
   const progress = Math.min(1, Math.max(0, (nowSec - candleStart) / tfSec));
+  const minutesPerCandle = Math.max(1, Math.floor(tfSec / 60));
+  const startMinReal = Math.floor(candleStart / 60);
 
-  // Get the FUTURE/full candle as it will appear in history
-  const future = candleForEpoch(params, tfSec, candleStart);
+  // Build the "future" candle (full minutes already in DB)
+  let open = 0, high = -Infinity, low = Infinity, close = 0;
+  let hadData = false;
+  for (let m = 0; m < minutesPerCandle; m++) {
+    const vMin = virtualMinuteIdx(startMinReal + m, base);
+    const row = lookupMinute(base, vMin);
+    if (!row) continue;
+    if (!hadData) { open = row.open; hadData = true; }
+    if (row.high > high) high = row.high;
+    if (row.low  < low)  low  = row.low;
+    close = row.close;
+  }
+  if (!hadData) return null;
 
-  // Interpolate close from open toward future close
-  const close = future.open + (future.close - future.open) * progress;
-  // Wicks grow proportionally with progress (start small, reach full at close)
-  const upperWick = future.high - Math.max(future.open, future.close);
-  const lowerWick = Math.min(future.open, future.close) - future.low;
-  const high = Math.max(future.open, close) + upperWick * progress;
-  const low  = Math.min(future.open, close) - lowerWick * progress;
+  // Interpolate close from open toward final close based on progress
+  const liveClose = open + (close - open) * progress;
+  // Wicks grow proportionally
+  const upperWick = high - Math.max(open, close);
+  const lowerWick = Math.min(open, close) - low;
+  const liveHigh  = Math.max(open, liveClose) + upperWick * progress;
+  const liveLow   = Math.min(open, liveClose) - lowerWick * progress;
 
   const dec = params.decimals;
   return {
     time:  candleStart,
-    open:  +future.open.toFixed(dec + 2),
-    high:  +high.toFixed(dec + 2),
-    low:   +low.toFixed(dec + 2),
-    close: +close.toFixed(dec + 2),
+    open:  +open.toFixed(dec + 2),
+    high:  +liveHigh.toFixed(dec + 2),
+    low:   +liveLow.toFixed(dec + 2),
+    close: +liveClose.toFixed(dec + 2),
   };
 }
 
@@ -355,4 +225,11 @@ export function getCurrentPrice(
 ): number {
   const c = getCurrentCandle(symbol, tfSec, nowMs);
   return c?.close ?? 0;
+}
+
+export function getReplayInfo() {
+  return {
+    cacheHits, cacheMisses,
+    cacheSize: lookupCache.size,
+  };
 }

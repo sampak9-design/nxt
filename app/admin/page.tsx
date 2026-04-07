@@ -13,7 +13,6 @@ import SignalsPage    from "@/components/admin/SignalsPage";
 import IntegrationPage from "@/components/admin/IntegrationPage";
 import KycPage        from "@/components/admin/KycPage";
 import SettingsPage   from "@/components/admin/SettingsPage";
-import OtcConfigPage  from "@/components/admin/OtcConfigPage";
 
 export default function AdminPage() {
   const [page, setPage] = useState<AdminPage>("dashboard");
@@ -30,7 +29,6 @@ export default function AdminPage() {
     reports:     <ReportsPage />,
     integration: <IntegrationPage />,
     settings:    <SettingsPage />,
-    otc_config:  <OtcConfigPage />,
   }[page];
 
   return (

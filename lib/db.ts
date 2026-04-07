@@ -51,30 +51,18 @@ db.exec(`
   );
 `);
 
+// Historical M1 candles from Deriv (2023) used by the OTC replayer
 db.exec(`
-  CREATE TABLE IF NOT EXISTS otc_asset_config (
-    asset           TEXT PRIMARY KEY,
-    base            REAL NOT NULL,
-    vol             REAL NOT NULL,
-    mean_reversion  REAL NOT NULL DEFAULT 0.0002,
-    wick_intensity  REAL NOT NULL DEFAULT 1.2,
-    decimals        INTEGER NOT NULL DEFAULT 5
+  CREATE TABLE IF NOT EXISTS otc_history (
+    asset      TEXT NOT NULL,
+    minute_idx INTEGER NOT NULL,
+    open       REAL NOT NULL,
+    high       REAL NOT NULL,
+    low        REAL NOT NULL,
+    close      REAL NOT NULL,
+    PRIMARY KEY (asset, minute_idx)
   );
 `);
-
-// Migrations for advanced OTC config columns
-const otcCols = [
-  ["spike_chance",      "REAL DEFAULT 0.005"],
-  ["spike_magnitude",   "REAL DEFAULT 0.0008"],
-  ["momentum_strength", "REAL DEFAULT 0.3"],
-  ["momentum_duration", "REAL DEFAULT 90"],
-  ["drift_bias",        "REAL DEFAULT 0"],
-  ["liquidity",         "REAL DEFAULT 1.0"],
-  ["seasonality_on",    "INTEGER DEFAULT 1"],
-];
-for (const [col, type] of otcCols) {
-  try { db.exec(`ALTER TABLE otc_asset_config ADD COLUMN ${col} ${type}`); } catch {}
-}
 
 // Migrations — safe to run multiple times
 try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch {}
