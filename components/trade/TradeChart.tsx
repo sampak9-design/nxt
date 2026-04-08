@@ -1584,6 +1584,35 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const signal  = signalRef.current;
 
       const isCrypto = !!BINANCE_MAP[tab.id.replace("-OTC", "")];
+      const isServerOtc = SERVER_OTC.has(tab.id);
+
+      // OTC: snap directly to server price (no client-side random walk).
+      // The server already publishes the manipulated, deterministic price.
+      if (isServerOtc) {
+        if (real <= 0) return;
+        const p = +real.toFixed(7);
+        setUp(p >= lastPrice.current);
+        lastPrice.current = p;
+        setPrice(p);
+
+        const now = Math.floor(Date.now() / 1000) - 3 * 3600;
+        const ct  = (Math.floor(now / period) * period) as UTCTimestamp;
+        const last = list[list.length - 1];
+        if (last.time === ct) {
+          const u = { ...last, close: p, high: Math.max(last.high, p), low: Math.min(last.low, p) };
+          list[list.length - 1] = u;
+          const ctu = chartTypeRef.current;
+          series.update(ctu === "line" || ctu === "area" ? { time: u.time, value: u.close } as any : u);
+        } else {
+          const n: Candle = { time: ct, open: last.close, high: Math.max(last.close, p), low: Math.min(last.close, p), close: p };
+          list.push(n);
+          const ctn = chartTypeRef.current;
+          series.update(ctn === "line" || ctn === "area" ? { time: n.time, value: n.close } as any : n);
+        }
+        lastTime.current = ct;
+        onPriceChange(p, ct);
+        return;
+      }
 
       let drift: number;
       let noise: number;
