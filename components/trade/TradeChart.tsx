@@ -1619,11 +1619,15 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const isCrypto = !!BINANCE_MAP[tab.id.replace("-OTC", "")];
       const isServerOtc = SERVER_OTC.has(tab.id);
 
-      // OTC: snap directly to server price (no client-side random walk).
-      // The server already publishes the manipulated, deterministic price.
+      // OTC: smoothly approach the latest server price every microtick.
+      // No invented direction — only interpolation toward `real`. This makes
+      // the chart fluid between server pushes (~2-4 ticks/sec) without
+      // diverging from the deterministic server-side history.
       if (isServerOtc) {
         if (real <= 0) return;
-        const p = +real.toFixed(7);
+        // Linear glide: each microtick (100ms) moves 30% of the way to `real`
+        const delta = real - current;
+        const p = +(current + delta * 0.30).toFixed(7);
         setUp(p >= lastPrice.current);
         lastPrice.current = p;
         setPrice(p);
