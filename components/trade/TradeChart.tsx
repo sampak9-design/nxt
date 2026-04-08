@@ -1498,14 +1498,43 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
     if (isServerOtc) {
       let dead = false;
+      const BRT_OFFSET = -3 * 3600;
       const fetchReal = async () => {
         if (dead) return;
         const p = await fetchPrice(tab.id);
         if (p && p > 0) realPriceRef.current = p;
       };
+      // Resync the entire candle array from the server every 2s so manipulated
+      // history persists and matches between clients (and after reload).
+      const resync = async () => {
+        if (dead) return;
+        try {
+          const r = await fetch(`/api/otc/candles?symbol=${tab.id}&tf=${tfRef.current}&count=500`);
+          if (!r.ok) return;
+          const d = await r.json();
+          if (!Array.isArray(d.candles) || d.candles.length < 5) return;
+          const fresh: Candle[] = d.candles.map((c: any) => ({
+            time: (c.time + BRT_OFFSET) as UTCTimestamp,
+            open: c.open, high: c.high, low: c.low, close: c.close,
+          }));
+          if (dead || activeKeyRef.current !== `${tab.id}:${tfRef.current}`) return;
+          candles.current = fresh;
+          const series = seriesRef.current;
+          if (series) {
+            const ctype = chartTypeRef.current;
+            if (ctype === "line" || ctype === "area") {
+              (series as any).setData(fresh.map((c) => ({ time: c.time, value: c.close })));
+            } else {
+              series.setData(fresh);
+            }
+          }
+        } catch {}
+      };
       fetchReal();
-      const iv = setInterval(fetchReal, 500);
-      return () => { dead = true; clearInterval(iv); };
+      resync();
+      const iv1 = setInterval(fetchReal, 500);
+      const iv2 = setInterval(resync, 2000);
+      return () => { dead = true; clearInterval(iv1); clearInterval(iv2); };
     } else if (derivSym) {
       // Forex → persistent Deriv WebSocket tick subscription (real-time stream)
       let ws: WebSocket | null = null;
