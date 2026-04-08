@@ -1743,7 +1743,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
       freehandRef.current = null;
       isDrawingFree.current = false;
-      setTool("cursor");
+      // Stay in freehand mode so the user can draw multiple strokes
       return;
     }
 
