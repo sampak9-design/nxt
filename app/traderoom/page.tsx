@@ -69,6 +69,9 @@ const ASSETS: ApiAsset[] = [
   { id: "JD75",      symbol: "JD75",      name: "Jump 75 Index",            is_active: true, payout_m1: 82, payout_m5: 84, payout_m15: 85, payout_h1: 87, icon_url: null },
   { id: "JD100",     symbol: "JD100",     name: "Jump 100 Index",           is_active: true, payout_m1: 82, payout_m5: 84, payout_m15: 85, payout_h1: 87, icon_url: null },
 
+  // ── OTC test asset (Deriv R_100 served via /api/otc/*, manipulable) ─────
+  { id: "EURUSD-OTC", symbol: "EURUSD-OTC", name: "EUR/USD (OTC)", is_active: true, payout_m1: 85, payout_m5: 87, payout_m15: 88, payout_h1: 90, icon_url: null },
+
 ];
 
 export default function TradePage() {

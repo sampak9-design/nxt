@@ -384,6 +384,23 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
 
     setActiveTrades((prev) => [...prev, trade]);
     playOrderOpen();
+
+    // Register OTC exposure for the manipulation engine (server-side)
+    if (activeTab.id === "EURUSD-OTC") {
+      fetch("/api/otc/expose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: trade.id,
+          asset: activeTab.id,
+          direction,
+          amount,
+          entryPrice: trade.entryPrice,
+          expiresAt: trade.expiresAt,
+          vip: isMarketing,
+        }),
+      }).catch(() => {});
+    }
   };
 
   const handleDeposit = (amount: number) => {

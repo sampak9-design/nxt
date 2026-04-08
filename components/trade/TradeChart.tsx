@@ -202,9 +202,28 @@ function derivWS<T>(msg: object): Promise<T> {
   });
 }
 
+// Assets served by our server-side OTC proxy (Deriv synthetic indices)
+const SERVER_OTC = new Set<string>(["EURUSD-OTC"]);
+
 async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null> {
   const base = symbol.replace("-OTC", "");
   const binanceSym = BINANCE_MAP[base];
+
+  // OTC → server proxy
+  if (SERVER_OTC.has(symbol) && ["1m", "5m", "15m"].includes(tf)) {
+    try {
+      const r = await fetch(`/api/otc/candles?symbol=${symbol}&tf=${tf}&count=500`);
+      if (r.ok) {
+        const d = await r.json();
+        if (Array.isArray(d.candles) && d.candles.length > 1) {
+          return d.candles.map((c: any) => ({
+            time:  c.time as UTCTimestamp,
+            open:  c.open, high: c.high, low: c.low, close: c.close,
+          }));
+        }
+      }
+    } catch {}
+  }
 
   // Crypto → Binance directly from browser (no server proxy)
   if (binanceSym) {
@@ -267,6 +286,17 @@ async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null
 async function fetchPrice(symbol: string): Promise<number | null> {
   const base = symbol.replace("-OTC", "");
   const binanceSym = BINANCE_MAP[base];
+
+  // OTC → server proxy
+  if (SERVER_OTC.has(symbol)) {
+    try {
+      const r = await fetch(`/api/otc/tick?symbol=${symbol}`);
+      if (r.ok) {
+        const d = await r.json();
+        if (typeof d.price === "number") return d.price;
+      }
+    } catch {}
+  }
 
   // Crypto → Binance directly from browser
   if (binanceSym) {
@@ -1463,9 +1493,20 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   /* ── real-time price feed ─────────────────────────────────────────── */
   useEffect(() => {
     const base = tab.id.replace("-OTC", "");
-    const derivSym = DERIV_SYMBOL[base];
+    const isServerOtc = SERVER_OTC.has(tab.id);
+    const derivSym = isServerOtc ? null : DERIV_SYMBOL[base];
 
-    if (derivSym) {
+    if (isServerOtc) {
+      let dead = false;
+      const fetchReal = async () => {
+        if (dead) return;
+        const p = await fetchPrice(tab.id);
+        if (p && p > 0) realPriceRef.current = p;
+      };
+      fetchReal();
+      const iv = setInterval(fetchReal, 500);
+      return () => { dead = true; clearInterval(iv); };
+    } else if (derivSym) {
       // Forex → persistent Deriv WebSocket tick subscription (real-time stream)
       let ws: WebSocket | null = null;
       let dead = false;

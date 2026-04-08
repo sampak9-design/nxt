@@ -12,6 +12,7 @@ import ReportsPage    from "@/components/admin/ReportsPage";
 import IntegrationPage from "@/components/admin/IntegrationPage";
 import KycPage        from "@/components/admin/KycPage";
 import SettingsPage   from "@/components/admin/SettingsPage";
+import OtcManipPage   from "@/components/admin/OtcManipPage";
 
 export default function AdminPage() {
   const [page, setPage] = useState<AdminPage>("dashboard");
@@ -26,6 +27,7 @@ export default function AdminPage() {
     assets:      <AssetsPage />,
     reports:     <ReportsPage />,
     integration: <IntegrationPage />,
+    otc_manip:   <OtcManipPage />,
     settings:    <SettingsPage />,
   }[page];
 
