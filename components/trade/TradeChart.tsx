@@ -1439,9 +1439,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         setLoading(false);
 
       } else {
-        // ── Forex / OTC ── fetch price first, then history ──────────────────
-        const isOtc = tab.id.endsWith("-OTC");
-        console.log(`[chart] loading ${isOtc ? "OTC" : "forex"} ${tab.id} tf=${tf}`);
+        // ── Forex ── fetch price first, then history ─────────────────────────
+        console.log(`[chart] loading forex ${tab.id} tf=${tf}`);
         const realP = await fetchPrice(tab.id);
         if (activeKeyRef.current !== activeKey) {
           console.log(`[chart] ${tab.id} price discarded (stale)`);
@@ -1450,17 +1449,14 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         console.log(`[chart] ${tab.id} price=${realP}`);
         if (realP && realP > 0) realPriceRef.current = realP;
 
-        // For non-OTC: warm up with seed candles. For OTC: wait for real data
-        // (the OTC server is local/fast and seed candles cause visual jumps).
-        if (!isOtc) {
-          applySource(buildSeed(realP ?? seedPrice(tab.id)), realP, true);
-        }
+        // Warm up micro-tick with seed candles (stays hidden under overlay)
+        applySource(buildSeed(realP ?? seedPrice(tab.id)), realP, true);
 
-        // Fetch history — overlay stays until this resolves (or times out)
+        // Fetch Deriv history — overlay stays until this resolves (or times out)
         const fallbackTimer = setTimeout(() => {
           if (activeKeyRef.current !== activeKey) return;
-          console.log(`[chart] ${tab.id} history timeout`);
-          if (!isOtc) setLoading(false);
+          console.log(`[chart] ${tab.id} Deriv timeout — showing seed candles`);
+          setLoading(false);
         }, 7000);
 
         fetchCandles(tab.id, tf).then((data) => {
@@ -1469,7 +1465,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
             console.log(`[chart] ${tab.id} history discarded (stale)`);
             return;
           }
-          console.log(`[chart] ${tab.id} history candles=${data?.length ?? 0}`);
+          console.log(`[chart] ${tab.id} Deriv history candles=${data?.length ?? 0}`);
           if (isUsable(data)) {
             const brtSource = data.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
             try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
@@ -1479,7 +1475,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         }).catch(() => {
           clearTimeout(fallbackTimer);
           if (activeKeyRef.current === activeKey) {
-            console.log(`[chart] ${tab.id} history fetch error`);
+            console.log(`[chart] ${tab.id} Deriv fetch error — showing seed candles`);
             setLoading(false);
           }
         });
@@ -1497,21 +1493,9 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   /* ── real-time price feed ─────────────────────────────────────────── */
   useEffect(() => {
     const base = tab.id.replace("-OTC", "");
-    const isOtc = tab.id.endsWith("-OTC") && !BINANCE_MAP[base]; // OTC forex → our engine
-    const derivSym = isOtc ? null : DERIV_SYMBOL[base];
+    const derivSym = DERIV_SYMBOL[base];
 
-    if (isOtc) {
-      // OTC forex → poll our /api/otc/tick at 250ms for snappy live price
-      let dead = false;
-      const fetchReal = async () => {
-        if (dead) return;
-        const p = await fetchPrice(tab.id);
-        if (p && p > 0) realPriceRef.current = p;
-      };
-      fetchReal();
-      const iv = setInterval(fetchReal, 250);
-      return () => { dead = true; clearInterval(iv); };
-    } else if (derivSym) {
+    if (derivSym) {
       // Forex → persistent Deriv WebSocket tick subscription (real-time stream)
       let ws: WebSocket | null = null;
       let dead = false;
@@ -1589,7 +1573,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const signal  = signalRef.current;
 
       const isCrypto = !!BINANCE_MAP[tab.id.replace("-OTC", "")];
-      const isOtcSynth = tab.id.endsWith("-OTC") && !isCrypto;
 
       let drift: number;
       let noise: number;
@@ -1598,10 +1581,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         const dir = signal.direction === "up" ? 1 : -1;
         drift = current * 0.000015 * dir * signal.strength;
         noise = current * (Math.random() - 0.5) * 0.000003;
-      } else if (isOtcSynth) {
-        // OTC synthetic: server polled every 250ms — converge fast
-        drift = (real - current) * 0.45;
-        noise = current * (Math.random() - 0.5) * 0.000010;
       } else if (isCrypto) {
         // Crypto: polling 1s Binance — drift rápido, pouco ruído
         drift = (real - current) * 0.25;

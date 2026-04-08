@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHistoricalCandles, isOtcAsset, getCurrentCandle } from "@/lib/otc/replayer";
-import { ensureOtcHistory } from "@/lib/otc/auto-download";
-
-ensureOtcHistory();
 
 // GET /api/otc/candles?symbol=EURUSD-OTC&tf=1m&count=500
 export async function GET(req: NextRequest) {

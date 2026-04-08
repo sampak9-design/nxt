@@ -51,19 +51,6 @@ db.exec(`
   );
 `);
 
-// Historical M1 candles from Deriv (2023) used by the OTC replayer
-db.exec(`
-  CREATE TABLE IF NOT EXISTS otc_history (
-    asset      TEXT NOT NULL,
-    minute_idx INTEGER NOT NULL,
-    open       REAL NOT NULL,
-    high       REAL NOT NULL,
-    low        REAL NOT NULL,
-    close      REAL NOT NULL,
-    PRIMARY KEY (asset, minute_idx)
-  );
-`);
-
 // Migrations — safe to run multiple times
 try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN is_marketing INTEGER NOT NULL DEFAULT 0`); } catch {}

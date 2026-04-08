@@ -1,18 +1,21 @@
 /**
- * OTC Replayer — serves real Deriv 2023 M1 candles from local SQLite as if
- * they were live data, looping through the year continuously.
+ * OTC Synthetic Candle Generator
  *
- * Time mapping:
- *   - Real `now` is converted to a "virtual" epoch inside the 2023 record.
- *   - virtualEpoch = RECORD_START + (now % RECORD_DURATION)
- *   - This means the historical year plays continuously, looping forever.
+ * Uses Geometric Brownian Motion (GBM) with a per-asset deterministic seed so
+ * candles look like real forex data, run 24/7, and are fully server-controlled
+ * (enables manipulation).
  *
- * Manipulation (lib/otc/manipulation.ts) is applied on top of the real data
- * for the live (forming) candle, NOT on the historical lookups.
+ * Formula (per tick):
+ *   S(t+dt) = S(t) * exp((mu - sigma^2/2) * dt + sigma * sqrt(dt) * Z)
+ *   where Z ~ N(0, 1)
+ *
+ * Candles are deterministic given (asset, tfSeconds, candleEpoch) — meaning
+ * every client will see the same OHLC for the same minute. Only the *current*
+ * (still-forming) candle is affected by manipulation drift before emission.
  */
 
 export type OtcCandle = {
-  time:  number;
+  time:  number; // epoch seconds (bar open time)
   open:  number;
   high:  number;
   low:   number;
@@ -20,24 +23,35 @@ export type OtcCandle = {
 };
 
 export type AssetParams = {
-  base:     number;
-  decimals: number;
+  seed:    number;  // deterministic random seed
+  base:    number;  // reference price (seed value)
+  vol:     number;  // annualized volatility (e.g. 0.07 = 7%)
+  decimals: number; // price decimals for formatting
 };
 
-// 12 OTC forex pairs (all with 252 days of historical data)
+// ── 21 OTC assets ───────────────────────────────────────────────────────
 export const OTC_ASSETS: Record<string, AssetParams> = {
-  AUDCAD: { base: 0.910, decimals: 5 },
-  AUDCHF: { base: 0.580, decimals: 5 },
-  AUDJPY: { base: 96.30, decimals: 3 },
-  AUDNZD: { base: 1.090, decimals: 5 },
-  EURAUD: { base: 1.690, decimals: 5 },
-  EURCHF: { base: 0.969, decimals: 5 },
-  EURGBP: { base: 0.855, decimals: 5 },
-  EURJPY: { base: 162.5, decimals: 3 },
-  EURUSD: { base: 1.085, decimals: 5 },
-  GBPCHF: { base: 1.130, decimals: 5 },
-  GBPJPY: { base: 190.1, decimals: 3 },
-  GBPNZD: { base: 2.170, decimals: 5 },
+  AUDCAD: { seed: 11, base: 0.910, vol: 0.055, decimals: 5 },
+  AUDCHF: { seed: 12, base: 0.580, vol: 0.060, decimals: 5 },
+  AUDJPY: { seed: 13, base: 96.30, vol: 0.080, decimals: 3 },
+  AUDNZD: { seed: 14, base: 1.090, vol: 0.045, decimals: 5 },
+  CADCHF: { seed: 15, base: 0.655, vol: 0.055, decimals: 5 },
+  EURAUD: { seed: 16, base: 1.690, vol: 0.060, decimals: 5 },
+  EURCHF: { seed: 17, base: 0.969, vol: 0.050, decimals: 5 },
+  EURGBP: { seed: 18, base: 0.855, vol: 0.050, decimals: 5 },
+  EURJPY: { seed: 19, base: 162.5, vol: 0.080, decimals: 3 },
+  EURUSD: { seed: 20, base: 1.085, vol: 0.070, decimals: 5 },
+  GBPCHF: { seed: 21, base: 1.130, vol: 0.065, decimals: 5 },
+  GBPJPY: { seed: 22, base: 190.1, vol: 0.090, decimals: 3 },
+  GBPNZD: { seed: 23, base: 2.170, vol: 0.070, decimals: 5 },
+  GBPUSD: { seed: 24, base: 1.268, vol: 0.070, decimals: 5 },
+  NZDCAD: { seed: 25, base: 0.805, vol: 0.055, decimals: 5 },
+  NZDCHF: { seed: 26, base: 0.530, vol: 0.060, decimals: 5 },
+  NZDJPY: { seed: 27, base: 90.50, vol: 0.080, decimals: 3 },
+  NZDUSD: { seed: 28, base: 0.592, vol: 0.070, decimals: 5 },
+  USDCAD: { seed: 29, base: 1.362, vol: 0.060, decimals: 5 },
+  USDCHF: { seed: 30, base: 0.893, vol: 0.060, decimals: 5 },
+  USDJPY: { seed: 31, base: 149.8, vol: 0.080, decimals: 3 },
 };
 
 export function isOtcAsset(symbol: string): boolean {
@@ -50,77 +64,78 @@ export function getOtcParams(symbol: string): AssetParams | null {
   return OTC_ASSETS[base] ?? null;
 }
 
-// ── Time mapping ────────────────────────────────────────────────────────
-// minute_idx in DB is sequential 0..N-1 per asset (0 = oldest, N-1 = newest).
-// Playback starts at PLAYBACK_OFFSET so we have history context behind the
-// live candle. Live candle == idx PLAYBACK_OFFSET; chart history = idx 0..N-1
-// behind it. Each real minute that passes advances the live idx by +1.
-const PLAYBACK_OFFSET   = 600;  // 10h of "history" visible at boot
-const BOOT_REAL_MIN     = Math.floor(Date.now() / 60000);
-const assetRangeCache: Map<string, number> = new Map();
-
-function getAssetRange(asset: string): number {
-  if (assetRangeCache.has(asset)) return assetRangeCache.get(asset)!;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const db = require("@/lib/db").default;
-    const row = db.prepare("SELECT MAX(minute_idx) + 1 AS n FROM otc_history WHERE asset = ?").get(asset) as { n: number | null } | undefined;
-    const n = row?.n ?? 0;
-    assetRangeCache.set(asset, n);
-    return n;
-  } catch { return 0; }
+// ── Deterministic PRNG (Mulberry32) ─────────────────────────────────────
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0;
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
-function virtualMinuteIdx(realMin: number, asset: string): number {
-  const range = getAssetRange(asset);
-  if (range <= 0) return 0;
-  // Map real time to historical idx, anchored so live=PLAYBACK_OFFSET at boot
-  const idx = (realMin - BOOT_REAL_MIN) + PLAYBACK_OFFSET;
-  return ((idx % range) + range) % range;
+// Box-Muller: uniform [0,1) → standard normal
+function randn(rand: () => number): number {
+  let u = 0, v = 0;
+  while (u === 0) u = rand();
+  while (v === 0) v = rand();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
-// ── DB lookup with caching ──────────────────────────────────────────────
-type DbRow = { open: number; high: number; low: number; close: number };
-const lookupCache: Map<string, DbRow | null> = new Map();
-let cacheHits = 0;
-let cacheMisses = 0;
+// ── Core: compute OHLC for a single candle deterministically ────────────
+/**
+ * Given asset params and the epoch of a candle, returns the open/high/low/close.
+ * Each candle is generated by walking from its deterministic "open" through N
+ * sub-ticks using GBM. Same (asset, epoch) → same OHLC across all clients.
+ */
+function candleForEpoch(
+  params: AssetParams,
+  tfSec: number,
+  epoch: number,
+): OtcCandle {
+  // Seed: asset + absolute candle index (so neighbor candles connect)
+  const candleIdx = Math.floor(epoch / tfSec);
+  const rand = mulberry32(params.seed * 1_000_003 + candleIdx);
 
-function lookupMinute(asset: string, virtualMinIdx: number): DbRow | null {
-  const key = `${asset}:${virtualMinIdx}`;
-  if (lookupCache.has(key)) {
-    cacheHits++;
-    return lookupCache.get(key) ?? null;
+  // Open = close of the previous candle (walk deterministically from "time zero")
+  // For efficiency we compute open using a per-candle anchor drift + seed base
+  // that slowly drifts over days — keeping price in a realistic band.
+  const prevIdx = candleIdx - 1;
+  const prevRand = mulberry32(params.seed * 1_000_003 + prevIdx);
+  // Walk anchors: deterministic low-frequency drift (daily cycles)
+  const dayCycle = Math.sin(candleIdx / 1440) * 0.003; // ±0.3% slow drift
+  const openAnchor = params.base * (1 + dayCycle);
+
+  // Apply small random continuity offset from the previous candle
+  const prevNoise = (prevRand() - 0.5) * params.base * 0.0005;
+  const open = +(openAnchor + prevNoise).toFixed(params.decimals + 2);
+
+  // Sub-ticks inside this candle (e.g. 60 ticks per M1 = 1 per second)
+  const subTicks = Math.max(10, Math.min(60, tfSec));
+  const dt = 1 / (252 * 24 * 60 * 60 / tfSec) / subTicks; // annualized
+  const sigma = params.vol;
+  const mu = 0;
+
+  let s = open;
+  let high = open, low = open;
+  for (let i = 0; i < subTicks; i++) {
+    const z = randn(rand);
+    s = s * Math.exp((mu - sigma * sigma / 2) * dt + sigma * Math.sqrt(dt) * z);
+    if (s > high) high = s;
+    if (s < low)  low  = s;
   }
-  cacheMisses++;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const db = require("@/lib/db").default;
-    const row = db.prepare(
-      "SELECT open, high, low, close FROM otc_history WHERE asset = ? AND minute_idx = ?"
-    ).get(asset, virtualMinIdx) as DbRow | undefined;
-    const result = row ?? null;
-    if (lookupCache.size > 100_000) {
-      // Trim oldest 20k
-      const it = lookupCache.keys();
-      for (let i = 0; i < 20_000; i++) lookupCache.delete(it.next().value as string);
-    }
-    lookupCache.set(key, result);
-    return result;
-  } catch {
-    return null;
-  }
-}
+  const close = +s.toFixed(params.decimals + 2);
+  high = +high.toFixed(params.decimals + 2);
+  low  = +low.toFixed(params.decimals + 2);
 
-/** Cleared by admin endpoints when something changes. */
-export function invalidateConfig() {
-  lookupCache.clear();
+  return { time: candleIdx * tfSec, open, high, low, close };
 }
 
 // ── Public API ──────────────────────────────────────────────────────────
 
-/** Returns the last `count` closed candles for the given asset+timeframe.
- *  Each real timestamp is mapped through the virtual time function so the
- *  returned candles align with what `getCurrentCandle` will produce next. */
+/** Returns the last `count` closed candles for the given asset+timeframe. */
 export function getHistoricalCandles(
   symbol: string,
   tfSec: number,
@@ -129,104 +144,48 @@ export function getHistoricalCandles(
 ): OtcCandle[] {
   const params = getOtcParams(symbol);
   if (!params) return [];
-  const base = symbol.replace("-OTC", "");
-  const minutesPerCandle = Math.max(1, Math.floor(tfSec / 60));
-
+  const currentIdx = Math.floor(nowSec / tfSec);
   const candles: OtcCandle[] = [];
-  // Iterate from `count` candles ago up to (but not including) the current candle
-  const currentCandleStart = Math.floor(nowSec / tfSec) * tfSec;
-
   for (let i = count; i >= 1; i--) {
-    const candleStart = currentCandleStart - i * tfSec;
-    const startMinReal = Math.floor(candleStart / 60);
-    let open = 0, high = -Infinity, low = Infinity, close = 0;
-    let hadData = false;
-
-    for (let m = 0; m < minutesPerCandle; m++) {
-      const vMin = virtualMinuteIdx(startMinReal + m, base);
-      const row = lookupMinute(base, vMin);
-      if (!row) continue;
-      if (!hadData) { open = row.open; hadData = true; }
-      if (row.high > high) high = row.high;
-      if (row.low  < low)  low  = row.low;
-      close = row.close;
-    }
-
-    if (hadData) {
-      const dec = params.decimals;
-      candles.push({
-        time:  candleStart,
-        open:  +open.toFixed(dec + 2),
-        high:  +high.toFixed(dec + 2),
-        low:   +low.toFixed(dec + 2),
-        close: +close.toFixed(dec + 2),
-      });
-    }
+    const epoch = (currentIdx - i) * tfSec;
+    candles.push(candleForEpoch(params, tfSec, epoch));
   }
   return candles;
 }
 
-/** Returns the current (still-forming) candle. The historical "future" candle
- *  is interpolated by progress through the candle so the close moves smoothly
- *  toward the eventual close from the historical record. */
+/** Returns the current (still-forming) candle, with `close` based on how far
+ *  through the candle we are. */
 export function getCurrentCandle(
   symbol: string,
   tfSec: number,
-  nowMs: number = Date.now(),
+  nowSec: number = Math.floor(Date.now() / 1000),
 ): OtcCandle | null {
   const params = getOtcParams(symbol);
   if (!params) return null;
-  const base = symbol.replace("-OTC", "");
-  const nowSec = nowMs / 1000;
-  const candleStart = Math.floor(nowSec / tfSec) * tfSec;
-  const progress = Math.min(1, Math.max(0, (nowSec - candleStart) / tfSec));
-  const minutesPerCandle = Math.max(1, Math.floor(tfSec / 60));
-  const startMinReal = Math.floor(candleStart / 60);
-
-  // Build the "future" candle (full minutes already in DB)
-  let open = 0, high = -Infinity, low = Infinity, close = 0;
-  let hadData = false;
-  for (let m = 0; m < minutesPerCandle; m++) {
-    const vMin = virtualMinuteIdx(startMinReal + m, base);
-    const row = lookupMinute(base, vMin);
-    if (!row) continue;
-    if (!hadData) { open = row.open; hadData = true; }
-    if (row.high > high) high = row.high;
-    if (row.low  < low)  low  = row.low;
-    close = row.close;
-  }
-  if (!hadData) return null;
-
-  // Interpolate close from open toward final close based on progress
-  const liveClose = open + (close - open) * progress;
-  // Wicks grow proportionally
-  const upperWick = high - Math.max(open, close);
-  const lowerWick = Math.min(open, close) - low;
-  const liveHigh  = Math.max(open, liveClose) + upperWick * progress;
-  const liveLow   = Math.min(open, liveClose) - lowerWick * progress;
-
-  const dec = params.decimals;
+  const currentIdx = Math.floor(nowSec / tfSec);
+  // Use a "next-candle" seed so the forming candle extrapolates smoothly
+  const candle = candleForEpoch(params, tfSec, currentIdx * tfSec);
+  // Progress within candle (0..1)
+  const progress = (nowSec - candle.time) / tfSec;
+  // Interpolate close: linear between open and the "target" close
+  const interpolatedClose = candle.open + (candle.close - candle.open) * Math.min(1, Math.max(0, progress));
+  const currentHigh = Math.max(candle.open, interpolatedClose, candle.high * Math.min(1, progress + 0.2));
+  const currentLow  = Math.min(candle.open, interpolatedClose, candle.low  * Math.max(0.0001, 1 - (1 - progress) * 0.2));
   return {
-    time:  candleStart,
-    open:  +open.toFixed(dec + 2),
-    high:  +liveHigh.toFixed(dec + 2),
-    low:   +liveLow.toFixed(dec + 2),
-    close: +liveClose.toFixed(dec + 2),
+    time: candle.time,
+    open: candle.open,
+    high: +currentHigh.toFixed(params.decimals + 2),
+    low:  +currentLow.toFixed(params.decimals + 2),
+    close: +interpolatedClose.toFixed(params.decimals + 2),
   };
 }
 
+/** Returns the current price (close of the forming candle), after manipulation. */
 export function getCurrentPrice(
   symbol: string,
   tfSec: number = 60,
-  nowMs: number = Date.now(),
+  nowSec: number = Math.floor(Date.now() / 1000),
 ): number {
-  const c = getCurrentCandle(symbol, tfSec, nowMs);
+  const c = getCurrentCandle(symbol, tfSec, nowSec);
   return c?.close ?? 0;
-}
-
-export function getReplayInfo() {
-  return {
-    cacheHits, cacheMisses,
-    cacheSize: lookupCache.size,
-  };
 }
