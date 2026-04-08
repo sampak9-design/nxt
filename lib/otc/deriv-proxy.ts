@@ -71,14 +71,10 @@ function connect(s: Stream) {
         if (d.tick) {
           const fairTick: Tick = { epoch: d.tick.epoch, price: d.tick.quote };
           s.lastTick = fairTick;
-          // Apply manipulation to the live tick before storing in the candle.
-          // This way the visual candle (and saved history) reflects the
-          // manipulated price, so reload === what the user saw.
           // eslint-disable-next-line @typescript-eslint/no-require-imports
           const manip = require("./manipulation") as typeof import("./manipulation");
-          // The asset key is the symbol that maps to this derivSym
           const assetKey = Object.keys(OTC_ASSETS).find((k) => OTC_ASSETS[k].derivSym === s.derivSym);
-          const price = assetKey
+          const manipPrice = assetKey
             ? manip.applyManipulation(assetKey, fairTick.price)
             : fairTick.price;
 
@@ -86,16 +82,25 @@ function connect(s: Stream) {
           const last = s.candles[s.candles.length - 1];
           let active: Candle;
           if (last && last.time === minute) {
-            last.high = Math.max(last.high, price);
-            last.low  = Math.min(last.low, price);
-            last.close = price;
+            // Same candle: only the close (and high/low envelope) reflect manipulation.
+            // Open stays as the original fair open captured at minute start.
+            last.high = Math.max(last.high, manipPrice);
+            last.low  = Math.min(last.low, manipPrice);
+            last.close = manipPrice;
             active = last;
           } else {
-            active = { time: minute, open: price, high: price, low: price, close: price };
+            // New candle: open uses the FAIR price (no manipulation) so we don't
+            // create a discontinuous jump from the previous close.
+            active = {
+              time:  minute,
+              open:  fairTick.price,
+              high:  Math.max(fairTick.price, manipPrice),
+              low:   Math.min(fairTick.price, manipPrice),
+              close: manipPrice,
+            };
             s.candles.push(active);
             if (s.candles.length > 600) s.candles.shift();
           }
-          // Persist to SQLite so manipulated candles survive restart
           if (assetKey) persistCandle(assetKey, active);
         }
       } catch {}
