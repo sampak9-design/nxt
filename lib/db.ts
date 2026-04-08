@@ -51,6 +51,20 @@ db.exec(`
   );
 `);
 
+// OTC live candle cache (with manipulation already applied) — survives restart
+db.exec(`
+  CREATE TABLE IF NOT EXISTS otc_candles (
+    asset TEXT NOT NULL,
+    time  INTEGER NOT NULL,
+    open  REAL NOT NULL,
+    high  REAL NOT NULL,
+    low   REAL NOT NULL,
+    close REAL NOT NULL,
+    PRIMARY KEY (asset, time)
+  );
+`);
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_otc_candles_asset_time ON otc_candles (asset, time DESC)`); } catch {}
+
 // Migrations — safe to run multiple times
 try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN is_marketing INTEGER NOT NULL DEFAULT 0`); } catch {}

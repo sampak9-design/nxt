@@ -8,9 +8,31 @@
  */
 
 import WebSocket from "ws";
+import db from "@/lib/db";
 
 export type Tick = { epoch: number; price: number };
 export type Candle = { time: number; open: number; high: number; low: number; close: number };
+
+// ── DB persistence (each minute we upsert the closed candle) ────────────
+const upsertCandleStmt = db.prepare(`
+  INSERT INTO otc_candles (asset, time, open, high, low, close)
+  VALUES (?, ?, ?, ?, ?, ?)
+  ON CONFLICT(asset, time) DO UPDATE SET
+    high = excluded.high, low = excluded.low, close = excluded.close
+`);
+
+function loadCandlesFromDb(asset: string, count = 600): Candle[] {
+  try {
+    const rows = db.prepare(
+      "SELECT time, open, high, low, close FROM otc_candles WHERE asset = ? ORDER BY time DESC LIMIT ?"
+    ).all(asset, count) as Candle[];
+    return rows.reverse();
+  } catch { return []; }
+}
+
+function persistCandle(asset: string, c: Candle) {
+  try { upsertCandleStmt.run(asset, c.time, c.open, c.high, c.low, c.close); } catch {}
+}
 
 type Stream = {
   derivSym: string;
@@ -26,10 +48,12 @@ const streams: Map<string, Stream> = new Map();
 function ensureStream(asset: string, derivSym: string): Stream {
   let s = streams.get(asset);
   if (s) return s;
-  s = { derivSym, ws: null, lastTick: null, candles: [], subscribed: false, reconnectTimer: null };
+  // Hydrate from DB so manipulated candles survive restart
+  const persisted = loadCandlesFromDb(asset, 600);
+  s = { derivSym, ws: null, lastTick: null, candles: persisted, subscribed: false, reconnectTimer: null };
   streams.set(asset, s);
   connect(s);
-  primeHistory(s).catch(() => {});
+  if (persisted.length < 100) primeHistory(s, asset).catch(() => {});
   return s;
 }
 
@@ -60,20 +84,19 @@ function connect(s: Stream) {
 
           const minute = Math.floor(fairTick.epoch / 60) * 60;
           const last = s.candles[s.candles.length - 1];
+          let active: Candle;
           if (last && last.time === minute) {
             last.high = Math.max(last.high, price);
             last.low  = Math.min(last.low, price);
             last.close = price;
+            active = last;
           } else {
-            s.candles.push({
-              time: minute,
-              open: price,
-              high: price,
-              low: price,
-              close: price,
-            });
+            active = { time: minute, open: price, high: price, low: price, close: price };
+            s.candles.push(active);
             if (s.candles.length > 600) s.candles.shift();
           }
+          // Persist to SQLite so manipulated candles survive restart
+          if (assetKey) persistCandle(assetKey, active);
         }
       } catch {}
     });
@@ -88,8 +111,9 @@ function connect(s: Stream) {
   }
 }
 
-async function primeHistory(s: Stream): Promise<void> {
-  // One-shot history call to seed `candles` (600 minutes back)
+async function primeHistory(s: Stream, asset: string): Promise<void> {
+  // One-shot history call from Deriv to fill in any gap that the persisted
+  // cache doesn't cover. Persisted (manipulated) candles take priority.
   return new Promise((resolve) => {
     try {
       const ws = new WebSocket("wss://ws.binaryws.com/websockets/v3?app_id=1089");
@@ -107,9 +131,15 @@ async function primeHistory(s: Stream): Promise<void> {
         try {
           const d = JSON.parse(raw.toString());
           if (Array.isArray(d.candles)) {
-            s.candles = d.candles.map((c: any) => ({
+            const fromDeriv: Candle[] = d.candles.map((c: any) => ({
               time: c.epoch, open: c.open, high: c.high, low: c.low, close: c.close,
             }));
+            // Merge: persisted candles take priority over Deriv's fair candles
+            const persistedTimes = new Set(s.candles.map((c) => c.time));
+            const fresh = fromDeriv.filter((c) => !persistedTimes.has(c.time));
+            for (const c of fresh) persistCandle(asset, c);
+            const merged = [...s.candles, ...fresh].sort((a, b) => a.time - b.time);
+            s.candles = merged.slice(-600);
           }
         } catch {}
         clearTimeout(timer);
