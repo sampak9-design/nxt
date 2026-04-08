@@ -45,22 +45,32 @@ function connect(s: Stream) {
       try {
         const d = JSON.parse(raw.toString());
         if (d.tick) {
-          const tick: Tick = { epoch: d.tick.epoch, price: d.tick.quote };
-          s.lastTick = tick;
-          // Update last forming candle
-          const minute = Math.floor(tick.epoch / 60) * 60;
+          const fairTick: Tick = { epoch: d.tick.epoch, price: d.tick.quote };
+          s.lastTick = fairTick;
+          // Apply manipulation to the live tick before storing in the candle.
+          // This way the visual candle (and saved history) reflects the
+          // manipulated price, so reload === what the user saw.
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const manip = require("./manipulation") as typeof import("./manipulation");
+          // The asset key is the symbol that maps to this derivSym
+          const assetKey = Object.keys(OTC_ASSETS).find((k) => OTC_ASSETS[k].derivSym === s.derivSym);
+          const price = assetKey
+            ? manip.applyManipulation(assetKey, fairTick.price)
+            : fairTick.price;
+
+          const minute = Math.floor(fairTick.epoch / 60) * 60;
           const last = s.candles[s.candles.length - 1];
           if (last && last.time === minute) {
-            last.high = Math.max(last.high, tick.price);
-            last.low  = Math.min(last.low, tick.price);
-            last.close = tick.price;
+            last.high = Math.max(last.high, price);
+            last.low  = Math.min(last.low, price);
+            last.close = price;
           } else {
             s.candles.push({
               time: minute,
-              open: tick.price,
-              high: tick.price,
-              low: tick.price,
-              close: tick.price,
+              open: price,
+              high: price,
+              low: price,
+              close: price,
             });
             if (s.candles.length > 600) s.candles.shift();
           }
