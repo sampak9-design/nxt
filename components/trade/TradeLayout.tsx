@@ -367,55 +367,55 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
     // Deduct balance immediately
     setBalance((b) => +(b - amount).toFixed(2));
 
-    // Trades enter at the OPEN of the next M1 candle, not at click time.
-    // (Standard behavior of binary brokers — IQ Option, Quotex, Pocket, etc.)
     const id = `${Date.now()}-${Math.random()}`;
-    const tfSec = 60;
-    const nowSec = Date.now() / 1000;
-    const nextBarSec = (Math.floor(nowSec / tfSec) + 1) * tfSec;
-    const msUntilBar = Math.max(0, nextBarSec * 1000 - Date.now());
+    // entryTime stored in BRT-relative seconds to match the chart's time axis
+    const BRT_OFFSET_SEC = -3 * 3600;
 
-    const finalize = (entryPrice: number, entryTime: number) => {
-      const trade: ActiveTrade = {
-        id,
-        tabId: activeTab.id,
-        tabName: activeTab.name,
-        tabIconUrl: activeTab.icon_url,
-        direction,
-        amount,
-        entryPrice,
-        entryTime,
-        expiresAt: entryTime * 1000 + expiresMs,
-        accountType,
-        payout: activeTab.payout,
-      };
-      setActiveTrades((prev) => [...prev, trade]);
+    // ── Expiry aligned to candle boundaries ─────────────────────────────
+    // Time-based model (IQ Option style): the trade always expires at the
+    // END of a candle, not at click time + duration. The chosen `expiresMs`
+    // selects WHICH candle: 1m = end of current candle, 5m = end of current
+    // 5-minute candle, 15m = same for 15m. If less than 5s remain on the
+    // current candle, roll forward one bar (purchase deadline).
+    const expirySec = Math.max(60, Math.round(expiresMs / 1000));
+    const nowMs    = Date.now();
+    const nowSec   = Math.floor(nowMs / 1000);
+    const currentBarEnd = (Math.floor(nowSec / expirySec) + 1) * expirySec;
+    const remainingInBar = currentBarEnd - nowSec;
+    const expirySecAligned = remainingInBar < 5
+      ? currentBarEnd + expirySec  // too close to deadline → next bar
+      : currentBarEnd;
 
-      if (activeTab.id === "EURUSD-OTC") {
-        fetch("/api/otc/expose", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: trade.id,
-            asset: activeTab.id,
-            direction,
-            amount,
-            entryPrice: trade.entryPrice,
-            expiresAt: trade.expiresAt,
-            vip: isMarketing,
-          }),
-        }).catch(() => {});
-      }
+    const trade: ActiveTrade = {
+      id,
+      tabId: activeTab.id,
+      tabName: activeTab.name,
+      tabIconUrl: activeTab.icon_url,
+      direction,
+      amount,
+      entryPrice: livePrice,
+      entryTime: nowSec + BRT_OFFSET_SEC,
+      expiresAt: expirySecAligned * 1000,
+      accountType,
+      payout: activeTab.payout,
     };
-
+    setActiveTrades((prev) => [...prev, trade]);
     playOrderOpen();
-    if (msUntilBar < 50) {
-      // Already at the bar boundary
-      finalize(livePrice, nextBarSec);
-    } else {
-      setTimeout(() => {
-        finalize(livePrice, nextBarSec);
-      }, msUntilBar);
+
+    if (activeTab.id === "EURUSD-OTC") {
+      fetch("/api/otc/expose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: trade.id,
+          asset: activeTab.id,
+          direction,
+          amount,
+          entryPrice: trade.entryPrice,
+          expiresAt: trade.expiresAt,
+          vip: isMarketing,
+        }),
+      }).catch(() => {});
     }
   };
 
