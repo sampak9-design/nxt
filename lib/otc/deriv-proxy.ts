@@ -1,21 +1,46 @@
 /**
- * OTC Orchestrator
+ * OTC Orchestrator (final-table based)
  *
- * Glues together base-feed (Deriv WS), delta-engine (manipulation), and the
- * SSE subscriber registry. Endpoints (candles, tick, stream, expose) import
- * from this file.
+ * Listens to base ticks from base-feed, applies manipulation, and writes the
+ * already-composed candle into `otc_final`. Each tick updates the active
+ * candle's OHLC in real time, so a reload returns exactly what the user saw.
  */
 
+import db from "@/lib/db";
 import {
   ensureFeed, onBaseTick, isOtc as isBaseOtc, getDecimals, OTC_ASSETS as BASE_ASSETS,
-  getBaseCandles, getLatestBase, type Candle,
+  type Candle,
 } from "./base-feed";
-import { computeDelta, composeLatest } from "./delta-engine";
-import { composeCandles } from "./composer";
+import { applyManipulation } from "./manipulation";
 
 export { isBaseOtc as isOtc, getDecimals };
 export const OTC_ASSETS = BASE_ASSETS;
 export type { Candle };
+
+// ── Persistence ─────────────────────────────────────────────────────────
+const upsertFinal = db.prepare(`
+  INSERT INTO otc_final (asset, time, open, high, low, close)
+  VALUES (?, ?, ?, ?, ?, ?)
+  ON CONFLICT(asset, time) DO UPDATE SET
+    high = excluded.high, low = excluded.low, close = excluded.close
+`);
+
+function loadFinalCandles(asset: string, count = 600): Candle[] {
+  try {
+    const rows = db.prepare(
+      "SELECT time, open, high, low, close FROM otc_final WHERE asset = ? ORDER BY time DESC LIMIT ?"
+    ).all(asset, count) as Candle[];
+    return rows.reverse();
+  } catch { return []; }
+}
+
+function loadLatestFinal(asset: string): Candle | null {
+  try {
+    return (db.prepare(
+      "SELECT time, open, high, low, close FROM otc_final WHERE asset = ? ORDER BY time DESC LIMIT 1"
+    ).get(asset) as Candle | undefined) ?? null;
+  } catch { return null; }
+}
 
 // ── SSE subscriber registry ─────────────────────────────────────────────
 export type StreamMsg = {
@@ -29,24 +54,50 @@ export type StreamMsg = {
 type Subscriber = (msg: StreamMsg) => void;
 const subscribers: Map<string, Set<Subscriber>> = new Map();
 
-// Single global listener: every base tick triggers delta compute + emit
+// Single global listener: every base tick produces a manipulated final tick.
 let globalListenerInstalled = false;
 function ensureGlobalListener() {
   if (globalListenerInstalled) return;
   globalListenerInstalled = true;
   onBaseTick((asset, base) => {
-    const delta = computeDelta(asset, base);
-    const composed: StreamMsg = {
-      type:  "tick",
-      time:  base.time,
-      open:  base.open  + delta.open,
-      high:  base.high  + delta.high,
-      low:   base.low   + delta.low,
-      close: base.close + delta.close,
-    };
+    const finalClose = applyManipulation(asset, base.close);
+
+    // Build/update the final candle for this minute
+    const last = loadLatestFinal(asset);
+    let candle: Candle;
+    if (last && last.time === base.time) {
+      candle = {
+        time:  base.time,
+        open:  last.open,
+        high:  Math.max(last.high, finalClose),
+        low:   Math.min(last.low, finalClose),
+        close: finalClose,
+      };
+    } else {
+      // New minute: open = previous close (continuous) or current price
+      const openPrice = last?.close ?? finalClose;
+      candle = {
+        time:  base.time,
+        open:  openPrice,
+        high:  Math.max(openPrice, finalClose),
+        low:   Math.min(openPrice, finalClose),
+        close: finalClose,
+      };
+    }
+    upsertFinal.run(asset, candle.time, candle.open, candle.high, candle.low, candle.close);
+
     const set = subscribers.get(asset);
-    if (!set) return;
-    for (const fn of set) { try { fn(composed); } catch {} }
+    if (set) {
+      const msg: StreamMsg = {
+        type: "tick",
+        time: candle.time,
+        open: candle.open,
+        high: candle.high,
+        low:  candle.low,
+        close: candle.close,
+      };
+      for (const fn of set) { try { fn(msg); } catch {} }
+    }
   });
 }
 
@@ -63,15 +114,12 @@ export function subscribe(asset: string, fn: Subscriber): () => void {
 export function getCandles(symbol: string, count = 500): Candle[] {
   ensureFeed(symbol);
   ensureGlobalListener();
-  return composeCandles(symbol, count);
+  return loadFinalCandles(symbol, count);
 }
 
 export function getCurrentPrice(symbol: string): number {
   ensureFeed(symbol);
   ensureGlobalListener();
-  const c = composeLatest(symbol);
+  const c = loadLatestFinal(symbol);
   return c?.close ?? 0;
 }
-
-// Re-export for any caller that wants raw access
-export { getBaseCandles, getLatestBase };

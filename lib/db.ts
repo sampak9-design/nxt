@@ -65,19 +65,19 @@ db.exec(`
 `);
 try { db.exec(`CREATE INDEX IF NOT EXISTS idx_otc_base_at ON otc_base (asset, time DESC)`); } catch {}
 
-// OTC delta — spread additions (synthetic personality + manipulation drift)
+// OTC final — already-composed candles (base + manipulation), tick-accurate
 db.exec(`
-  CREATE TABLE IF NOT EXISTS otc_delta (
+  CREATE TABLE IF NOT EXISTS otc_final (
     asset TEXT NOT NULL,
     time  INTEGER NOT NULL,
-    open  REAL NOT NULL DEFAULT 0,
-    high  REAL NOT NULL DEFAULT 0,
-    low   REAL NOT NULL DEFAULT 0,
-    close REAL NOT NULL DEFAULT 0,
+    open  REAL NOT NULL,
+    high  REAL NOT NULL,
+    low   REAL NOT NULL,
+    close REAL NOT NULL,
     PRIMARY KEY (asset, time)
   );
 `);
-try { db.exec(`CREATE INDEX IF NOT EXISTS idx_otc_delta_at ON otc_delta (asset, time DESC)`); } catch {}
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_otc_final_at ON otc_final (asset, time DESC)`); } catch {}
 
 // Migrations — safe to run multiple times
 try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch {}
