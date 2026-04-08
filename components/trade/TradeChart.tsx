@@ -1497,47 +1497,17 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     const derivSym = isServerOtc ? null : DERIV_SYMBOL[base];
 
     if (isServerOtc) {
-      // SSE: server pushes every tick. We update realPriceRef + the active
-      // candle directly here. The microtick will keep snapping to realPriceRef
-      // for fluid rendering between server ticks.
-      const BRT_OFFSET = -3 * 3600;
+      // SSE only updates realPriceRef. The microtick (every 100ms) handles
+      // the visual smoothing toward this target — same model as crypto.
       const es = new EventSource(`/api/otc/stream?symbol=${tab.id}`);
       es.onmessage = (e) => {
         try {
           const m = JSON.parse(e.data);
           if (m.type !== "tick") return;
-          realPriceRef.current = m.close;
-          const series = seriesRef.current;
-          const list = candles.current;
-          if (!series || !list.length) return;
-          const t = (m.time + BRT_OFFSET) as UTCTimestamp;
-          const last = list[list.length - 1];
-          if (last.time === t) {
-            last.open  = m.open;
-            last.high  = m.high;
-            last.low   = m.low;
-            last.close = m.close;
-            const ctype = chartTypeRef.current;
-            series.update(ctype === "line" || ctype === "area"
-              ? { time: last.time, value: last.close } as any
-              : last);
-          } else if (t > (last.time as number)) {
-            const n: Candle = {
-              time: t, open: m.open, high: m.high, low: m.low, close: m.close,
-            };
-            list.push(n);
-            if (list.length > 600) list.shift();
-            const ctype = chartTypeRef.current;
-            series.update(ctype === "line" || ctype === "area"
-              ? { time: n.time, value: n.close } as any
-              : n);
-          }
-          lastPrice.current = m.close;
-          lastTime.current = t;
-          onPriceChange(m.close, t);
+          if (m.close > 0) realPriceRef.current = m.close;
         } catch {}
       };
-      es.onerror = () => { /* EventSource auto-reconnects */ };
+      es.onerror = () => { /* auto-reconnects */ };
       return () => { es.close(); };
     } else if (derivSym) {
       // Forex → persistent Deriv WebSocket tick subscription (real-time stream)
