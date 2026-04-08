@@ -1625,9 +1625,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       // diverging from the deterministic server-side history.
       if (isServerOtc) {
         if (real <= 0) return;
-        // Linear glide: each microtick (100ms) moves 30% of the way to `real`
-        const delta = real - current;
-        const p = +(current + delta * 0.30).toFixed(7);
+        // Same behaviour as crypto branch: fast drift toward server price + small noise
+        const drift = (real - current) * 0.25;
+        const noise = current * (Math.random() - 0.5) * 0.000008;
+        const p = +(current + drift + noise).toFixed(7);
         setUp(p >= lastPrice.current);
         lastPrice.current = p;
         setPrice(p);
