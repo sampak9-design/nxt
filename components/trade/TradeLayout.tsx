@@ -368,24 +368,22 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
     setBalance((b) => +(b - amount).toFixed(2));
 
     const id = `${Date.now()}-${Math.random()}`;
-    // entryTime stored in BRT-relative seconds to match the chart's time axis
-    const BRT_OFFSET_SEC = -3 * 3600;
 
     // ── Expiry aligned to candle boundaries ─────────────────────────────
     // Time-based model (IQ Option style): the trade always expires at the
-    // END of a candle, not at click time + duration. The chosen `expiresMs`
-    // selects WHICH candle: 1m = end of current candle, 5m = end of current
-    // 5-minute candle, 15m = same for 15m. If less than 5s remain on the
-    // current candle, roll forward one bar (purchase deadline).
+    // END of a candle. If less than 5s remain on the current candle, roll
+    // forward one bar (purchase deadline).
     const expirySec = Math.max(60, Math.round(expiresMs / 1000));
     const nowMs    = Date.now();
     const nowSec   = Math.floor(nowMs / 1000);
     const currentBarEnd = (Math.floor(nowSec / expirySec) + 1) * expirySec;
     const remainingInBar = currentBarEnd - nowSec;
     const expirySecAligned = remainingInBar < 5
-      ? currentBarEnd + expirySec  // too close to deadline → next bar
+      ? currentBarEnd + expirySec
       : currentBarEnd;
 
+    // entryTime in BRT-aligned seconds (the chart shifts candles by -3h)
+    const BRT_OFFSET_SEC = -3 * 3600;
     const trade: ActiveTrade = {
       id,
       tabId: activeTab.id,
@@ -394,7 +392,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
       direction,
       amount,
       entryPrice: livePrice,
-      entryTime: nowSec + BRT_OFFSET_SEC,
+      entryTime: liveTime || (nowSec + BRT_OFFSET_SEC),
       expiresAt: expirySecAligned * 1000,
       accountType,
       payout: activeTab.payout,
