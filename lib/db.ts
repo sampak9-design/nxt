@@ -51,9 +51,9 @@ db.exec(`
   );
 `);
 
-// OTC live candle cache (with manipulation already applied) — survives restart
+// OTC base candles — pure Deriv data, no manipulation
 db.exec(`
-  CREATE TABLE IF NOT EXISTS otc_candles (
+  CREATE TABLE IF NOT EXISTS otc_base (
     asset TEXT NOT NULL,
     time  INTEGER NOT NULL,
     open  REAL NOT NULL,
@@ -63,7 +63,21 @@ db.exec(`
     PRIMARY KEY (asset, time)
   );
 `);
-try { db.exec(`CREATE INDEX IF NOT EXISTS idx_otc_candles_asset_time ON otc_candles (asset, time DESC)`); } catch {}
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_otc_base_at ON otc_base (asset, time DESC)`); } catch {}
+
+// OTC delta — spread additions (synthetic personality + manipulation drift)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS otc_delta (
+    asset TEXT NOT NULL,
+    time  INTEGER NOT NULL,
+    open  REAL NOT NULL DEFAULT 0,
+    high  REAL NOT NULL DEFAULT 0,
+    low   REAL NOT NULL DEFAULT 0,
+    close REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (asset, time)
+  );
+`);
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_otc_delta_at ON otc_delta (asset, time DESC)`); } catch {}
 
 // Migrations — safe to run multiple times
 try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch {}
