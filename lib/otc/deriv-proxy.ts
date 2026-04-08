@@ -34,6 +34,36 @@ function persistCandle(asset: string, c: Candle) {
   try { upsertCandleStmt.run(asset, c.time, c.open, c.high, c.low, c.close); } catch {}
 }
 
+// ── SSE subscriber registry ─────────────────────────────────────────────
+export type StreamMsg = {
+  type: "tick";
+  time: number;       // candle open epoch
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};
+type Subscriber = (msg: StreamMsg) => void;
+const subscribers: Map<string, Set<Subscriber>> = new Map();
+
+export function subscribe(asset: string, fn: Subscriber): () => void {
+  // Ensure the stream is alive
+  const cfg = OTC_ASSETS[asset];
+  if (cfg) ensureStream(asset, cfg.derivSym);
+  let set = subscribers.get(asset);
+  if (!set) { set = new Set(); subscribers.set(asset, set); }
+  set.add(fn);
+  return () => { set?.delete(fn); };
+}
+
+function emit(asset: string, msg: StreamMsg) {
+  const set = subscribers.get(asset);
+  if (!set) return;
+  for (const fn of set) {
+    try { fn(msg); } catch {}
+  }
+}
+
 type Stream = {
   derivSym: string;
   ws: WebSocket | null;
@@ -101,7 +131,17 @@ function connect(s: Stream) {
             s.candles.push(active);
             if (s.candles.length > 600) s.candles.shift();
           }
-          if (assetKey) persistCandle(assetKey, active);
+          if (assetKey) {
+            persistCandle(assetKey, active);
+            emit(assetKey, {
+              type: "tick",
+              time: active.time,
+              open: active.open,
+              high: active.high,
+              low:  active.low,
+              close: active.close,
+            });
+          }
         }
       } catch {}
     });
