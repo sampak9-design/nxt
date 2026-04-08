@@ -9,7 +9,6 @@ import WithdrawalsPage from "@/components/admin/WithdrawalsPage";
 import TradesPage     from "@/components/admin/TradesPage";
 import AssetsPage     from "@/components/admin/AssetsPage";
 import ReportsPage    from "@/components/admin/ReportsPage";
-import SignalsPage    from "@/components/admin/SignalsPage";
 import IntegrationPage from "@/components/admin/IntegrationPage";
 import KycPage        from "@/components/admin/KycPage";
 import SettingsPage   from "@/components/admin/SettingsPage";
@@ -25,7 +24,6 @@ export default function AdminPage() {
     kyc:         <KycPage />,
     trades:      <TradesPage />,
     assets:      <AssetsPage />,
-    signals:     <SignalsPage />,
     reports:     <ReportsPage />,
     integration: <IntegrationPage />,
     settings:    <SettingsPage />,

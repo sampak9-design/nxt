@@ -69,45 +69,6 @@ const ASSETS: ApiAsset[] = [
   { id: "JD75",      symbol: "JD75",      name: "Jump 75 Index",            is_active: true, payout_m1: 82, payout_m5: 84, payout_m15: 85, payout_h1: 87, icon_url: null },
   { id: "JD100",     symbol: "JD100",     name: "Jump 100 Index",           is_active: true, payout_m1: 82, payout_m5: 84, payout_m15: 85, payout_h1: 87, icon_url: null },
 
-  // ── OTC stock indices (market hours only) ────────────────────────────────
-  { id: "OTC_DJI",   symbol: "OTC_DJI",   name: "Wall Street 30 (OTC)",    is_active: true, payout_m1: 74, payout_m5: 76, payout_m15: 77, payout_h1: 79, icon_url: null },
-  { id: "OTC_FTSE",  symbol: "OTC_FTSE",  name: "UK 100 (OTC)",            is_active: true, payout_m1: 74, payout_m5: 76, payout_m15: 77, payout_h1: 79, icon_url: null },
-  { id: "OTC_GDAXI", symbol: "OTC_GDAXI", name: "Germany 40 (OTC)",        is_active: true, payout_m1: 74, payout_m5: 76, payout_m15: 77, payout_h1: 79, icon_url: null },
-  { id: "OTC_NDX",   symbol: "OTC_NDX",   name: "US Tech 100 (OTC)",       is_active: true, payout_m1: 74, payout_m5: 76, payout_m15: 77, payout_h1: 79, icon_url: null },
-  { id: "OTC_SPC",   symbol: "OTC_SPC",   name: "US 500 (OTC)",            is_active: true, payout_m1: 74, payout_m5: 76, payout_m15: 77, payout_h1: 79, icon_url: null },
-  { id: "OTC_N225",  symbol: "OTC_N225",  name: "Japan 225 (OTC)",         is_active: true, payout_m1: 74, payout_m5: 76, payout_m15: 77, payout_h1: 79, icon_url: null },
-  { id: "OTC_AEX",   symbol: "OTC_AEX",   name: "Netherlands 25 (OTC)",    is_active: true, payout_m1: 73, payout_m5: 75, payout_m15: 76, payout_h1: 78, icon_url: null },
-  { id: "OTC_AS51",  symbol: "OTC_AS51",  name: "Australia 200 (OTC)",     is_active: true, payout_m1: 73, payout_m5: 75, payout_m15: 76, payout_h1: 78, icon_url: null },
-  { id: "OTC_FCHI",  symbol: "OTC_FCHI",  name: "France 40 (OTC)",         is_active: true, payout_m1: 73, payout_m5: 75, payout_m15: 76, payout_h1: 78, icon_url: null },
-  { id: "OTC_HSI",   symbol: "OTC_HSI",   name: "Hong Kong 50 (OTC)",      is_active: true, payout_m1: 73, payout_m5: 75, payout_m15: 76, payout_h1: 78, icon_url: null },
-  { id: "OTC_SSMI",  symbol: "OTC_SSMI",  name: "Swiss 20 (OTC)",          is_active: true, payout_m1: 73, payout_m5: 75, payout_m15: 76, payout_h1: 78, icon_url: null },
-  { id: "OTC_SX5E",  symbol: "OTC_SX5E",  name: "Euro 50 (OTC)",           is_active: true, payout_m1: 73, payout_m5: 75, payout_m15: 76, payout_h1: 78, icon_url: null },
-
-  // ── OTC forex pairs (24/7, synthetic engine) ─────────────────────────────
-  { id: "AUDCAD-OTC", symbol: "AUDCAD-OTC", name: "AUD/CAD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "AUDCHF-OTC", symbol: "AUDCHF-OTC", name: "AUD/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "AUDJPY-OTC", symbol: "AUDJPY-OTC", name: "AUD/JPY (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "AUDNZD-OTC", symbol: "AUDNZD-OTC", name: "AUD/NZD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "CADCHF-OTC", symbol: "CADCHF-OTC", name: "CAD/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "EURAUD-OTC", symbol: "EURAUD-OTC", name: "EUR/AUD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "EURCHF-OTC", symbol: "EURCHF-OTC", name: "EUR/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "EURGBP-OTC", symbol: "EURGBP-OTC", name: "EUR/GBP (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "EURJPY-OTC", symbol: "EURJPY-OTC", name: "EUR/JPY (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "EURUSD-OTC", symbol: "EURUSD-OTC", name: "EUR/USD (OTC)", is_active: true, payout_m1: 82, payout_m5: 84, payout_m15: 85, payout_h1: 87, icon_url: null },
-  { id: "GBPCHF-OTC", symbol: "GBPCHF-OTC", name: "GBP/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "GBPJPY-OTC", symbol: "GBPJPY-OTC", name: "GBP/JPY (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "GBPNZD-OTC", symbol: "GBPNZD-OTC", name: "GBP/NZD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "GBPUSD-OTC", symbol: "GBPUSD-OTC", name: "GBP/USD (OTC)", is_active: true, payout_m1: 82, payout_m5: 84, payout_m15: 85, payout_h1: 87, icon_url: null },
-  { id: "NZDCAD-OTC", symbol: "NZDCAD-OTC", name: "NZD/CAD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "NZDCHF-OTC", symbol: "NZDCHF-OTC", name: "NZD/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "NZDJPY-OTC", symbol: "NZDJPY-OTC", name: "NZD/JPY (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "NZDUSD-OTC", symbol: "NZDUSD-OTC", name: "NZD/USD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "USDCAD-OTC", symbol: "USDCAD-OTC", name: "USD/CAD (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "USDCHF-OTC", symbol: "USDCHF-OTC", name: "USD/CHF (OTC)", is_active: true, payout_m1: 80, payout_m5: 82, payout_m15: 83, payout_h1: 85, icon_url: null },
-  { id: "USDJPY-OTC", symbol: "USDJPY-OTC", name: "USD/JPY (OTC)", is_active: true, payout_m1: 82, payout_m5: 84, payout_m15: 85, payout_h1: 87, icon_url: null },
-
-  // ── OTC crypto (still uses Binance feed) ─────────────────────────────────
-  { id: "BTCUSD-OTC", symbol: "BTCUSD-OTC", name: "BTC/USD (OTC)", is_active: true, payout_m1: 76, payout_m5: 78, payout_m15: 79, payout_h1: 81, icon_url: null },
 ];
 
 export default function TradePage() {

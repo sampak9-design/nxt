@@ -206,25 +206,6 @@ async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null
   const base = symbol.replace("-OTC", "");
   const binanceSym = BINANCE_MAP[base];
 
-  // OTC → our server replayer (21 synthetic forex pairs)
-  if (symbol.endsWith("-OTC") && ["1m", "5m", "15m"].includes(tf)) {
-    try {
-      const r = await fetch(`/api/otc/candles?symbol=${symbol}&tf=${tf}&count=500`);
-      if (r.ok) {
-        const d = await r.json();
-        if (Array.isArray(d.candles) && d.candles.length > 1) {
-          return d.candles.map((c: any) => ({
-            time:  c.time as UTCTimestamp,
-            open:  c.open,
-            high:  c.high,
-            low:   c.low,
-            close: c.close,
-          }));
-        }
-      }
-    } catch { /* fall through */ }
-  }
-
   // Crypto → Binance directly from browser (no server proxy)
   if (binanceSym) {
     try {
@@ -286,17 +267,6 @@ async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null
 async function fetchPrice(symbol: string): Promise<number | null> {
   const base = symbol.replace("-OTC", "");
   const binanceSym = BINANCE_MAP[base];
-
-  // OTC → our server replayer
-  if (symbol.endsWith("-OTC")) {
-    try {
-      const r = await fetch(`/api/otc/tick?symbol=${symbol}&tf=1m`);
-      if (r.ok) {
-        const d = await r.json();
-        if (typeof d.price === "number") return d.price;
-      }
-    } catch { /* fall through */ }
-  }
 
   // Crypto → Binance directly from browser
   if (binanceSym) {

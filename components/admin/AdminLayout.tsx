@@ -6,7 +6,7 @@ import {
   Activity, BarChart2, Layers, LogOut, ChevronRight, Bell, TrendingUp, Plug, ShieldCheck, Settings,
 } from "lucide-react";
 
-export type AdminPage = "dashboard" | "users" | "deposits" | "withdrawals" | "kyc" | "trades" | "assets" | "reports" | "signals" | "integration" | "settings";
+export type AdminPage = "dashboard" | "users" | "deposits" | "withdrawals" | "kyc" | "trades" | "assets" | "reports" | "integration" | "settings";
 
 const NAV: { id: AdminPage; label: string; icon: React.ReactNode; badge?: number }[] = [
   { id: "dashboard",   label: "Dashboard",   icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -17,7 +17,6 @@ const NAV: { id: AdminPage; label: string; icon: React.ReactNode; badge?: number
   { id: "integration", label: "Integração",  icon: <Plug className="w-4 h-4" /> },
   { id: "trades",      label: "Operações",   icon: <Activity className="w-4 h-4" /> },
   { id: "assets",      label: "Ativos",      icon: <Layers className="w-4 h-4" /> },
-  { id: "signals",     label: "Sinais OTC",  icon: <TrendingUp className="w-4 h-4" /> },
   { id: "reports",     label: "Relatórios",  icon: <BarChart2 className="w-4 h-4" /> },
   { id: "settings",    label: "Configurações", icon: <Settings className="w-4 h-4" /> },
 ];
