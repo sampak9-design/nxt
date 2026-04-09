@@ -27,8 +27,31 @@ export default function TradeFooter({ activeTrades }: Props) {
   const totalExpected = openTrades.reduce((s, t) => s + t.amount * t.payout / 100, 0);
 
   return (
-    <div className="hidden md:flex flex-col flex-shrink-0">
-      {/* Expanded portfolio table */}
+    <div className="hidden md:flex flex-col-reverse flex-shrink-0">
+      {/* Toggle bar — always visible at the bottom of chart area */}
+      <div
+        className="flex items-center h-7 px-4 border-t cursor-pointer select-none"
+        style={{ background: "#1a1f30", borderColor: "rgba(255,255,255,0.08)" }}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <span className="text-[11px] font-semibold text-white">
+          {openTrades.length > 0 ? (
+            <>
+              Opções ({openTrades.length})
+              <span className="text-emerald-400 ml-2">+R${totalExpected.toFixed(2)}</span>
+            </>
+          ) : (
+            "Portfólio total"
+          )}
+        </span>
+        <div className="flex-1" />
+        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+          {expanded ? "Ocultar" : "Exibir"} posições
+          {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+        </span>
+      </div>
+
+      {/* Expanded portfolio table — opens ABOVE the toggle bar */}
       {expanded && (
         <div
           className="border-t overflow-y-auto"
@@ -96,28 +119,6 @@ export default function TradeFooter({ activeTrades }: Props) {
         </div>
       )}
 
-      {/* Toggle bar */}
-      <div
-        className="flex items-center h-7 px-4 border-t cursor-pointer select-none"
-        style={{ background: "#1a1f30", borderColor: "rgba(255,255,255,0.08)" }}
-        onClick={() => setExpanded((v) => !v)}
-      >
-        <span className="text-[11px] font-semibold text-white">
-          {openTrades.length > 0 ? (
-            <>
-              Opções ({openTrades.length})
-              <span className="text-emerald-400 ml-2">+R${totalExpected.toFixed(2)}</span>
-            </>
-          ) : (
-            "Portfólio total"
-          )}
-        </span>
-        <div className="flex-1" />
-        <span className="text-[10px] text-gray-400 flex items-center gap-1">
-          {expanded ? "Ocultar" : "Exibir"} posições
-          {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
-        </span>
-      </div>
     </div>
   );
 }
