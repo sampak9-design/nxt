@@ -781,9 +781,17 @@ function renderCanvas(
       const lh   = 14;
       const lx   = canvas.width - totalW - padX * 2 - 2;
       const ly   = priceY - lh / 2 - padY;
-      // Background (green/red/white depending on hover)
+      // Background with pointed left edge (arrow shape)
+      const arrowW = 6;
       ctx.fillStyle = labelBg;
-      ctx.fillRect(lx, ly, totalW + padX * 2, lh + padY * 2);
+      ctx.beginPath();
+      ctx.moveTo(lx - arrowW, priceY);              // arrow tip (left)
+      ctx.lineTo(lx, ly);                            // top-left
+      ctx.lineTo(lx + totalW + padX * 2, ly);        // top-right
+      ctx.lineTo(lx + totalW + padX * 2, ly + lh + padY * 2); // bottom-right
+      ctx.lineTo(lx, ly + lh + padY * 2);            // bottom-left
+      ctx.closePath();
+      ctx.fill();
       // Main text
       ctx.fillStyle = labelText;
       ctx.fillText(mainPart, lx + padX, priceY);
