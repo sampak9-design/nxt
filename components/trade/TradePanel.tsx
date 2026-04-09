@@ -96,16 +96,16 @@ export default function TradePanel({
           <div className="flex-1 flex flex-col gap-1">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Valor</span>
             <div
-              className="flex items-center rounded-lg overflow-hidden"
+              className="flex items-center rounded-lg overflow-hidden transition-all hover:brightness-110 hover:border-white/20"
               style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }}
             >
-              <button onClick={decAmount} className="w-9 h-9 flex items-center justify-center hover:bg-white/10">
+              <button onClick={decAmount} className="w-9 h-9 flex items-center justify-center hover:bg-white/15 transition-colors">
                 <span className="text-gray-400 text-lg leading-none">−</span>
               </button>
-              <div className="flex-1 flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center cursor-pointer hover:bg-white/5 transition-colors">
                 <span className="text-white font-bold text-sm">R${amount}</span>
               </div>
-              <button onClick={incAmount} className="w-9 h-9 flex items-center justify-center hover:bg-white/10">
+              <button onClick={incAmount} className="w-9 h-9 flex items-center justify-center hover:bg-white/15 transition-colors">
                 <span className="text-gray-400 text-lg leading-none">+</span>
               </button>
             </div>
@@ -129,7 +129,7 @@ export default function TradePanel({
             onMouseEnter={() => onHoverChange?.("up")}
             onMouseLeave={() => onHoverChange?.(null)}
             disabled={!canTrade}
-            className="flex-1 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-40"
+            className="flex-1 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-40 hover:brightness-125 hover:shadow-lg"
             style={{ background: "linear-gradient(180deg,#2ecc71,#219a52)", height: 48 }}
           >
             <TrendingUp className="w-5 h-5" strokeWidth={2.5} />
@@ -140,7 +140,7 @@ export default function TradePanel({
             onMouseEnter={() => onHoverChange?.("down")}
             onMouseLeave={() => onHoverChange?.(null)}
             disabled={!canTrade}
-            className="flex-1 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-40"
+            className="flex-1 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-40 hover:brightness-125 hover:shadow-lg"
             style={{ background: "linear-gradient(180deg,#e74c3c,#a93226)", height: 48 }}
           >
             <TrendingDown className="w-5 h-5" strokeWidth={2.5} />
@@ -267,7 +267,7 @@ export default function TradePanel({
             onMouseEnter={() => onHoverChange?.("up")}
             onMouseLeave={() => onHoverChange?.(null)}
             disabled={!canTrade}
-            className="w-full rounded-xl font-bold text-white flex flex-col items-center justify-center gap-1.5 transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full rounded-xl font-bold text-white flex flex-col items-center justify-center gap-1.5 transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-125 hover:shadow-lg"
             style={{ background: "linear-gradient(180deg,#2ecc71,#219a52)", paddingTop: 18, paddingBottom: 18 }}
           >
             <TrendingUp className="w-6 h-6" strokeWidth={2.5} />
@@ -278,7 +278,7 @@ export default function TradePanel({
             onMouseEnter={() => onHoverChange?.("down")}
             onMouseLeave={() => onHoverChange?.(null)}
             disabled={!canTrade}
-            className="w-full rounded-xl font-bold text-white flex flex-col items-center justify-center gap-1.5 transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full rounded-xl font-bold text-white flex flex-col items-center justify-center gap-1.5 transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-125 hover:shadow-lg"
             style={{ background: "linear-gradient(180deg,#e74c3c,#a93226)", paddingTop: 18, paddingBottom: 18 }}
           >
             <TrendingDown className="w-6 h-6" strokeWidth={2.5} />
