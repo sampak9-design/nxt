@@ -16,13 +16,17 @@ function Countdown({ expiresAt }: { expiresAt: number }) {
     const iv = setInterval(tick, 1000);
     return () => clearInterval(iv);
   }, [expiresAt]);
-  return <span className="text-[11px] font-mono text-blue-400">{s}s</span>;
+  const mm = String(Math.floor(s / 60)).padStart(2, "0");
+  const ss = String(s % 60).padStart(2, "0");
+  return <span className="text-[11px] font-mono text-orange-400">{mm}:{ss}</span>;
 }
 
 export default function TradeFooter({ activeTrades }: Props) {
   const [time, setTime] = useState("");
   const [expanded, setExpanded] = useState(false);
   const openTrades = activeTrades.filter((t) => !t.result);
+  const totalInvest = openTrades.reduce((s, t) => s + t.amount, 0);
+  const totalExpected = openTrades.reduce((s, t) => s + t.amount * t.payout / 100, 0);
 
   useEffect(() => {
     const tick = () => {
@@ -42,32 +46,13 @@ export default function TradeFooter({ activeTrades }: Props) {
   }, []);
 
   return (
-    <div className="hidden md:flex flex-col flex-shrink-0" style={{ zIndex: 30 }}>
-      {/* Portfolio panel — expands upward */}
+    <div className="hidden md:flex flex-col flex-shrink-0">
+      {/* Expanded portfolio table */}
       {expanded && (
         <div
           className="border-t overflow-y-auto"
-          style={{
-            background: "#111622",
-            borderColor: "rgba(255,255,255,0.06)",
-            maxHeight: 200,
-          }}
+          style={{ background: "#111622", borderColor: "rgba(255,255,255,0.06)", maxHeight: 240 }}
         >
-          {/* Header bar */}
-          <div
-            className="flex items-center justify-between px-4 py-2 sticky top-0"
-            style={{ background: "#111622", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            <span className="text-[11px] font-semibold text-white">Portfólio total</span>
-            <button
-              onClick={() => setExpanded(false)}
-              className="text-[10px] text-gray-400 hover:text-white flex items-center gap-1 transition-colors"
-            >
-              Ocultar posições
-              <ChevronDown className="w-3 h-3" />
-            </button>
-          </div>
-
           {openTrades.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 gap-2">
               <span className="text-[12px] text-gray-500">Você ainda não tem nenhuma posição aberta</span>
@@ -79,42 +64,69 @@ export default function TradeFooter({ activeTrades }: Props) {
               </button>
             </div>
           ) : (
-            <div className="px-2 py-1">
-              {openTrades.map((t) => (
-                <div
-                  key={t.id}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg mb-1"
-                  style={{ background: "rgba(255,255,255,0.03)" }}
-                >
-                  <div
-                    className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: t.direction === "up" ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)" }}
-                  >
-                    {t.direction === "up"
-                      ? <TrendingUp className="w-3 h-3 text-green-400" />
-                      : <TrendingDown className="w-3 h-3 text-red-400" />}
-                  </div>
-                  <span className="text-[11px] text-white font-medium w-20">{t.tabName}</span>
-                  <span className="text-[11px] text-gray-400 font-mono">R$ {t.amount.toFixed(2)}</span>
-                  <span className="text-[10px] text-gray-600 font-mono">@ {t.entryPrice.toFixed(5)}</span>
-                  <span className="text-[10px] text-gray-500 uppercase">{t.direction}</span>
-                  <div className="ml-auto">
-                    <Countdown expiresAt={t.expiresAt} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <th className="text-left py-2 px-3 text-gray-500 font-medium">Nome</th>
+                  <th className="text-left py-2 px-3 text-gray-500 font-medium">Tipo</th>
+                  <th className="text-left py-2 px-3 text-gray-500 font-medium">Expiração</th>
+                  <th className="text-right py-2 px-3 text-gray-500 font-medium">Investimento</th>
+                  <th className="text-right py-2 px-3 text-gray-500 font-medium">Abertura</th>
+                  <th className="text-right py-2 px-3 text-gray-500 font-medium">Preço atual</th>
+                  <th className="text-right py-2 px-3 text-gray-500 font-medium">L/P esperados</th>
+                </tr>
+              </thead>
+              <tbody>
+                {openTrades.map((t) => {
+                  const expected = +(t.amount * t.payout / 100).toFixed(2);
+                  return (
+                    <tr key={t.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                      <td className="py-2 px-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{ background: t.direction === "up" ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)" }}
+                          >
+                            {t.direction === "up"
+                              ? <TrendingUp className="w-3 h-3 text-green-400" />
+                              : <TrendingDown className="w-3 h-3 text-red-400" />}
+                          </div>
+                          <span className="text-white font-medium">{t.tabName}</span>
+                        </div>
+                      </td>
+                      <td className="py-2 px-3 text-gray-400">Blitz</td>
+                      <td className="py-2 px-3"><Countdown expiresAt={t.expiresAt} /></td>
+                      <td className="py-2 px-3 text-right">
+                        <span className="text-white">R${t.amount.toFixed(2)}</span>
+                        {" "}
+                        <span style={{ color: t.direction === "up" ? "#22c55e" : "#ef4444" }}>
+                          {t.direction === "up" ? "▲" : "▼"}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-right text-gray-300 font-mono">{t.entryPrice.toFixed(5)}</td>
+                      <td className="py-2 px-3 text-right text-gray-300 font-mono">—</td>
+                      <td className="py-2 px-3 text-right text-emerald-400 font-medium">+R${expected.toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       )}
 
-      {/* Portfolio toggle bar */}
+      {/* Toggle bar */}
       <div
         className="flex items-center h-7 px-4 border-t cursor-pointer select-none"
         style={{ background: "#1a1f30", borderColor: "rgba(255,255,255,0.08)" }}
         onClick={() => setExpanded((v) => !v)}
       >
-        <span className="text-[11px] font-semibold text-white">Portfólio total</span>
+        <span className="text-[11px] font-semibold text-white">
+          Opções ({openTrades.length})
+          {openTrades.length > 0 && (
+            <span className="text-emerald-400 ml-2">+R${totalExpected.toFixed(2)}</span>
+          )}
+        </span>
         <div className="flex-1" />
         <span className="text-[10px] text-gray-400 flex items-center gap-1">
           {expanded ? "Ocultar" : "Exibir"} posições
@@ -122,7 +134,7 @@ export default function TradeFooter({ activeTrades }: Props) {
         </span>
       </div>
 
-      {/* Bottom bar: support + powered + clock */}
+      {/* Bottom bar */}
       <footer
         className="flex items-center h-7 px-3 gap-4 border-t text-[11px]"
         style={{ background: "#0f1320", borderColor: "rgba(255,255,255,0.06)", color: "#94a3b8" }}
@@ -138,9 +150,15 @@ export default function TradeFooter({ activeTrades }: Props) {
           <span className="text-gray-500">support@zyrooption.com</span>
           <span className="text-gray-600">TODO DIA, A TODA HORA</span>
         </div>
-
         <div className="flex-1" />
-
+        <div className="flex items-center gap-2 text-[10px] text-gray-500">
+          {openTrades.length > 0 && (
+            <>
+              <span>Investimento <span className="text-white">R${totalInvest.toFixed(2)}</span></span>
+              <span>L/P esperados <span className="text-emerald-400">+R${totalExpected.toFixed(2)}</span></span>
+            </>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <span className="text-[10px] text-gray-600">
             Powered by <span className="font-semibold text-gray-400">ZyroOption</span>

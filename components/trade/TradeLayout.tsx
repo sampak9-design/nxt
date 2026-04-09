@@ -470,50 +470,56 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           <HistoryPanel history={tradeHistory} accountType={accountType} onClose={() => setSidebarPanel(null)} />
         )}
         <div className="flex-1 flex overflow-hidden min-h-0">
-            {chartGrid === 1 ? (
-              <TradeChart
-                tab={activeTab}
-                activeTrades={activeTabTrades}
-                onPriceChange={handlePriceChange}
-                expiryMs={selectedExpMs}
-                hoverDirection={hoverDirection}
-              />
-            ) : (
-              /* 4-chart 2x2 grid */
-              <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 2, overflow: "hidden", background: "rgba(0,0,0,0.3)" }}>
-                {[0, 1, 2, 3].map((i) => {
-                  const gridTab = openTabs[i] ?? openTabs[openTabs.length - 1];
-                  const isActive = i === 0;
-                  return (
-                    <div key={i} style={{ position: "relative", overflow: "hidden", minWidth: 0, minHeight: 0 }}>
-                      {isActive && (
-                        <div style={{ position: "absolute", top: 6, left: 6, zIndex: 10, background: "#f97316", borderRadius: 4, padding: "2px 6px", fontSize: 9, fontWeight: 700, color: "#fff", letterSpacing: "0.06em" }}>ATIVO</div>
-                      )}
-                      <TradeChart
-                        tab={gridTab}
-                        activeTrades={isActive ? activeTabTrades : activeTrades.filter(t => t.tabId === gridTab.id)}
-                        onPriceChange={isActive ? handlePriceChange : () => {}}
-                        expiryMs={selectedExpMs}
-                        hoverDirection={isActive ? hoverDirection : null}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            <TradePanel
-              tab={activeTab}
-              accountType={accountType}
-              balance={balance}
-              currentPrice={livePrice}
-              activeTrades={activeTabTrades}
-              onTrade={handleTrade}
-              expiryMs={selectedExpMs}
-              onExpiryChange={setSelectedExpMs}
-              onSwitchAccount={() => accountType === "practice" ? setAccountType("real") : setAccountType("practice")}
-              onDepositClick={() => setShowDeposit(true)}
-              onHoverChange={setHoverDirection}
-            />
+          {/* Chart area + portfolio below */}
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+            <div className="flex-1 overflow-hidden min-h-0">
+              {chartGrid === 1 ? (
+                <TradeChart
+                  tab={activeTab}
+                  activeTrades={activeTabTrades}
+                  onPriceChange={handlePriceChange}
+                  expiryMs={selectedExpMs}
+                  hoverDirection={hoverDirection}
+                />
+              ) : (
+                <div style={{ width: "100%", height: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 2, overflow: "hidden", background: "rgba(0,0,0,0.3)" }}>
+                  {[0, 1, 2, 3].map((i) => {
+                    const gridTab = openTabs[i] ?? openTabs[openTabs.length - 1];
+                    const isActive = i === 0;
+                    return (
+                      <div key={i} style={{ position: "relative", overflow: "hidden", minWidth: 0, minHeight: 0 }}>
+                        {isActive && (
+                          <div style={{ position: "absolute", top: 6, left: 6, zIndex: 10, background: "#f97316", borderRadius: 4, padding: "2px 6px", fontSize: 9, fontWeight: 700, color: "#fff", letterSpacing: "0.06em" }}>ATIVO</div>
+                        )}
+                        <TradeChart
+                          tab={gridTab}
+                          activeTrades={isActive ? activeTabTrades : activeTrades.filter(t => t.tabId === gridTab.id)}
+                          onPriceChange={isActive ? handlePriceChange : () => {}}
+                          expiryMs={selectedExpMs}
+                          hoverDirection={isActive ? hoverDirection : null}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {/* Portfolio panel sits below chart, above footer */}
+            <TradeFooter activeTrades={activeTrades} />
+          </div>
+          <TradePanel
+            tab={activeTab}
+            accountType={accountType}
+            balance={balance}
+            currentPrice={livePrice}
+            activeTrades={activeTabTrades}
+            onTrade={handleTrade}
+            expiryMs={selectedExpMs}
+            onExpiryChange={setSelectedExpMs}
+            onSwitchAccount={() => accountType === "practice" ? setAccountType("real") : setAccountType("practice")}
+            onDepositClick={() => setShowDeposit(true)}
+            onHoverChange={setHoverDirection}
+          />
         </div>
       </div>
 
@@ -594,8 +600,6 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           </div>
         )}
       </div>
-
-      <TradeFooter activeTrades={activeTrades} />
 
       {showDeposit && (
         <DepositModal
