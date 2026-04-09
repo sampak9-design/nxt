@@ -280,7 +280,7 @@ export default function TradeHeader({
         </div>
 
         {/* Right */}
-        <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+        <div className={`flex items-center ${isVip ? "gap-3" : "gap-1.5"} flex-shrink-0 ml-auto`}>
           {/* Balance button + dropdown */}
           <div className="relative">
             <button
@@ -417,7 +417,7 @@ export default function TradeHeader({
             <div className="relative">
               <div
                 className="rounded-full overflow-hidden hover:ring-2 hover:ring-white/20 transition-all"
-                style={{ width: 34, height: 34, border: "2px solid var(--color-primary)" }}
+                style={{ width: 34, height: 34 }}
               >
                 {avatarUrl
                   ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
