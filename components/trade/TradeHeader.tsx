@@ -424,10 +424,10 @@ export default function TradeHeader({
                   : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg,#f97316,#ea6c0a)" }}>{initials}</div>
                 }
               </div>
-              {/* VIP badge */}
+              {/* VIP badge — bottom-left */}
               {isVip && (
                 <div
-                  className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center justify-center rounded px-1"
+                  className="absolute -bottom-1 -left-1 flex items-center justify-center rounded px-1"
                   style={{ background: "#facc15", fontSize: 7, fontWeight: 800, color: "#000", lineHeight: "12px", letterSpacing: "0.03em" }}
                 >
                   VIP
@@ -444,7 +444,7 @@ export default function TradeHeader({
                 {kycStatus === "approved" ? (
                   <svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 ) : (
-                  <span style={{ fontSize: 9, fontWeight: 800, color: "#fff", lineHeight: 1 }}>?</span>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: "#fff", lineHeight: 1 }}>!</span>
                 )}
               </div>
             </div>
