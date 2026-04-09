@@ -233,7 +233,7 @@ export default function TradeHeader({
                 }}
                 onClick={() => setActiveTab(tab)}
                 onKeyDown={(e) => e.key === "Enter" && setActiveTab(tab)}
-                className={`relative flex items-center gap-1.5 px-2 py-1 rounded cursor-grab select-none flex-shrink-0 h-full transition-colors ${dragIdx !== null ? "tab-wiggle" : ""}`}
+                className={`relative flex items-center gap-1.5 px-2 py-1 rounded cursor-grab select-none flex-shrink-0 h-full transition-all hover:bg-white/10 hover:brightness-110 ${dragIdx !== null ? "tab-wiggle" : ""}`}
                 style={{
                   background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
                   borderBottom: isActive ? "2px solid var(--color-primary)" : "2px solid transparent",
@@ -282,7 +282,7 @@ export default function TradeHeader({
             <button
               ref={btnRef}
               onClick={openPanel}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-white/5 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-white/10 hover:brightness-110 transition-all"
               style={{ background: "rgba(255,255,255,0.06)" }}
             >
               <div className="flex flex-col items-end leading-none">
@@ -391,7 +391,7 @@ export default function TradeHeader({
 
           <button
             onClick={onDepositClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white transition-all hover:brightness-125 hover:bg-white/10"
             style={{ background: "#34A93E" }}
           >
             <Plus className="w-3.5 h-3.5" />
@@ -408,7 +408,7 @@ export default function TradeHeader({
               setShowProfile(v => !v);
               setShowBalancePanel(false);
             }}
-            className="flex-shrink-0 rounded-full overflow-hidden hover:opacity-90 transition-opacity"
+            className="flex-shrink-0 rounded-full overflow-hidden hover:brightness-125 hover:ring-2 hover:ring-white/20 transition-all"
             style={{ width: 34, height: 34, border: "2px solid var(--color-primary)" }}
           >
             {avatarUrl
