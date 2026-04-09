@@ -759,7 +759,7 @@ function renderCanvas(
       ctx.save();
       ctx.strokeStyle = lineColor;
       ctx.lineWidth   = 1;
-      ctx.setLineDash([3, 3]);
+      ctx.setLineDash([]);
       ctx.beginPath();
       ctx.moveTo(candleX, priceY);
       ctx.lineTo(canvas.width, priceY);
