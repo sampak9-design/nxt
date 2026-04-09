@@ -103,9 +103,13 @@ export default function TradeFooter({ activeTrades }: Props) {
         onClick={() => setExpanded((v) => !v)}
       >
         <span className="text-[11px] font-semibold text-white">
-          Opções ({openTrades.length})
-          {openTrades.length > 0 && (
-            <span className="text-emerald-400 ml-2">+R${totalExpected.toFixed(2)}</span>
+          {openTrades.length > 0 ? (
+            <>
+              Opções ({openTrades.length})
+              <span className="text-emerald-400 ml-2">+R${totalExpected.toFixed(2)}</span>
+            </>
+          ) : (
+            "Portfólio total"
           )}
         </span>
         <div className="flex-1" />
