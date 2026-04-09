@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MessageCircle, Volume2, Settings, ChevronUp, ChevronDown, TrendingUp, TrendingDown } from "lucide-react";
+import { ChevronUp, ChevronDown, TrendingUp, TrendingDown } from "lucide-react";
 import type { ActiveTrade } from "./TradeLayout";
 
 interface Props {
@@ -22,28 +22,9 @@ function Countdown({ expiresAt }: { expiresAt: number }) {
 }
 
 export default function TradeFooter({ activeTrades }: Props) {
-  const [time, setTime] = useState("");
   const [expanded, setExpanded] = useState(false);
   const openTrades = activeTrades.filter((t) => !t.result);
-  const totalInvest = openTrades.reduce((s, t) => s + t.amount, 0);
   const totalExpected = openTrades.reduce((s, t) => s + t.amount * t.payout / 100, 0);
-
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-      const day = brt.getUTCDate();
-      const months = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
-      const month = months[brt.getUTCMonth()];
-      const h = String(brt.getUTCHours()).padStart(2, "0");
-      const m = String(brt.getUTCMinutes()).padStart(2, "0");
-      const s = String(brt.getUTCSeconds()).padStart(2, "0");
-      setTime(`${day} ${month}, ${h}:${m}:${s} (UTC-3)`);
-    };
-    tick();
-    const iv = setInterval(tick, 1000);
-    return () => clearInterval(iv);
-  }, []);
 
   return (
     <div className="hidden md:flex flex-col flex-shrink-0">
@@ -133,47 +114,6 @@ export default function TradeFooter({ activeTrades }: Props) {
           {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
         </span>
       </div>
-
-      {/* Bottom bar */}
-      <footer
-        className="flex items-center h-7 px-3 gap-4 border-t text-[11px]"
-        style={{ background: "#0f1320", borderColor: "rgba(255,255,255,0.06)", color: "#94a3b8" }}
-      >
-        <div className="flex items-center gap-2">
-          <button
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold text-white"
-            style={{ background: "#dc2626" }}
-          >
-            <MessageCircle className="w-3 h-3" />
-            SUPORTE
-          </button>
-          <span className="text-gray-500">support@zyrooption.com</span>
-          <span className="text-gray-600">TODO DIA, A TODA HORA</span>
-        </div>
-        <div className="flex-1" />
-        <div className="flex items-center gap-2 text-[10px] text-gray-500">
-          {openTrades.length > 0 && (
-            <>
-              <span>Investimento <span className="text-white">R${totalInvest.toFixed(2)}</span></span>
-              <span>L/P esperados <span className="text-emerald-400">+R${totalExpected.toFixed(2)}</span></span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] text-gray-600">
-            Powered by <span className="font-semibold text-gray-400">ZyroOption</span>
-          </span>
-          <button className="text-gray-500 hover:text-white transition-colors" title="Som">
-            <Volume2 className="w-3.5 h-3.5" />
-          </button>
-          <button className="text-gray-500 hover:text-white transition-colors" title="Configurações">
-            <Settings className="w-3.5 h-3.5" />
-          </button>
-          <span className="text-[10px] text-gray-500 font-mono whitespace-nowrap">
-            HORA ATUAL: <span className="text-gray-300">{time}</span>
-          </span>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -504,7 +504,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
                 </div>
               )}
             </div>
-            {/* Portfolio panel sits below chart, above footer */}
+            {/* Portfolio panel sits below chart */}
             <TradeFooter activeTrades={activeTrades} />
           </div>
           <TradePanel
@@ -601,6 +601,28 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         )}
       </div>
 
+      {/* Support bar — full width at the bottom */}
+      <div
+        className="hidden md:flex items-center h-7 px-3 gap-4 flex-shrink-0 border-t text-[11px]"
+        style={{ background: "#0f1320", borderColor: "rgba(255,255,255,0.06)", color: "#94a3b8", zIndex: 30 }}
+      >
+        <div className="flex items-center gap-2">
+          <button className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: "#dc2626" }}>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+            SUPORTE
+          </button>
+          <span className="text-gray-500">support@zyrooption.com</span>
+          <span className="text-gray-600">TODO DIA, A TODA HORA</span>
+        </div>
+        <div className="flex-1" />
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] text-gray-600">Powered by <span className="font-semibold text-gray-400">ZyroOption</span></span>
+          <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M6 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h2l4-4v14l-4-4z" /></svg>
+          <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          <FooterClock />
+        </div>
+      </div>
+
       {showDeposit && (
         <DepositModal
           onDeposit={handleDeposit}
@@ -610,4 +632,25 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
       )}
     </div>
   );
+}
+
+function FooterClock() {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+      const day = brt.getUTCDate();
+      const months = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+      const month = months[brt.getUTCMonth()];
+      const h = String(brt.getUTCHours()).padStart(2, "0");
+      const m = String(brt.getUTCMinutes()).padStart(2, "0");
+      const s = String(brt.getUTCSeconds()).padStart(2, "0");
+      setTime(`${day} ${month}, ${h}:${m}:${s} (UTC-3)`);
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return <span className="text-[10px] text-gray-500 font-mono whitespace-nowrap">HORA ATUAL: <span className="text-gray-300">{time}</span></span>;
 }
