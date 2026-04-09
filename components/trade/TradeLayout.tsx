@@ -595,7 +595,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         )}
       </div>
 
-      <TradeFooter />
+      <TradeFooter activeTrades={activeTrades} />
 
       {showDeposit && (
         <DepositModal
