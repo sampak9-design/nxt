@@ -408,13 +408,18 @@ export default function TradeHeader({
               setShowProfile(v => !v);
               setShowBalancePanel(false);
             }}
-            className="flex-shrink-0 rounded-full overflow-hidden hover:brightness-125 hover:ring-2 hover:ring-white/20 transition-all"
-            style={{ width: 34, height: 34, border: "2px solid var(--color-primary)" }}
+            className="flex items-center gap-1 flex-shrink-0 hover:brightness-125 transition-all"
           >
-            {avatarUrl
-              ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg,#f97316,#ea6c0a)" }}>{initials}</div>
-            }
+            <div
+              className="rounded-full overflow-hidden hover:ring-2 hover:ring-white/20 transition-all"
+              style={{ width: 34, height: 34, border: "2px solid var(--color-primary)" }}
+            >
+              {avatarUrl
+                ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg,#f97316,#ea6c0a)" }}>{initials}</div>
+              }
+            </div>
+            <ChevronDown className="w-3 h-3 text-gray-400" />
           </button>
         </div>
       </header>
