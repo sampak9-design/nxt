@@ -7,6 +7,7 @@ import PortfolioPanel from "./PortfolioPanel";
 import HistoryPanel from "./HistoryPanel";
 import TradePanel from "./TradePanel";
 import TradeChart from "./TradeChart";
+import TradeFooter from "./TradeFooter";
 import DepositModal from "./DepositModal";
 import { playOrderOpen, playWin, playLose } from "@/lib/sounds";
 
@@ -593,6 +594,8 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           </div>
         )}
       </div>
+
+      <TradeFooter />
 
       {showDeposit && (
         <DepositModal
