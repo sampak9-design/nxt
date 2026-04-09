@@ -53,6 +53,8 @@ export default function TradeHeader({
   const [profilePos, setProfilePos] = useState({ top: 0, right: 0 });
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [initials, setInitials] = useState("Z");
+  const [isVip, setIsVip] = useState(false);
+  const [kycStatus, setKycStatus] = useState<string>("none");
   const btnRef     = useRef<HTMLButtonElement>(null);
   const avatarRef  = useRef<HTMLButtonElement>(null);
   const panelRef   = useRef<HTMLDivElement>(null);
@@ -63,6 +65,8 @@ export default function TradeHeader({
       if (d.user) {
         setInitials(`${d.user.first_name[0]}${d.user.last_name[0]}`.toUpperCase());
         setAvatarUrl(d.user.avatar_url ? `${d.user.avatar_url}?t=${Date.now()}` : null);
+        setIsVip(!!d.user.is_marketing);
+        setKycStatus(d.user.kyc_status || "none");
       }
     }).catch(() => {});
   };
@@ -410,14 +414,39 @@ export default function TradeHeader({
             }}
             className="flex items-center gap-1 flex-shrink-0 hover:brightness-125 transition-all"
           >
-            <div
-              className="rounded-full overflow-hidden hover:ring-2 hover:ring-white/20 transition-all"
-              style={{ width: 34, height: 34, border: "2px solid var(--color-primary)" }}
-            >
-              {avatarUrl
-                ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg,#f97316,#ea6c0a)" }}>{initials}</div>
-              }
+            <div className="relative">
+              <div
+                className="rounded-full overflow-hidden hover:ring-2 hover:ring-white/20 transition-all"
+                style={{ width: 34, height: 34, border: "2px solid var(--color-primary)" }}
+              >
+                {avatarUrl
+                  ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg,#f97316,#ea6c0a)" }}>{initials}</div>
+                }
+              </div>
+              {/* VIP badge */}
+              {isVip && (
+                <div
+                  className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex items-center justify-center rounded px-1"
+                  style={{ background: "#facc15", fontSize: 7, fontWeight: 800, color: "#000", lineHeight: "12px", letterSpacing: "0.03em" }}
+                >
+                  VIP
+                </div>
+              )}
+              {/* Verification status */}
+              <div
+                className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
+                style={{
+                  background: kycStatus === "approved" ? "#22c55e" : "#f97316",
+                  border: "2px solid var(--color-third)",
+                }}
+              >
+                {kycStatus === "approved" ? (
+                  <svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                ) : (
+                  <span style={{ fontSize: 9, fontWeight: 800, color: "#fff", lineHeight: 1 }}>?</span>
+                )}
+              </div>
             </div>
             <svg width="10" height="7" viewBox="0 0 10 7" fill="#6b7280">
               <path d="M0 0 L10 0 L5 7 Z" />
