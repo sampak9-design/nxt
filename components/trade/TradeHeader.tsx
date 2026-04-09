@@ -185,6 +185,13 @@ export default function TradeHeader({
         </div>
 
         {/* Desktop: Asset Tabs */}
+        <style>{`
+          @keyframes tab-wiggle {
+            0%, 100% { transform: rotate(-1.5deg); }
+            50% { transform: rotate(1.5deg); }
+          }
+          .tab-wiggle { animation: tab-wiggle 0.25s ease-in-out infinite; }
+        `}</style>
         <div className="hidden md:flex items-center gap-1 flex-1 min-w-0 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-hide h-full py-1.5">
           {tabs.map((tab, idx) => {
             const isActive = tab.id === activeTab.id;
@@ -226,7 +233,7 @@ export default function TradeHeader({
                 }}
                 onClick={() => setActiveTab(tab)}
                 onKeyDown={(e) => e.key === "Enter" && setActiveTab(tab)}
-                className="relative flex items-center gap-1.5 px-2 py-1 rounded cursor-grab select-none flex-shrink-0 h-full transition-colors"
+                className={`relative flex items-center gap-1.5 px-2 py-1 rounded cursor-grab select-none flex-shrink-0 h-full transition-colors ${dragIdx !== null ? "tab-wiggle" : ""}`}
                 style={{
                   background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
                   borderBottom: isActive ? "2px solid var(--color-primary)" : "2px solid transparent",
