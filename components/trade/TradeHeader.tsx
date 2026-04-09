@@ -280,7 +280,7 @@ export default function TradeHeader({
         </div>
 
         {/* Right */}
-        <div className={`flex items-center ${isVip ? "gap-3" : "gap-1.5"} flex-shrink-0 ml-auto`}>
+        <div className={`flex items-center ${isVip ? "gap-4" : "gap-1.5"} flex-shrink-0 ml-auto`}>
           {/* Balance button + dropdown */}
           <div className="relative">
             <button
