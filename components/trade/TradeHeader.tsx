@@ -419,7 +419,9 @@ export default function TradeHeader({
                 : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg,#f97316,#ea6c0a)" }}>{initials}</div>
               }
             </div>
-            <ChevronDown className="w-3 h-3 text-gray-400" />
+            <svg width="10" height="7" viewBox="0 0 10 7" fill="#6b7280">
+              <path d="M0 0 L10 0 L5 7 Z" />
+            </svg>
           </button>
         </div>
       </header>
