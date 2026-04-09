@@ -748,9 +748,16 @@ function renderCanvas(
     const candleX = chart.timeScale().timeToCoordinate(lastCandle.time as UTCTimestamp) as number | null;
     const priceY  = series.priceToCoordinate(currentPrice) as number | null;
     if (candleX !== null && priceY !== null) {
+      // Price line color changes based on hover direction
+      const hoverUp   = hoverDirection === "up";
+      const hoverDown = hoverDirection === "down";
+      const lineColor = hoverUp ? "rgba(34,197,94,0.8)" : hoverDown ? "rgba(239,68,68,0.8)" : "rgba(255,255,255,0.7)";
+      const labelBg   = hoverUp ? "#22c55e" : hoverDown ? "#ef4444" : "#ffffff";
+      const labelText = hoverUp || hoverDown ? "#ffffff" : "#000000";
+
       // Price line from current candle forward (right side only)
       ctx.save();
-      ctx.strokeStyle = "rgba(255,255,255,0.7)";
+      ctx.strokeStyle = lineColor;
       ctx.lineWidth   = 1;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -759,7 +766,7 @@ function renderCanvas(
       ctx.stroke();
       ctx.restore();
 
-      // Custom price label — white bg, black text, last 2 digits red
+      // Custom price label
       const priceStr  = currentPrice.toFixed(currentPrice >= 100 ? 2 : 5);
       const mainPart  = priceStr.slice(0, -2);
       const redPart   = priceStr.slice(-2);
@@ -774,14 +781,14 @@ function renderCanvas(
       const lh   = 14;
       const lx   = canvas.width - totalW - padX * 2 - 2;
       const ly   = priceY - lh / 2 - padY;
-      // white background
-      ctx.fillStyle = "#ffffff";
+      // Background (green/red/white depending on hover)
+      ctx.fillStyle = labelBg;
       ctx.fillRect(lx, ly, totalW + padX * 2, lh + padY * 2);
-      // black main text
-      ctx.fillStyle = "#000000";
+      // Main text
+      ctx.fillStyle = labelText;
       ctx.fillText(mainPart, lx + padX, priceY);
-      // red last 2 digits
-      ctx.fillStyle = "#ef4444";
+      // Last 2 digits (red only when no hover, white when hovering)
+      ctx.fillStyle = hoverUp || hoverDown ? "#ffffff" : "#ef4444";
       ctx.fillText(redPart, lx + padX + mainW, priceY);
       ctx.restore();
 
