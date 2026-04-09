@@ -367,6 +367,30 @@ function renderCanvas(
   canvas.height = canvas.offsetHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // ── Extend vertical grid lines into the empty future area ─────────────
+  if (candleData.length >= 2) {
+    const ts = chart.timeScale();
+    const lastTime = candleData[candleData.length - 1].time;
+    const prevTime = candleData[candleData.length - 2].time;
+    const lastX = ts.timeToCoordinate(lastTime as UTCTimestamp) as number | null;
+    const prevX = ts.timeToCoordinate(prevTime as UTCTimestamp) as number | null;
+    if (lastX !== null && prevX !== null) {
+      const gap = lastX - prevX;
+      if (gap > 5) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(255,255,255,0.07)";
+        ctx.lineWidth = 1;
+        for (let x = lastX + gap; x < canvas.width; x += gap) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, canvas.height);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+  }
+
   // ── Hover overlay split at current price line (gradient) ────────────
   if (hoverDirection !== null && currentPrice !== null) {
     const priceY = series.priceToCoordinate(currentPrice) as number | null;
