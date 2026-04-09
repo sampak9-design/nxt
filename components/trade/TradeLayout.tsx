@@ -445,6 +445,14 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         onReloadDemo={() => setDemoBalance(10000)}
         chartGrid={chartGrid}
         setChartGrid={setChartGrid}
+        reorderTabs={(from, to) => {
+          setOpenTabs((prev) => {
+            const next = [...prev];
+            const [moved] = next.splice(from, 1);
+            next.splice(to, 0, moved);
+            return next;
+          });
+        }}
       />
 
       {/* ── Desktop layout ── */}

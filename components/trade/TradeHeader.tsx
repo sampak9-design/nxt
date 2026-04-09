@@ -22,6 +22,7 @@ interface Props {
   onReloadDemo: () => void;
   chartGrid: number;
   setChartGrid: (n: number) => void;
+  reorderTabs: (from: number, to: number) => void;
 }
 
 export default function TradeHeader({
@@ -31,9 +32,12 @@ export default function TradeHeader({
   demoBalance, realBalance,
   onDepositClick, onReloadDemo,
   chartGrid, setChartGrid,
+  reorderTabs,
 }: Props) {
   const [showPicker, setShowPicker] = useState(false);
   const [showGridMenu, setShowGridMenu] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dropIdx, setDropIdx] = useState<number | null>(null);
   const gridMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!showGridMenu) return;
@@ -182,20 +186,53 @@ export default function TradeHeader({
 
         {/* Desktop: Asset Tabs */}
         <div className="hidden md:flex items-center gap-1 flex-1 min-w-0 overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-hide h-full py-1.5">
-          {tabs.map((tab) => {
+          {tabs.map((tab, idx) => {
             const isActive = tab.id === activeTab.id;
+            const isDragging = dragIdx === idx;
+            const isDropTarget = dropIdx === idx && dropIdx !== dragIdx;
             return (
               <div
                 key={tab.id}
                 role="button"
                 tabIndex={0}
+                draggable
+                onDragStart={(e) => {
+                  setDragIdx(idx);
+                  e.dataTransfer.effectAllowed = "move";
+                  if (e.currentTarget instanceof HTMLElement) {
+                    e.currentTarget.style.opacity = "0.4";
+                  }
+                }}
+                onDragEnd={(e) => {
+                  if (e.currentTarget instanceof HTMLElement) {
+                    e.currentTarget.style.opacity = "1";
+                  }
+                  if (dragIdx !== null && dropIdx !== null && dragIdx !== dropIdx) {
+                    reorderTabs(dragIdx, dropIdx);
+                  }
+                  setDragIdx(null);
+                  setDropIdx(null);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  setDropIdx(idx);
+                }}
+                onDragLeave={() => {
+                  if (dropIdx === idx) setDropIdx(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                }}
                 onClick={() => setActiveTab(tab)}
                 onKeyDown={(e) => e.key === "Enter" && setActiveTab(tab)}
-                className="relative flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer select-none flex-shrink-0 h-full transition-colors"
+                className="relative flex items-center gap-1.5 px-2 py-1 rounded cursor-grab select-none flex-shrink-0 h-full transition-colors"
                 style={{
                   background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
                   borderBottom: isActive ? "2px solid var(--color-primary)" : "2px solid transparent",
                   minWidth: 120,
+                  opacity: isDragging ? 0.4 : 1,
+                  borderLeft: isDropTarget ? "2px solid var(--color-primary)" : "2px solid transparent",
                 }}
               >
                 <button
