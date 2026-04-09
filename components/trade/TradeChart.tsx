@@ -367,39 +367,6 @@ function renderCanvas(
   canvas.height = canvas.offsetHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // ── Extend vertical grid lines into the empty future area ─────────────
-  // We find 2 existing grid lines from the chart's visible area and extrapolate.
-  // The right boundary is the timeScale's visible width (from timeScale().width()).
-  if (candleData.length >= 10) {
-    const ts = chart.timeScale();
-    // timeScale().width() gives the plot area width in pixels (no price scale)
-    const plotWidth = (ts as any).width?.() ?? 0;
-    if (plotWidth > 0) {
-      const lastEpoch = candleData[candleData.length - 1].time as number;
-      for (const mult of [5, 10, 15, 30, 60]) {
-        const interval = mult * 60;
-        const g1 = Math.floor(lastEpoch / interval) * interval;
-        const g2 = g1 - interval;
-        const x1 = ts.timeToCoordinate(g1 as UTCTimestamp) as number | null;
-        const x2 = ts.timeToCoordinate(g2 as UTCTimestamp) as number | null;
-        if (x1 !== null && x2 !== null && x1 - x2 > 30) {
-          const gap = x1 - x2;
-          ctx.save();
-          ctx.strokeStyle = "rgba(255,255,255,0.07)";
-          ctx.lineWidth = 1;
-          for (let x = x1 + gap; x < plotWidth; x += gap) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, canvas.height);
-            ctx.stroke();
-          }
-          ctx.restore();
-          break;
-        }
-      }
-    }
-  }
-
   // ── Hover overlay split at current price line (gradient) ────────────
   if (hoverDirection !== null && currentPrice !== null) {
     const priceY = series.priceToCoordinate(currentPrice) as number | null;
