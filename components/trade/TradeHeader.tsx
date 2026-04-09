@@ -424,11 +424,11 @@ export default function TradeHeader({
                   : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg,#f97316,#ea6c0a)" }}>{initials}</div>
                 }
               </div>
-              {/* VIP badge — bottom-left */}
+              {/* VIP badge — left side overlapping the circle edge */}
               {isVip && (
                 <div
-                  className="absolute -bottom-1 -left-1 flex items-center justify-center rounded px-1"
-                  style={{ background: "#facc15", fontSize: 7, fontWeight: 800, color: "#000", lineHeight: "12px", letterSpacing: "0.03em" }}
+                  className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center rounded px-1"
+                  style={{ left: -8, background: "#facc15", fontSize: 7, fontWeight: 800, color: "#000", lineHeight: "12px", letterSpacing: "0.03em", whiteSpace: "nowrap" }}
                 >
                   VIP
                 </div>
