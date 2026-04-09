@@ -368,25 +368,48 @@ function renderCanvas(
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // ── Extend vertical grid lines into the empty future area ─────────────
-  if (candleData.length >= 2) {
+  // Find the real grid spacing by scanning existing visible grid lines from
+  // the chart's time axis. We detect the spacing from the 2 rightmost grid
+  // marks, then continue that pattern to the right (stop before price scale).
+  if (candleData.length >= 10) {
     const ts = chart.timeScale();
-    const lastTime = candleData[candleData.length - 1].time;
-    const prevTime = candleData[candleData.length - 2].time;
-    const lastX = ts.timeToCoordinate(lastTime as UTCTimestamp) as number | null;
-    const prevX = ts.timeToCoordinate(prevTime as UTCTimestamp) as number | null;
-    if (lastX !== null && prevX !== null) {
-      const gap = lastX - prevX;
-      if (gap > 5) {
-        ctx.save();
-        ctx.strokeStyle = "rgba(255,255,255,0.07)";
-        ctx.lineWidth = 1;
-        for (let x = lastX + gap; x < canvas.width; x += gap) {
-          ctx.beginPath();
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, canvas.height);
-          ctx.stroke();
+    const range = ts.getVisibleLogicalRange();
+    if (range) {
+      // Sample some positions to find which candle epochs produce grid marks.
+      // lightweight-charts draws grid lines at "round" time intervals (e.g.
+      // every 5 min, 15 min, 1h depending on zoom). We detect this by
+      // scanning back and looking for the interval the chart uses.
+      const barInterval = candleData.length > 1
+        ? (candleData[candleData.length - 1].time as number) - (candleData[candleData.length - 2].time as number)
+        : 60;
+      // Try common grid multiples
+      for (const mult of [5, 10, 15, 30, 60]) {
+        const step = mult * barInterval / 60; // in bars
+        if (step <= 0) continue;
+        // Find the last visible grid line with this step
+        const lastBar = candleData.length - 1;
+        const lastEpoch = candleData[lastBar].time as number;
+        const interval = mult * 60; // in seconds
+        const lastGrid = Math.floor(lastEpoch / interval) * interval;
+        const x1 = ts.timeToCoordinate(lastGrid as UTCTimestamp) as number | null;
+        const x2 = ts.timeToCoordinate((lastGrid - interval) as UTCTimestamp) as number | null;
+        if (x1 !== null && x2 !== null && x1 - x2 > 30) {
+          // Found a reasonable grid spacing
+          const gap = x1 - x2;
+          const priceScaleWidth = 70;
+          const maxX = canvas.width - priceScaleWidth;
+          ctx.save();
+          ctx.strokeStyle = "rgba(255,255,255,0.07)";
+          ctx.lineWidth = 1;
+          for (let x = x1 + gap; x < maxX; x += gap) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+          }
+          ctx.restore();
+          break;
         }
-        ctx.restore();
       }
     }
   }
