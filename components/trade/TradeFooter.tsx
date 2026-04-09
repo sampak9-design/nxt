@@ -27,8 +27,9 @@ export default function TradeFooter({ activeTrades }: Props) {
   const totalExpected = openTrades.reduce((s, t) => s + t.amount * t.payout / 100, 0);
 
   return (
-    <div className="hidden md:flex flex-col-reverse flex-shrink-0">
-      {/* Toggle bar — always visible at the bottom of chart area */}
+    <div className="hidden md:flex flex-col flex-shrink-0">
+      {/* Toggle bar — clicks to expand/collapse. When expanded, the bar
+          moves UP together with the table (like a drawer opening upward). */}
       <div
         className="flex items-center h-7 px-4 border-t cursor-pointer select-none"
         style={{ background: "#1a1f30", borderColor: "rgba(255,255,255,0.08)" }}
@@ -51,7 +52,7 @@ export default function TradeFooter({ activeTrades }: Props) {
         </span>
       </div>
 
-      {/* Expanded portfolio table — opens ABOVE the toggle bar */}
+      {/* Table below the header — header + table move up together */}
       {expanded && (
         <div
           className="border-t overflow-y-auto"
