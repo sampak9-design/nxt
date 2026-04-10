@@ -224,7 +224,7 @@ async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null
   const base = symbol.replace("-OTC", "");
   const binanceSym = BINANCE_MAP[base];
 
-  // OTC → server proxy
+  // OTC → server proxy (manipulated)
   if (SERVER_OTC.has(symbol) && ["1m", "5m", "15m"].includes(tf)) {
     try {
       const r = await fetch(`/api/otc/candles?symbol=${symbol}&tf=${tf}&count=500`);
@@ -240,7 +240,20 @@ async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null
     } catch {}
   }
 
-  // Crypto → Binance directly from browser (no server proxy)
+  // ALL assets → try our server cache first (instant, no external dependency)
+  try {
+    const r = await fetch(`/api/market/candles?symbol=${base}&tf=${tf}&count=500`);
+    if (r.ok) {
+      const data = await r.json();
+      if (Array.isArray(data) && data.length > 5) {
+        return data.map((c: any) => ({
+          time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close,
+        }));
+      }
+    }
+  } catch {}
+
+  // Fallback: Crypto → Binance directly from browser
   if (binanceSym) {
     try {
       const limit = tf === "4h" ? 500 : 1000;
@@ -302,7 +315,7 @@ async function fetchPrice(symbol: string): Promise<number | null> {
   const base = symbol.replace("-OTC", "");
   const binanceSym = BINANCE_MAP[base];
 
-  // OTC → server proxy
+  // OTC → server proxy (manipulated)
   if (SERVER_OTC.has(symbol)) {
     try {
       const r = await fetch(`/api/otc/tick?symbol=${symbol}`);
@@ -313,7 +326,16 @@ async function fetchPrice(symbol: string): Promise<number | null> {
     } catch {}
   }
 
-  // Crypto → Binance directly from browser
+  // ALL assets → try our server cache first
+  try {
+    const r = await fetch(`/api/market/price?symbol=${base}`);
+    if (r.ok) {
+      const d = await r.json();
+      if (d.price > 0) return d.price;
+    }
+  } catch {}
+
+  // Fallback: Crypto → Binance directly from browser
   if (binanceSym) {
     try {
       const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSym}`);

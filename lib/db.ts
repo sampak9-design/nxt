@@ -51,6 +51,29 @@ db.exec(`
   );
 `);
 
+// Market candles cache — server-side proxy for ALL assets (Deriv + Binance)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS market_candles (
+    asset TEXT NOT NULL,
+    time  INTEGER NOT NULL,
+    open  REAL NOT NULL,
+    high  REAL NOT NULL,
+    low   REAL NOT NULL,
+    close REAL NOT NULL,
+    PRIMARY KEY (asset, time)
+  );
+`);
+try { db.exec(`CREATE INDEX IF NOT EXISTS idx_market_at ON market_candles (asset, time DESC)`); } catch {}
+
+// Market latest price cache
+db.exec(`
+  CREATE TABLE IF NOT EXISTS market_prices (
+    asset TEXT PRIMARY KEY,
+    price REAL NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+`);
+
 // OTC base candles — pure Deriv data, no manipulation
 db.exec(`
   CREATE TABLE IF NOT EXISTS otc_base (
