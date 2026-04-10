@@ -1536,8 +1536,9 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       if (candles.current.length > 0) {
         // Success — data loaded
         setLoadError(false);
-        // fitContent after render so Y axis scales correctly
-        requestAnimationFrame(() => chart.timeScale().fitContent());
+        // applySource already sets the correct visible range (last 30 candles)
+        // Do NOT call fitContent() here — it shows ALL candles which makes them
+        // sub-pixel and invisible on narrow mobile screens.
         return;
       }
       // No data — retry or give up
