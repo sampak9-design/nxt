@@ -1704,18 +1704,41 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     return () => clearInterval(iv);
   }, [tab.id, tf]);
 
-  /* ── redraw chart when tab becomes visible again ──────────────────── */
+  /* ── robust resize: ResizeObserver + visibility + window resize ───── */
   useEffect(() => {
-    const handler = () => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    let rafId = 0;
+
+    const doResize = () => {
+      const chart = chartRef.current;
+      if (!chart) return;
+      const w = wrap.clientWidth;
+      const h = wrap.clientHeight;
+      if (w <= 0 || h <= 0) return;
+      chart.resize(w, h);
+    };
+
+    const scheduleResize = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(doResize);
+    };
+
+    // 1. ResizeObserver — catches container changes (sidebar, layout, window)
+    const ro = new ResizeObserver(scheduleResize);
+    ro.observe(wrap);
+
+    // 2. Window resize fallback
+    window.addEventListener("resize", scheduleResize);
+
+    // 3. Visibility change — redraw with full data when tab returns
+    const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       const chart = chartRef.current;
       const series = seriesRef.current;
-      const wrap = wrapRef.current;
       const list = candles.current;
-      if (!chart || !series || !wrap || !list.length) return;
-      // Resize to current container dimensions
-      chart.resize(wrap.clientWidth, wrap.clientHeight);
-      // Re-apply all candle data so wicks/bodies render correctly
+      if (!chart || !series || !list.length) return;
+      doResize();
       const ctype = chartTypeRef.current;
       if (ctype === "line" || ctype === "area") {
         (series as any).setData(list.map((c: Candle) => ({ time: c.time, value: c.close })));
@@ -1723,8 +1746,14 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         series.setData(list);
       }
     };
-    document.addEventListener("visibilitychange", handler);
-    return () => document.removeEventListener("visibilitychange", handler);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      ro.disconnect();
+      window.removeEventListener("resize", scheduleResize);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   /* ── canvas mouse handlers ────────────────────────────────────────── */
