@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { X, Plus, Bell, ChevronDown } from "lucide-react";
-import type { Tab, ApiAsset, AccountType } from "./TradeLayout";
+import type { Tab, ApiAsset, AccountType, ActiveTrade } from "./TradeLayout";
 import AssetPicker from "./AssetPicker";
 import ProfilePanel from "./ProfilePanel";
 import ZyroLogo from "@/components/ZyroLogo";
@@ -24,6 +24,22 @@ interface Props {
   chartGrid: number;
   setChartGrid: (n: number) => void;
   reorderTabs: (from: number, to: number) => void;
+  activeTrades: ActiveTrade[];
+  livePrice: number;
+}
+
+function TabCountdown({ expiresAt }: { expiresAt: number }) {
+  const [s, setS] = useState(0);
+  useEffect(() => {
+    const tick = () => setS(Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [expiresAt]);
+  if (s <= 0) return null;
+  const mm = String(Math.floor(s / 60)).padStart(2, "0");
+  const ss = String(s % 60).padStart(2, "0");
+  return <span className="text-[10px] font-mono font-bold">{mm === "00" ? `:${ss}` : `${mm}:${ss}`}</span>;
 }
 
 export default function TradeHeader({
@@ -34,6 +50,8 @@ export default function TradeHeader({
   onDepositClick, onReloadDemo,
   chartGrid, setChartGrid,
   reorderTabs,
+  activeTrades,
+  livePrice,
 }: Props) {
   const [showPicker, setShowPicker] = useState(false);
   const [showGridMenu, setShowGridMenu] = useState(false);
@@ -239,13 +257,22 @@ export default function TradeHeader({
                 onClick={() => setActiveTab(tab)}
                 onKeyDown={(e) => e.key === "Enter" && setActiveTab(tab)}
                 className={`relative flex items-center gap-1.5 px-2 py-1 rounded cursor-grab select-none flex-shrink-0 h-full transition-all hover:bg-white/10 hover:brightness-110 ${dragIdx !== null ? "tab-wiggle" : ""}`}
-                style={{
-                  background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
-                  borderBottom: isActive ? "2px solid var(--color-primary)" : "2px solid transparent",
-                  minWidth: 120,
-                  opacity: isDragging ? 0.4 : 1,
-                  borderLeft: isDropTarget ? "2px solid var(--color-primary)" : "2px solid transparent",
-                }}
+                style={(() => {
+                  const trade = activeTrades.find(t => t.tabId === tab.id && !t.result);
+                  const hasTrade = !!trade;
+                  const winning = hasTrade && (trade.direction === "up" ? livePrice > trade.entryPrice : livePrice < trade.entryPrice);
+                  return {
+                    background: hasTrade
+                      ? (winning ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)")
+                      : (isActive ? "rgba(255,255,255,0.1)" : "transparent"),
+                    borderBottom: hasTrade
+                      ? `2px solid ${winning ? "#22c55e" : "#ef4444"}`
+                      : (isActive ? "2px solid var(--color-primary)" : "2px solid transparent"),
+                    minWidth: 120,
+                    opacity: isDragging ? 0.4 : 1,
+                    borderLeft: isDropTarget ? "2px solid var(--color-primary)" : "2px solid transparent",
+                  };
+                })()}
               >
                 <button
                   type="button"
@@ -263,10 +290,44 @@ export default function TradeHeader({
                     : <span className="text-[10px] font-bold text-gray-400">{tab.id.replace("-OTC","").slice(0,3)}</span>
                   }
                 </div>
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-xs font-semibold text-white truncate leading-tight">{tab.name}</span>
-                  <span className="text-[9px] text-gray-500 font-medium">{tab.type}</span>
-                </div>
+                {(() => {
+                  const trade = activeTrades.find(t => t.tabId === tab.id && !t.result);
+                  if (trade) {
+                    const winning = trade.direction === "up"
+                      ? livePrice > trade.entryPrice
+                      : livePrice < trade.entryPrice;
+                    const profit = winning ? +(trade.amount * trade.payout / 100).toFixed(2) : 0;
+                    return (
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-xs font-semibold text-white truncate leading-tight">{tab.name}</span>
+                        <span className="text-[10px] font-bold" style={{ color: winning ? "#22c55e" : "#ef4444" }}>
+                          {winning ? `+R$${profit}` : `-R$${trade.amount.toFixed(2)}`}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-xs font-semibold text-white truncate leading-tight">{tab.name}</span>
+                      <span className="text-[9px] text-gray-500 font-medium">{tab.type}</span>
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  const trade = activeTrades.find(t => t.tabId === tab.id && !t.result);
+                  if (!trade) return null;
+                  const winning = trade.direction === "up"
+                    ? livePrice > trade.entryPrice
+                    : livePrice < trade.entryPrice;
+                  return (
+                    <>
+                      <div className="flex items-center justify-center flex-shrink-0">
+                        <TabCountdown expiresAt={trade.expiresAt} />
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: winning ? "#22c55e" : "#ef4444" }} />
+                    </>
+                  );
+                })()}
               </div>
             );
           })}

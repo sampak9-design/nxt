@@ -446,6 +446,8 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         onReloadDemo={() => setDemoBalance(10000)}
         chartGrid={chartGrid}
         setChartGrid={setChartGrid}
+        activeTrades={activeTrades}
+        livePrice={livePrice}
         reorderTabs={(from, to) => {
           setOpenTabs((prev) => {
             const next = [...prev];
