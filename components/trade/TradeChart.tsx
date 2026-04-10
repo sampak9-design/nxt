@@ -1448,47 +1448,31 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
       if (activeKeyRef.current !== activeKey) return;
 
-      const base     = tab.id.replace("-OTC", "");
-      const isCrypto = !!BINANCE_MAP[base];
-
-      // Use prefetch cache if available, otherwise fetch fresh
+      // Clear prefetch cache for stale entries (mobile browser may have frozen the promises)
       const cached = getPrefetch(tab.id, tf);
 
-      if (isCrypto) {
-        // ── Crypto ── fetch in parallel (or use prefetch) ─────────────
-        console.log(`[chart] loading crypto ${tab.id} tf=${tf}${cached ? " (prefetched)" : ""}`);
-        const [data, realP] = await Promise.all([
-          cached ? cached.candles : fetchCandles(tab.id, tf),
-          cached ? cached.price   : fetchPrice(tab.id),
-        ]);
-        if (activeKeyRef.current !== activeKey) return;
-        console.log(`[chart] ${tab.id} responded, candles=${data?.length ?? 0}`);
-        const source = isUsable(data) ? data : null;
-        if (!source) { if (realP && realP > 0) realPriceRef.current = realP; setLoading(false); return; }
-        const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
-        try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
-        applySource(source, realP, false);
-        setLoading(false);
+      // Parallel fetch with 8s timeout to prevent stale mobile connections
+      const fetchWithTimeout = async <T,>(p: Promise<T>, ms = 8000): Promise<T | null> => {
+        try {
+          return await Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), ms))]);
+        } catch { return null; }
+      };
 
-      } else {
-        // ── Forex / OTC ── parallel fetch (or use prefetch) ─────────────
-        console.log(`[chart] loading ${tab.id} tf=${tf}${cached ? " (prefetched)" : ""}`);
-        const [data, realP] = await Promise.all([
-          cached ? cached.candles : fetchCandles(tab.id, tf),
-          cached ? cached.price   : fetchPrice(tab.id),
-        ]);
-        if (activeKeyRef.current !== activeKey) return;
-        console.log(`[chart] ${tab.id} price=${realP}`);
-        if (realP && realP > 0) realPriceRef.current = realP;
+      console.log(`[chart] loading ${tab.id} tf=${tf}${cached ? " (prefetched)" : ""}`);
+      const [data, realP] = await Promise.all([
+        fetchWithTimeout(cached ? cached.candles : fetchCandles(tab.id, tf)),
+        fetchWithTimeout(cached ? cached.price : fetchPrice(tab.id)),
+      ]);
+      if (activeKeyRef.current !== activeKey) return;
 
-        if (activeKeyRef.current !== activeKey) return;
-        const source = isUsable(data) ? data : null;
-        if (!source) { setLoading(false); return; }
-        const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
-        try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
-        applySource(source, realPriceRef.current, false);
-        setLoading(false);
-      }
+      if (realP && realP > 0) realPriceRef.current = realP;
+      const source = isUsable(data) ? data : null;
+      if (!source) { setLoading(false); return; }
+
+      const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+      try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
+      applySource(source, realPriceRef.current, false);
+      setLoading(false);
     };
 
     const MAX_RETRIES = 3;
@@ -1758,6 +1742,12 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
       // Refresh the live price so microTick can resume smoothly
       fetchPrice(tab.id).then(p => { if (p && p > 0) realPriceRef.current = p; }).catch(() => {});
+      // If chart has no candles (stale mobile session), force reload
+      if (!list.length) {
+        console.log("[chart] no candles on visibility return, reloading");
+        prefetchCache.delete(`${tab.id}:${tfRef.current}`);
+        setLoadTrigger(v => v + 1);
+      }
     };
     document.addEventListener("visibilitychange", onVisible);
 
