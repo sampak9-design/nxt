@@ -205,6 +205,29 @@ function derivWS<T>(msg: object): Promise<T> {
 // Assets served by our server-side OTC proxy (Deriv synthetic indices)
 const SERVER_OTC = new Set<string>(["EURUSD-OTC"]);
 
+// ── Prefetch cache: start loading data before the chart mounts ──────────
+const prefetchCache: Map<string, { candles: Promise<Candle[] | null>; price: Promise<number | null>; ts: number }> = new Map();
+
+/** Call this when the user clicks an asset tab — starts fetching immediately. */
+export function prefetchAsset(symbol: string, tf: string = "1m") {
+  const key = `${symbol}:${tf}`;
+  const existing = prefetchCache.get(key);
+  // Reuse if less than 5s old
+  if (existing && Date.now() - existing.ts < 5000) return;
+  prefetchCache.set(key, {
+    candles: fetchCandles(symbol, tf),
+    price:   fetchPrice(symbol),
+    ts:      Date.now(),
+  });
+}
+
+function getPrefetch(symbol: string, tf: string): { candles: Promise<Candle[] | null>; price: Promise<number | null> } | null {
+  const key = `${symbol}:${tf}`;
+  const cached = prefetchCache.get(key);
+  if (cached && Date.now() - cached.ts < 10000) return cached;
+  return null;
+}
+
 async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null> {
   const base = symbol.replace("-OTC", "");
   const binanceSym = BINANCE_MAP[base];
@@ -1447,15 +1470,18 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const base     = tab.id.replace("-OTC", "");
       const isCrypto = !!BINANCE_MAP[base];
 
+      // Use prefetch cache if available, otherwise fetch fresh
+      const cached = getPrefetch(tab.id, tf);
+
       if (isCrypto) {
-        // ── Crypto ── fetch Binance history + price in parallel ─────────────
-        console.log(`[chart] loading crypto ${tab.id} tf=${tf}`);
-        const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
-        if (activeKeyRef.current !== activeKey) {
-          console.log(`[chart] ${tab.id} response discarded (stale)`);
-          return;
-        }
-        console.log(`[chart] ${tab.id} Binance responded, candles=${data?.length ?? 0}`);
+        // ── Crypto ── fetch in parallel (or use prefetch) ─────────────
+        console.log(`[chart] loading crypto ${tab.id} tf=${tf}${cached ? " (prefetched)" : ""}`);
+        const [data, realP] = await Promise.all([
+          cached ? cached.candles : fetchCandles(tab.id, tf),
+          cached ? cached.price   : fetchPrice(tab.id),
+        ]);
+        if (activeKeyRef.current !== activeKey) return;
+        console.log(`[chart] ${tab.id} responded, candles=${data?.length ?? 0}`);
         const source = isUsable(data) ? data : null;
         if (!source) { if (realP && realP > 0) realPriceRef.current = realP; setLoading(false); return; }
         const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
@@ -1464,19 +1490,17 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         setLoading(false);
 
       } else {
-        // ── Forex ── fetch price first, then history ─────────────────────────
-        console.log(`[chart] loading forex ${tab.id} tf=${tf}`);
-        const realP = await fetchPrice(tab.id);
-        if (activeKeyRef.current !== activeKey) {
-          console.log(`[chart] ${tab.id} price discarded (stale)`);
-          return;
-        }
+        // ── Forex / OTC ── parallel fetch (or use prefetch) ─────────────
+        console.log(`[chart] loading ${tab.id} tf=${tf}${cached ? " (prefetched)" : ""}`);
+        const [data, realP] = await Promise.all([
+          cached ? cached.candles : fetchCandles(tab.id, tf),
+          cached ? cached.price   : fetchPrice(tab.id),
+        ]);
+        if (activeKeyRef.current !== activeKey) return;
         console.log(`[chart] ${tab.id} price=${realP}`);
         if (realP && realP > 0) realPriceRef.current = realP;
 
-        // Fetch real history — loading overlay stays until real data arrives
         try {
-          const data = await fetchCandles(tab.id, tf);
           if (activeKeyRef.current !== activeKey) return;
           if (isUsable(data)) {
             const brtSource = data!.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
