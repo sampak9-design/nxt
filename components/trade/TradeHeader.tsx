@@ -28,8 +28,9 @@ interface Props {
   livePrice: number;
 }
 
-function TabCountdown({ expiresAt }: { expiresAt: number }) {
+function TabCountdown({ expiresAt, size = 24 }: { expiresAt: number; size?: number }) {
   const [s, setS] = useState(0);
+  const [total] = useState(() => Math.max(1, Math.ceil((expiresAt - Date.now()) / 1000)));
   useEffect(() => {
     const tick = () => setS(Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
     tick();
@@ -37,9 +38,22 @@ function TabCountdown({ expiresAt }: { expiresAt: number }) {
     return () => clearInterval(iv);
   }, [expiresAt]);
   if (s <= 0) return null;
-  const mm = String(Math.floor(s / 60)).padStart(2, "0");
-  const ss = String(s % 60).padStart(2, "0");
-  return <span className="text-[10px] font-mono font-bold">{mm === "00" ? `:${ss}` : `${mm}:${ss}`}</span>;
+  const progress = s / total;
+  const r = (size - 3) / 2;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference * (1 - progress);
+  const display = s < 60 ? `:${String(s).padStart(2, "0")}` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="absolute inset-0 -rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={2} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#fff" strokeWidth={2}
+          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 1s linear" }} />
+      </svg>
+      <span className="text-[8px] font-mono font-bold text-white leading-none">{display}</span>
+    </div>
+  );
 }
 
 export default function TradeHeader({
@@ -281,14 +295,25 @@ export default function TradeHeader({
                 >
                   <X className="w-2.5 h-2.5 text-gray-400" strokeWidth={3} />
                 </button>
-                <div
-                  className="w-7 h-7 rounded overflow-hidden flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(255,255,255,0.06)" }}
-                >
-                  {tab.icon_url
-                    ? <img src={tab.icon_url} alt={tab.name} className="w-full h-full object-contain p-0.5" />
-                    : <span className="text-[10px] font-bold text-gray-400">{tab.id.replace("-OTC","").slice(0,3)}</span>
-                  }
+                <div className="relative flex-shrink-0" style={{ width: 28, height: 28 }}>
+                  <div
+                    className="w-7 h-7 rounded overflow-hidden flex items-center justify-center"
+                    style={{ background: "rgba(255,255,255,0.06)" }}
+                  >
+                    {tab.icon_url
+                      ? <img src={tab.icon_url} alt={tab.name} className="w-full h-full object-contain p-0.5" />
+                      : <span className="text-[10px] font-bold text-gray-400">{tab.id.replace("-OTC","").slice(0,3)}</span>
+                    }
+                  </div>
+                  {(() => {
+                    const trade = activeTrades.find(t => t.tabId === tab.id && !t.result);
+                    if (!trade) return null;
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)", borderRadius: 4 }}>
+                        <TabCountdown expiresAt={trade.expiresAt} size={24} />
+                      </div>
+                    );
+                  })()}
                 </div>
                 {(() => {
                   const trade = activeTrades.find(t => t.tabId === tab.id && !t.result);
@@ -320,12 +345,7 @@ export default function TradeHeader({
                     ? livePrice > trade.entryPrice
                     : livePrice < trade.entryPrice;
                   return (
-                    <>
-                      <div className="flex items-center justify-center flex-shrink-0">
-                        <TabCountdown expiresAt={trade.expiresAt} />
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: winning ? "#22c55e" : "#ef4444" }} />
-                    </>
+                    <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: winning ? "#22c55e" : "#ef4444" }} />
                   );
                 })()}
               </div>
