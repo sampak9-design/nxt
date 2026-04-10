@@ -859,6 +859,9 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const [price, setPrice]     = useState<number | null>(null);
   const [, setUp]             = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [loadTrigger, setLoadTrigger] = useState(0);
+  const retryCountRef = useRef(0);
   const [tool, setTool]       = useState<Tool>("cursor");
   const [color, setColor]     = useState(COLORS[0]);
   const [showDrawMenu, setShowDrawMenu] = useState(false);
@@ -1347,9 +1350,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
     candles.current = []; lastPrice.current = 0; lastTime.current = 0;
     realPriceRef.current = 0;
-    series.setData([]); // immediately wipe old chart so it never bleeds through
+    series.setData([]);
     setPrice(null);
     setLoading(true);
+    setLoadError(false);
+    retryCountRef.current = 0;
 
     const cacheKey = `xd_candles_v7:${tab.id}:${tf}`;
     const BRT_OFFSET = -3 * 3600;
@@ -1497,12 +1502,36 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
     };
 
-    load();
+    const MAX_RETRIES = 3;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const tryLoad = async () => {
+      await load();
+      // After load completes, check if chart actually has data
+      if (activeKeyRef.current !== activeKey) return;
+      if (candles.current.length === 0 && retryCountRef.current < MAX_RETRIES) {
+        retryCountRef.current++;
+        const delay = retryCountRef.current * 1500; // 1.5s, 3s, 4.5s
+        console.log(`[chart] ${tab.id} empty after load, retry ${retryCountRef.current}/${MAX_RETRIES} in ${delay}ms`);
+        setLoading(true);
+        retryTimer = setTimeout(() => {
+          if (activeKeyRef.current === activeKey) tryLoad();
+        }, delay);
+      } else if (candles.current.length === 0) {
+        // All retries exhausted
+        console.log(`[chart] ${tab.id} failed after ${MAX_RETRIES} retries`);
+        setLoading(false);
+        setLoadError(true);
+      }
+    };
+
+    tryLoad();
     return () => {
       activeKeyRef.current = "";
+      if (retryTimer) clearTimeout(retryTimer);
       console.log(`[chart] cleanup ${tab.id}:${tf}`);
     };
-  }, [tab.id, tf]);
+  }, [tab.id, tf, loadTrigger]);
 
 
   /* ── real-time price feed ─────────────────────────────────────────── */
@@ -2238,18 +2267,32 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
           <div ref={wrapRef} style={{ width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 1 }} />
 
           {/* Loading overlay */}
-          {loading && (
+          {(loading || loadError) && (
             <div style={{
               position: "absolute", inset: 0, zIndex: 10,
               background: "#111622",
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14,
             }}>
-              <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"
-                style={{ animation: "zyro-spin 1s linear infinite" }}>
-                <circle cx="20" cy="20" r="20" fill="#f97316" />
-                <path d="M11 12h18l-14 16h14" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace" }}>carregando...</span>
+              {loadError ? (
+                <>
+                  <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>Erro ao carregar gráfico</span>
+                  <button
+                    onClick={() => { setLoadError(false); setLoading(true); retryCountRef.current = 0; setLoadTrigger(v => v + 1); }}
+                    style={{ padding: "8px 20px", borderRadius: 8, background: "#f97316", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                  >Tentar novamente</button>
+                </>
+              ) : (
+                <>
+                  <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"
+                    style={{ animation: "zyro-spin 1s linear infinite" }}>
+                    <circle cx="20" cy="20" r="20" fill="#f97316" />
+                    <path d="M11 12h18l-14 16h14" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace" }}>
+                    {retryCountRef.current > 0 ? `tentativa ${retryCountRef.current}/3...` : "carregando..."}
+                  </span>
+                </>
+              )}
               <style>{`@keyframes zyro-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
