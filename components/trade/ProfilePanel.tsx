@@ -19,6 +19,7 @@ type User = {
   last_name: string;
   email: string;
   avatar_url: string | null;
+  kyc_status?: string;
 };
 
 const MENU_ITEMS = [
@@ -26,7 +27,7 @@ const MENU_ITEMS = [
   { icon: Camera,          label: "Carregar uma foto" },
   { icon: ArrowDownCircle, label: "Depositar fundos" },
   { icon: ArrowUpCircle,   label: "Retirar fundos" },
-  { icon: FileText,        label: "Verificar documentos",  badge: "Pendente", badgeColor: "#f97316" },
+  { icon: FileText,        label: "Verificar documentos",  badge: "__KYC__", badgeColor: "#f97316" },
   { icon: HelpCircle,      label: "Contactar o suporte" },
   { icon: DollarSign,      label: "Histórico do saldo" },
   { icon: Clock,           label: "Histórico de trading" },
@@ -165,9 +166,16 @@ export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" style={{ color: danger ? "#ef4444" : "#64748b" }} />
                   <span className="flex-1 text-left">{label}</span>
-                  {badge && (
+                  {badge && badge !== "__KYC__" && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: badgeColor }}>
                       {badge}
+                    </span>
+                  )}
+                  {badge === "__KYC__" && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{
+                      background: user?.kyc_status === "approved" ? "#22c55e" : "#f97316"
+                    }}>
+                      {user?.kyc_status === "approved" ? "Verificado" : "Pendente"}
                     </span>
                   )}
                 </button>
@@ -210,9 +218,16 @@ export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" style={{ color: danger ? "#ef4444" : "#64748b" }} />
                   <span className="flex-1 text-left">{label}</span>
-                  {badge && (
+                  {badge && badge !== "__KYC__" && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{ background: badgeColor }}>
                       {badge}
+                    </span>
+                  )}
+                  {badge === "__KYC__" && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style={{
+                      background: user?.kyc_status === "approved" ? "#22c55e" : "#f97316"
+                    }}>
+                      {user?.kyc_status === "approved" ? "Verificado" : "Pendente"}
                     </span>
                   )}
                 </button>
