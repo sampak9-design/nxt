@@ -172,6 +172,16 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
   const [hoverDirection, setHoverDirection] = useState<"up" | "down" | null>(null);
   const [chartGrid, setChartGrid] = useState<number>(1);
 
+  // Track whether we're in mobile layout (below md breakpoint = 768px)
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobileLayout(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobileLayout(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   // Load user info (balance + marketing flag) on mount
   useEffect(() => {
     fetch("/api/auth/me").then(r => r.json()).then(d => {
@@ -476,7 +486,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           {/* Chart area + portfolio below */}
           <div className="flex-1 flex flex-col overflow-hidden min-h-0">
             <div className="flex-1 overflow-hidden min-h-0">
-              {chartGrid === 1 ? (
+              {!isMobileLayout && (chartGrid === 1 ? (
                 <TradeChart
                   tab={activeTab}
                   activeTrades={activeTabTrades}
@@ -505,7 +515,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
                     );
                   })}
                 </div>
-              )}
+              ))}
             </div>
             {/* Portfolio panel sits below chart */}
             <TradeFooter activeTrades={activeTrades} />
@@ -529,14 +539,16 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
       {/* ── Mobile layout ── */}
       <div className="relative flex md:hidden flex-col flex-1 overflow-hidden min-h-0">
         {/* Chart — takes remaining space */}
-        <div className="flex-1 overflow-hidden min-h-0">
-          <TradeChart
-            tab={activeTab}
-            activeTrades={activeTabTrades}
-            onPriceChange={handlePriceChange}
-            expiryMs={selectedExpMs}
-            hoverDirection={hoverDirection}
-          />
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          {isMobileLayout && (
+            <TradeChart
+              tab={activeTab}
+              activeTrades={activeTabTrades}
+              onPriceChange={handlePriceChange}
+              expiryMs={selectedExpMs}
+              hoverDirection={hoverDirection}
+            />
+          )}
         </div>
 
         {/* Mobile trade panel — compact bottom section */}
