@@ -1474,36 +1474,17 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         console.log(`[chart] ${tab.id} price=${realP}`);
         if (realP && realP > 0) realPriceRef.current = realP;
 
-        // Warm up micro-tick with seed candles (stays hidden under overlay)
-        applySource(buildSeed(realP ?? seedPrice(tab.id)), realP, true);
-
-        // Fetch Deriv history — overlay stays until this resolves (or times out)
-        const fallbackTimer = setTimeout(() => {
+        // Fetch real history — loading overlay stays until real data arrives
+        try {
+          const data = await fetchCandles(tab.id, tf);
           if (activeKeyRef.current !== activeKey) return;
-          console.log(`[chart] ${tab.id} Deriv timeout — showing seed candles`);
-          setLoading(false);
-        }, 7000);
-
-        fetchCandles(tab.id, tf).then((data) => {
-          clearTimeout(fallbackTimer);
-          if (activeKeyRef.current !== activeKey) {
-            console.log(`[chart] ${tab.id} history discarded (stale)`);
-            return;
-          }
-          console.log(`[chart] ${tab.id} Deriv history candles=${data?.length ?? 0}`);
           if (isUsable(data)) {
-            const brtSource = data.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+            const brtSource = data!.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
             try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
-            applySource(data, realPriceRef.current, false);
+            applySource(data!, realPriceRef.current, false);
           }
-          setLoading(false);
-        }).catch(() => {
-          clearTimeout(fallbackTimer);
-          if (activeKeyRef.current === activeKey) {
-            console.log(`[chart] ${tab.id} Deriv fetch error — showing seed candles`);
-            setLoading(false);
-          }
-        });
+        } catch {}
+        if (activeKeyRef.current === activeKey) setLoading(false);
       }
     };
 
