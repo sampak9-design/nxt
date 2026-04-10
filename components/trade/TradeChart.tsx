@@ -212,20 +212,12 @@ const prefetchCache: Map<string, { candles: Promise<Candle[] | null>; price: Pro
 export function prefetchAsset(symbol: string, tf: string = "1m") {
   const key = `${symbol}:${tf}`;
   const existing = prefetchCache.get(key);
-  // Reuse if less than 5s old
   if (existing && Date.now() - existing.ts < 5000) return;
   prefetchCache.set(key, {
     candles: fetchCandles(symbol, tf),
     price:   fetchPrice(symbol),
     ts:      Date.now(),
   });
-}
-
-function getPrefetch(symbol: string, tf: string): { candles: Promise<Candle[] | null>; price: Promise<number | null> } | null {
-  const key = `${symbol}:${tf}`;
-  const cached = prefetchCache.get(key);
-  if (cached && Date.now() - cached.ts < 10000) return cached;
-  return null;
 }
 
 async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null> {
@@ -882,9 +874,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const [price, setPrice]     = useState<number | null>(null);
   const [, setUp]             = useState(true);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [loadTrigger, setLoadTrigger] = useState(0);
-  const retryCountRef = useRef(0);
   const [tool, setTool]       = useState<Tool>("cursor");
   const [color, setColor]     = useState(COLORS[0]);
   const [showDrawMenu, setShowDrawMenu] = useState(false);
@@ -1376,39 +1365,26 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     series.setData([]);
     setPrice(null);
     setLoading(true);
-    setLoadError(false);
-    retryCountRef.current = 0;
 
     const cacheKey = `xd_candles_v7:${tab.id}:${tf}`;
     const BRT_OFFSET = -3 * 3600;
 
-    // Minimal validation: array with enough real candles (close > 0)
     const isUsable = (arr: unknown): arr is Candle[] =>
       Array.isArray(arr) && arr.length >= 5 && arr.filter((c: Candle) => c.close > 0).length >= 3;
 
-    // ── applySource: validate, clean, format and render candle data ─────
     const applySource = (source: Candle[], realP: number | null, alreadyBRT = false) => {
-      // Guard: bail if this effect is no longer the active one
       if (activeKeyRef.current !== activeKey) return;
-
       const adjusted = alreadyBRT
         ? source
         : source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
-
-      // Drop corrupt candles (any OHLC ≤ 0 or high < low)
       const clean = adjusted.filter((c) => c.open > 0 && c.high > 0 && c.low > 0 && c.close > 0 && c.high >= c.low);
       if (!clean.length) return;
-
       const startPrice = (realP != null && realP > 0) ? realP : clean[clean.length - 1].close;
-
-      // Patch last candle's close only if startPrice is within ±20% (sanity)
       const last = clean[clean.length - 1];
       const patchedLast = (startPrice > 0 && Math.abs(startPrice - last.close) / last.close < 0.20)
         ? { ...last, close: startPrice, high: Math.max(last.high, startPrice), low: Math.min(last.low, startPrice) }
         : last;
       const patched = [...clean.slice(0, -1), patchedLast];
-
-      // Auto-detect price format from magnitude
       const p0 = patchedLast.close;
       series.applyOptions({ priceFormat:
         p0 >= 500 ? { type: "price" as const, precision: 2, minMove: 0.01   } :
@@ -1416,7 +1392,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         p0 >= 1   ? { type: "price" as const, precision: 4, minMove: 0.0001 } :
                     { type: "price" as const, precision: 5, minMove: 0.00001 },
       });
-
       candles.current = patched;
       const ctype = chartTypeRef.current;
       if (ctype === "line" || ctype === "area") {
@@ -1425,14 +1400,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         series.setData(patched);
       }
       setCandlesVersion(v => v + 1);
-
-      const applyView = () => {
-        const wrap = wrapRef.current;
-        if (wrap) chart.resize(wrap.clientWidth, wrap.clientHeight);
+      const applyView = () =>
         chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, patched.length - 30), to: patched.length + 3 });
-      };
-      requestAnimationFrame(applyView);
-
+      requestAnimationFrame(() => requestAnimationFrame(applyView));
+      setTimeout(applyView, 200);
       const lc = patched[patched.length - 1];
       if (lc) {
         lastPrice.current    = lc.close;
@@ -1443,92 +1414,83 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
     };
 
-    // Mobile fallback: seed candles so chart is never empty during stale fetches
     const buildSeed = (seedP: number): Candle[] => {
-      const p = TF_SEC[tf] ?? 60;
+      const period = TF_SEC[tf] ?? 60;
       const nowBRT = Math.floor(Date.now() / 1000) - 3 * 3600;
-      const ct = Math.floor(nowBRT / p) * p;
+      const currentCt = Math.floor(nowBRT / period) * period;
       const path: number[] = [seedP];
       for (let i = 0; i < 99; i++)
         path.unshift(+(path[0] * (1 + (Math.random() - 0.5) * 0.0006)).toFixed(5));
       return path.slice(0, 100).map((open, i) => {
-        const t = (ct - (99 - i) * p) as UTCTimestamp;
+        const t = (currentCt - (99 - i) * period) as UTCTimestamp;
         const close = +(path[i + 1] ?? open).toFixed(5);
         const move = Math.abs(close - open) + open * 0.00008;
         return { time: t, open, high: +(Math.max(open, close) + move * 0.6).toFixed(5), low: +(Math.min(open, close) - move * 0.6).toFixed(5), close };
       });
     };
-    const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || navigator.maxTouchPoints > 0);
 
     const load = async () => {
-      // Yield one frame → React paints loading overlay before any data touches the chart
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
       if (activeKeyRef.current !== activeKey) return;
 
-      // Mobile: warm up with seed candles behind loading overlay so chart is never empty
-      if (isMobile && candles.current.length === 0) {
-        const seedP = realPriceRef.current || (FOREX_SEED[tab.id.replace("-OTC", "")] ?? 1.0);
-        applySource(buildSeed(seedP), seedP, true);
-      }
+      const base = tab.id.replace("-OTC", "");
+      const isCrypto = !!BINANCE_MAP[base];
+      const isOtcLoad = SERVER_OTC.has(tab.id);
 
-      // Clear prefetch cache for stale entries (mobile browser may have frozen the promises)
-      const cached = getPrefetch(tab.id, tf);
-
-      // Parallel fetch with 8s timeout to prevent stale mobile connections
-      const fetchWithTimeout = async <T,>(p: Promise<T>, ms = 8000): Promise<T | null> => {
-        try {
-          return await Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), ms))]);
-        } catch { return null; }
-      };
-
-      console.log(`[chart] loading ${tab.id} tf=${tf}${cached ? " (prefetched)" : ""}`);
-      const [data, realP] = await Promise.all([
-        fetchWithTimeout(cached ? cached.candles : fetchCandles(tab.id, tf)),
-        fetchWithTimeout(cached ? cached.price : fetchPrice(tab.id)),
-      ]);
-      if (activeKeyRef.current !== activeKey) return;
-
-      if (realP && realP > 0) realPriceRef.current = realP;
-      const source = isUsable(data) ? data : null;
-      if (!source) { setLoading(false); return; }
-
-      const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
-      try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
-      applySource(source, realPriceRef.current, false);
-      setLoading(false);
-    };
-
-    const MAX_RETRIES = 3;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const tryLoad = async () => {
-      await load();
-      // After load completes, check if chart actually has data
-      if (activeKeyRef.current !== activeKey) return;
-      if (candles.current.length === 0 && retryCountRef.current < MAX_RETRIES) {
-        retryCountRef.current++;
-        const delay = retryCountRef.current * 1500; // 1.5s, 3s, 4.5s
-        console.log(`[chart] ${tab.id} empty after load, retry ${retryCountRef.current}/${MAX_RETRIES} in ${delay}ms`);
-        setLoading(true);
-        retryTimer = setTimeout(() => {
-          if (activeKeyRef.current === activeKey) tryLoad();
-        }, delay);
-      } else if (candles.current.length === 0) {
-        // All retries exhausted
-        console.log(`[chart] ${tab.id} failed after ${MAX_RETRIES} retries`);
+      if (isOtcLoad) {
+        // OTC: server-driven, no seed, no localStorage
+        const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
+        if (activeKeyRef.current !== activeKey) return;
+        if (realP && realP > 0) realPriceRef.current = realP;
+        if (isUsable(data)) applySource(data, realP, false);
         setLoading(false);
-        setLoadError(true);
+
+      } else if (isCrypto) {
+        // Crypto: parallel fetch
+        const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
+        if (activeKeyRef.current !== activeKey) return;
+        const source = isUsable(data) ? data : null;
+        if (!source) { if (realP && realP > 0) realPriceRef.current = realP; setLoading(false); return; }
+        const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+        try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
+        applySource(source, realP, false);
+        setLoading(false);
+
+      } else {
+        // Forex: seed warmup + Deriv fetch
+        const realP = await fetchPrice(tab.id);
+        if (activeKeyRef.current !== activeKey) return;
+        if (realP && realP > 0) realPriceRef.current = realP;
+
+        // Warm up with seed candles (hidden under loading overlay)
+        applySource(buildSeed(realP ?? seedPrice(tab.id)), realP, true);
+
+        // Fetch real history with 7s timeout fallback
+        const fallbackTimer = setTimeout(() => {
+          if (activeKeyRef.current === activeKey) setLoading(false);
+        }, 7000);
+
+        fetchCandles(tab.id, tf).then((data) => {
+          clearTimeout(fallbackTimer);
+          if (activeKeyRef.current !== activeKey) return;
+          if (isUsable(data)) {
+            const brtSource = data.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+            try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
+            applySource(data, realPriceRef.current, false);
+          }
+          setLoading(false);
+        }).catch(() => {
+          clearTimeout(fallbackTimer);
+          if (activeKeyRef.current === activeKey) setLoading(false);
+        });
       }
     };
 
-    tryLoad();
+    load();
     return () => {
       activeKeyRef.current = "";
-      if (retryTimer) clearTimeout(retryTimer);
-      console.log(`[chart] cleanup ${tab.id}:${tf}`);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab.id, tf, loadTrigger]);
+  }, [tab.id, tf]);
 
 
   /* ── real-time price feed ─────────────────────────────────────────── */
@@ -1765,12 +1727,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
       // Refresh the live price so microTick can resume smoothly
       fetchPrice(tab.id).then(p => { if (p && p > 0) realPriceRef.current = p; }).catch(() => {});
-      // If chart has no candles (stale mobile session), force reload
-      if (!list.length) {
-        console.log("[chart] no candles on visibility return, reloading");
-        prefetchCache.delete(`${tab.id}:${tfRef.current}`);
-        setLoadTrigger(v => v + 1);
-      }
     };
     document.addEventListener("visibilitychange", onVisible);
 
@@ -2331,32 +2287,18 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
           <div ref={wrapRef} style={{ width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 1 }} />
 
           {/* Loading overlay */}
-          {(loading || loadError) && (
+          {loading && (
             <div style={{
               position: "absolute", inset: 0, zIndex: 10,
               background: "#111622",
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14,
             }}>
-              {loadError ? (
-                <>
-                  <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>Erro ao carregar gráfico</span>
-                  <button
-                    onClick={() => { setLoadError(false); setLoading(true); retryCountRef.current = 0; setLoadTrigger(v => v + 1); }}
-                    style={{ padding: "8px 20px", borderRadius: 8, background: "#f97316", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                  >Tentar novamente</button>
-                </>
-              ) : (
-                <>
-                  <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"
-                    style={{ animation: "zyro-spin 1s linear infinite" }}>
-                    <circle cx="20" cy="20" r="20" fill="#f97316" />
-                    <path d="M11 12h18l-14 16h14" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace" }}>
-                    {retryCountRef.current > 0 ? `tentativa ${retryCountRef.current}/3...` : "carregando..."}
-                  </span>
-                </>
-              )}
+              <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"
+                style={{ animation: "zyro-spin 1s linear infinite" }}>
+                <circle cx="20" cy="20" r="20" fill="#f97316" />
+                <path d="M11 12h18l-14 16h14" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace" }}>carregando...</span>
               <style>{`@keyframes zyro-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
