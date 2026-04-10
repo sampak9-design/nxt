@@ -281,7 +281,7 @@ export default function TradeHeader({
         </div>
 
         {/* Right */}
-        <div className={`flex items-center ${isVip ? "gap-4" : "gap-1.5"} flex-shrink-0 ml-auto`}>
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
           {/* Balance button + dropdown */}
           <div className="relative">
             <button
@@ -413,7 +413,7 @@ export default function TradeHeader({
               setShowProfile(v => !v);
               setShowBalancePanel(false);
             }}
-            className="flex items-center gap-1 flex-shrink-0 hover:brightness-125 transition-all"
+            className={`flex items-center gap-1 flex-shrink-0 hover:brightness-125 transition-all ${isVip ? "ml-3" : ""}`}
           >
             <UserAvatar avatarUrl={avatarUrl} isVip={isVip} kycStatus={kycStatus} size={36} />
             <svg width="10" height="7" viewBox="0 0 10 7" fill="#6b7280">
