@@ -1630,8 +1630,22 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   /* ── micro-tick every 100ms for fluid movement ───────────────────── */
   useEffect(() => {
     const period = TF_SEC[tf] ?? 60;
+    let lastTickMs = Date.now();
+    const STALE_THRESHOLD = 5000; // 5s without tick = browser was frozen
 
     const microTick = () => {
+      const tickNow = Date.now();
+      const gap = tickNow - lastTickMs;
+      lastTickMs = tickNow;
+
+      // Detect browser freeze (mobile background, sleep, etc.)
+      // If gap > 5s, force a full reload of the chart data
+      if (gap > STALE_THRESHOLD && candles.current.length > 0) {
+        console.log(`[chart] detected ${Math.round(gap / 1000)}s freeze, reloading ${tab.id}`);
+        setLoadTrigger(v => v + 1); // triggers the load useEffect
+        return;
+      }
+
       const series = seriesRef.current;
       const list   = candles.current;
       if (!series || !list.length || !lastPrice.current) return;
@@ -1755,19 +1769,26 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     // 2. Window resize fallback
     window.addEventListener("resize", scheduleResize);
 
-    // 3. Visibility change — redraw with full data when tab returns
+    // 3. Visibility change — redraw + reload if stale
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       const chart = chartRef.current;
       const series = seriesRef.current;
       const list = candles.current;
-      if (!chart || !series || !list.length) return;
+      if (!chart || !series) return;
       doResize();
-      const ctype = chartTypeRef.current;
-      if (ctype === "line" || ctype === "area") {
-        (series as any).setData(list.map((c: Candle) => ({ time: c.time, value: c.close })));
-      } else {
-        series.setData(list);
+      if (list.length) {
+        const ctype = chartTypeRef.current;
+        if (ctype === "line" || ctype === "area") {
+          (series as any).setData(list.map((c: Candle) => ({ time: c.time, value: c.close })));
+        } else {
+          series.setData(list);
+        }
+      }
+      // If data is stale (no updates for 5s+), trigger full reload
+      if (!list.length || (lastTime.current > 0 && Math.abs(Math.floor(Date.now() / 1000) - 3 * 3600 - lastTime.current) > 120)) {
+        console.log("[chart] stale data on visibility return, reloading");
+        setLoadTrigger(v => v + 1);
       }
     };
     document.addEventListener("visibilitychange", onVisible);
