@@ -1443,10 +1443,33 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
     };
 
+    // Mobile fallback: seed candles so chart is never empty during stale fetches
+    const buildSeed = (seedP: number): Candle[] => {
+      const p = TF_SEC[tf] ?? 60;
+      const nowBRT = Math.floor(Date.now() / 1000) - 3 * 3600;
+      const ct = Math.floor(nowBRT / p) * p;
+      const path: number[] = [seedP];
+      for (let i = 0; i < 99; i++)
+        path.unshift(+(path[0] * (1 + (Math.random() - 0.5) * 0.0006)).toFixed(5));
+      return path.slice(0, 100).map((open, i) => {
+        const t = (ct - (99 - i) * p) as UTCTimestamp;
+        const close = +(path[i + 1] ?? open).toFixed(5);
+        const move = Math.abs(close - open) + open * 0.00008;
+        return { time: t, open, high: +(Math.max(open, close) + move * 0.6).toFixed(5), low: +(Math.min(open, close) - move * 0.6).toFixed(5), close };
+      });
+    };
+    const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || navigator.maxTouchPoints > 0);
+
     const load = async () => {
       // Yield one frame → React paints loading overlay before any data touches the chart
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
       if (activeKeyRef.current !== activeKey) return;
+
+      // Mobile: warm up with seed candles behind loading overlay so chart is never empty
+      if (isMobile && candles.current.length === 0) {
+        const seedP = realPriceRef.current || (FOREX_SEED[tab.id.replace("-OTC", "")] ?? 1.0);
+        applySource(buildSeed(seedP), seedP, true);
+      }
 
       // Clear prefetch cache for stale entries (mobile browser may have frozen the promises)
       const cached = getPrefetch(tab.id, tf);
