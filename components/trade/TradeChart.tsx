@@ -1403,10 +1403,15 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
       setCandlesVersion(v => v + 1);
 
-      const applyView = () =>
+      const applyView = () => {
+        // Force resize in case container changed (mobile tab switch)
+        const wrap = wrapRef.current;
+        if (wrap) chart.resize(wrap.clientWidth, wrap.clientHeight);
         chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, patched.length - 30), to: patched.length + 3 });
+      };
       requestAnimationFrame(() => requestAnimationFrame(applyView));
       setTimeout(applyView, 200);
+      setTimeout(applyView, 500);
 
       const lc = patched[patched.length - 1];
       if (lc) {
