@@ -30,24 +30,18 @@ function tone(
   osc.stop(startTime + duration);
 }
 
-/** Soft, pleasant pop when an order is placed */
+/** Sound when an order is placed (ACIMA/ABAIXO) */
+let orderAudio: HTMLAudioElement | null = null;
 export function playOrderOpen() {
-  const ac = ctx();
-  if (!ac) return;
-  const t = ac.currentTime;
-  // Quick descending sine "blip" — soft and modern
-  const osc  = ac.createOscillator();
-  const gain = ac.createGain();
-  osc.connect(gain);
-  gain.connect(ac.destination);
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(700, t);
-  osc.frequency.exponentialRampToValueAtTime(380, t + 0.12);
-  gain.gain.setValueAtTime(0, t);
-  gain.gain.linearRampToValueAtTime(0.18, t + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-  osc.start(t);
-  osc.stop(t + 0.18);
+  if (typeof window === "undefined") return;
+  try {
+    if (!orderAudio) {
+      orderAudio = new Audio("/sounds/liecio-achive-sound-132273.mp3");
+      orderAudio.volume = 0.4;
+    }
+    orderAudio.currentTime = 0;
+    orderAudio.play().catch(() => {});
+  } catch {}
 }
 
 /** Ascending chime on win */
