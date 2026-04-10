@@ -145,7 +145,10 @@ function DateRangePicker({ from, to, onChange }: {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 z-50 bg-white border rounded-xl shadow-2xl p-5" style={{ borderColor: "#e5e7eb", width: 620 }}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-end sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2">
+          {/* Mobile backdrop */}
+          <div className="fixed inset-0 bg-black/20 sm:hidden" onClick={() => setOpen(false)} />
+          <div className="relative w-full sm:w-auto bg-white border rounded-t-xl sm:rounded-xl shadow-2xl p-4 sm:p-5 max-h-[85vh] overflow-y-auto" style={{ borderColor: "#e5e7eb", maxWidth: 620 }}>
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm text-gray-500">Selecione um período</span>
@@ -154,10 +157,10 @@ function DateRangePicker({ from, to, onChange }: {
             </span>
           </div>
 
-          {/* Calendars */}
-          <div className="flex gap-6 mb-4">
+          {/* Calendars — 1 on mobile, 2 on desktop */}
+          <div className="flex gap-4 sm:gap-6 mb-4">
             <button onClick={prevMonth} className="text-gray-400 hover:text-gray-700 text-lg px-1">←</button>
-            {renderMonth(leftY, leftM)}
+            <div className="hidden sm:block flex-1">{renderMonth(leftY, leftM)}</div>
             {renderMonth(viewYear, viewMonth)}
             <button onClick={nextMonth} className="text-gray-400 hover:text-gray-700 text-lg px-1">→</button>
           </div>
@@ -174,6 +177,7 @@ function DateRangePicker({ from, to, onChange }: {
               Aplicar
             </button>
           </div>
+        </div>
         </div>
       )}
     </div>
@@ -326,7 +330,7 @@ export default function HistoryPage() {
   return (
     <div className="min-h-screen bg-white" style={{ color: "#111827" }}>
       {/* Header */}
-      <header className="h-14 flex items-center justify-between px-6 border-b bg-white" style={{ borderColor: "#e5e7eb" }}>
+      <header className="h-14 flex items-center justify-between px-3 sm:px-6 border-b bg-white" style={{ borderColor: "#e5e7eb" }}>
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push("/traderoom")}>
           <ZyroLogo size={32} />
           <span className="font-bold text-gray-800 text-base hidden sm:block">ZyroOption</span>
@@ -350,8 +354,8 @@ export default function HistoryPage() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {/* Title + tabs */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Histórico de trading</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Histórico de trading</h1>
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
             <button
               onClick={() => setTab("trading")}
@@ -369,11 +373,11 @@ export default function HistoryPage() {
         {tab === "trading" && (
           <>
             {/* Filters */}
-            <div className="flex flex-wrap items-end gap-4 mb-4 p-4 bg-gray-50 rounded-xl border" style={{ borderColor: "#e5e7eb" }}>
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 sm:gap-4 mb-4 p-4 bg-gray-50 rounded-xl border" style={{ borderColor: "#e5e7eb" }}>
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-gray-500 font-medium">Instrumento de negociação</span>
                 <div className="relative">
-                  <select className="appearance-none bg-white border rounded-lg px-3 py-2 pr-8 text-sm" style={{ borderColor: "#d1d5db", minWidth: 160 }}>
+                  <select className="appearance-none bg-white border rounded-lg px-3 py-2 pr-8 text-sm w-full sm:w-auto" style={{ borderColor: "#d1d5db", minWidth: 160 }}>
                     <option>Opções</option>
                   </select>
                   <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -433,8 +437,8 @@ export default function HistoryPage() {
             </div>
 
             {/* Table */}
-            <div className="border rounded-xl overflow-hidden" style={{ borderColor: "#e5e7eb" }}>
-              <table className="w-full text-sm">
+            <div className="border rounded-xl overflow-x-auto" style={{ borderColor: "#e5e7eb" }}>
+              <table className="w-full text-sm" style={{ minWidth: 700 }}>
                 <thead>
                   <tr className="bg-gray-50" style={{ borderBottom: "1px solid #e5e7eb" }}>
                     <th className="text-left py-3 px-4 text-xs text-gray-500 font-medium">Hora da compra (fechamento) UTC(-03:00)</th>
@@ -492,7 +496,7 @@ export default function HistoryPage() {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-4 text-sm text-gray-500">
               <span>Mostrando {filtered.length ? (page - 1) * perPage + 1 : 0}–{Math.min(page * perPage, filtered.length)} de {filtered.length}</span>
               <div className="flex items-center gap-2">
                 <button
