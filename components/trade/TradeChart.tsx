@@ -1735,7 +1735,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     // 2. Window resize fallback
     window.addEventListener("resize", scheduleResize);
 
-    // 3. Visibility change — redraw chart with existing data + refresh price
+    // 3. Visibility change — full redraw when tab returns
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       const chart = chartRef.current;
@@ -1750,6 +1750,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         } else {
           series.setData(list);
         }
+        // Reset visible range so the Y axis rescales properly
+        chart.timeScale().setVisibleLogicalRange({
+          from: Math.max(0, list.length - 30),
+          to: list.length + 3,
+        });
       }
       // Refresh the live price so microTick can resume smoothly
       fetchPrice(tab.id).then(p => { if (p && p > 0) realPriceRef.current = p; }).catch(() => {});
