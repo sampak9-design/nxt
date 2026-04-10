@@ -277,10 +277,10 @@ export default function TradeHeader({
                   const winning = hasTrade && (trade.direction === "up" ? livePrice > trade.entryPrice : livePrice < trade.entryPrice);
                   return {
                     background: hasTrade
-                      ? (winning ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)")
+                      ? (winning ? "rgba(34,197,94,0.06)" : "rgba(239,68,68,0.06)")
                       : (isActive ? "rgba(255,255,255,0.1)" : "transparent"),
                     borderBottom: hasTrade
-                      ? `2px solid ${winning ? "#22c55e" : "#ef4444"}`
+                      ? `2px solid ${winning ? "rgba(34,197,94,0.4)" : "rgba(239,68,68,0.4)"}`
                       : (isActive ? "2px solid var(--color-primary)" : "2px solid transparent"),
                     minWidth: 120,
                     opacity: isDragging ? 0.4 : 1,
@@ -309,8 +309,8 @@ export default function TradeHeader({
                     const trade = activeTrades.find(t => t.tabId === tab.id && !t.result);
                     if (!trade) return null;
                     return (
-                      <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)", borderRadius: 4 }}>
-                        <TabCountdown expiresAt={trade.expiresAt} size={24} />
+                      <div className="absolute -top-1 -left-1 flex items-center justify-center" style={{ width: 30, height: 30 }}>
+                        <TabCountdown expiresAt={trade.expiresAt} size={28} />
                       </div>
                     );
                   })()}
