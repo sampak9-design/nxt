@@ -1677,66 +1677,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     return () => clearInterval(iv);
   }, [tab.id, tf]);
 
-  /* ── robust resize: ResizeObserver + visibility + window resize ───── */
-  useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    let rafId = 0;
-
-    const doResize = () => {
-      const chart = chartRef.current;
-      if (!chart) return;
-      const w = wrap.clientWidth;
-      const h = wrap.clientHeight;
-      if (w <= 0 || h <= 0) return;
-      chart.resize(w, h);
-    };
-
-    const scheduleResize = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(doResize);
-    };
-
-    // 1. ResizeObserver — catches container changes (sidebar, layout, window)
-    const ro = new ResizeObserver(scheduleResize);
-    ro.observe(wrap);
-
-    // 2. Window resize fallback
-    window.addEventListener("resize", scheduleResize);
-
-    // 3. Visibility change — full redraw when tab returns
-    const onVisible = () => {
-      if (document.visibilityState !== "visible") return;
-      const chart = chartRef.current;
-      const series = seriesRef.current;
-      const list = candles.current;
-      if (!chart || !series) return;
-      doResize();
-      if (list.length) {
-        const ctype = chartTypeRef.current;
-        if (ctype === "line" || ctype === "area") {
-          (series as any).setData(list.map((c: Candle) => ({ time: c.time, value: c.close })));
-        } else {
-          series.setData(list);
-        }
-        // Reset visible range so the Y axis rescales properly
-        chart.timeScale().setVisibleLogicalRange({
-          from: Math.max(0, list.length - 30),
-          to: list.length + 3,
-        });
-      }
-      // Refresh the live price so microTick can resume smoothly
-      fetchPrice(tab.id).then(p => { if (p && p > 0) realPriceRef.current = p; }).catch(() => {});
-    };
-    document.addEventListener("visibilitychange", onVisible);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      ro.disconnect();
-      window.removeEventListener("resize", scheduleResize);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, []);
 
   /* ── canvas mouse handlers ────────────────────────────────────────── */
   const getTime = (chart: IChartApi, x: number): number =>
