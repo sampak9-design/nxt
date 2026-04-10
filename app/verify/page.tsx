@@ -207,9 +207,9 @@ export default function VerifyPage() {
 
   const formatDate = (v: string) => {
     const n = v.replace(/\D/g, "").slice(0, 8);
-    return n.replace(/(\d{2})(\d{2})(\d{4})/, "$1.$2.$3")
-            .replace(/(\d{2})(\d{2})/, "$1.$2")
-            .replace(/(\d{2})/, "$1");
+    if (n.length <= 2) return n;
+    if (n.length <= 4) return `${n.slice(0, 2)}.${n.slice(2)}`;
+    return `${n.slice(0, 2)}.${n.slice(2, 4)}.${n.slice(4)}`;
   };
 
   const handleStep1Submit = (e: React.FormEvent) => {
