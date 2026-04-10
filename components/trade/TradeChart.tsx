@@ -1704,6 +1704,29 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     return () => clearInterval(iv);
   }, [tab.id, tf]);
 
+  /* ── redraw chart when tab becomes visible again ──────────────────── */
+  useEffect(() => {
+    const handler = () => {
+      if (document.visibilityState !== "visible") return;
+      const chart = chartRef.current;
+      const series = seriesRef.current;
+      const wrap = wrapRef.current;
+      const list = candles.current;
+      if (!chart || !series || !wrap || !list.length) return;
+      // Resize to current container dimensions
+      chart.resize(wrap.clientWidth, wrap.clientHeight);
+      // Re-apply all candle data so wicks/bodies render correctly
+      const ctype = chartTypeRef.current;
+      if (ctype === "line" || ctype === "area") {
+        (series as any).setData(list.map((c: Candle) => ({ time: c.time, value: c.close })));
+      } else {
+        series.setData(list);
+      }
+    };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, []);
+
   /* ── canvas mouse handlers ────────────────────────────────────────── */
   const getTime = (chart: IChartApi, x: number): number =>
     coordToTime(x, chart, candles.current) ?? lastTime.current;
