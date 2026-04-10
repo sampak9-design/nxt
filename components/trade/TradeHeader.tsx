@@ -415,7 +415,7 @@ export default function TradeHeader({
             }}
             className="flex items-center gap-1 flex-shrink-0 hover:brightness-125 transition-all"
           >
-            <UserAvatar avatarUrl={avatarUrl} isVip={isVip} kycStatus={kycStatus} size={34} />
+            <UserAvatar avatarUrl={avatarUrl} isVip={isVip} kycStatus={kycStatus} size={36} />
             <svg width="10" height="7" viewBox="0 0 10 7" fill="#6b7280">
               <path d="M0 0 L10 0 L5 7 Z" />
             </svg>
