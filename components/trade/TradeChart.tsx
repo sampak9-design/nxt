@@ -1374,11 +1374,20 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
     const applySource = (source: Candle[], realP: number | null, alreadyBRT = false) => {
       if (activeKeyRef.current !== activeKey) return;
+      // BUG 2 FIX: normalise timestamps (ms → s) + sort ascending + log failures
+      const normalised = source.map((c) => ({
+        ...c,
+        time: (c.time > 1e12 ? Math.floor(c.time / 1000) : c.time) as UTCTimestamp,
+      }));
       const adjusted = alreadyBRT
-        ? source
-        : source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+        ? normalised
+        : normalised.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+      adjusted.sort((a, b) => (a.time as number) - (b.time as number));
       const clean = adjusted.filter((c) => c.open > 0 && c.high > 0 && c.low > 0 && c.close > 0 && c.high >= c.low);
-      if (!clean.length) return;
+      if (!clean.length) {
+        console.warn(`[chart] applySource: ${tab.id} — 0 valid candles after filter (raw=${source.length})`);
+        return;
+      }
       const startPrice = (realP != null && realP > 0) ? realP : clean[clean.length - 1].close;
       const last = clean[clean.length - 1];
       const patchedLast = (startPrice > 0 && Math.abs(startPrice - last.close) / last.close < 0.20)
@@ -1442,7 +1451,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
         if (activeKeyRef.current !== activeKey) return;
         if (realP && realP > 0) realPriceRef.current = realP;
-        if (isUsable(data)) applySource(data, realP, false);
+        if (isUsable(data)) {
+          applySource(data, realP, false);
+        } else {
+          console.warn(`[chart] ${tab.id} OTC load failed: data=${Array.isArray(data) ? (data as any[]).length : 'null'} candles`);
+        }
         setLoading(false);
 
       } else if (isCrypto) {
@@ -1674,7 +1687,34 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     };
 
     const iv = setInterval(microTick, 100);
-    return () => clearInterval(iv);
+
+    // BUG 1 FIX: When tab becomes visible again after being hidden,
+    // the browser throttled our setInterval so high/low may be stale.
+    // Refetch the current price and patch the active candle.
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+      const list = candles.current;
+      const s = seriesRef.current;
+      if (!list.length || !s) return;
+      // Immediately refetch live price to patch the current candle
+      fetchPrice(tab.id).then((p) => {
+        if (!p || p <= 0) return;
+        realPriceRef.current = p;
+        lastPrice.current = p;
+        const last = list[list.length - 1];
+        last.high  = Math.max(last.high, p);
+        last.low   = Math.min(last.low, p);
+        last.close = p;
+        const ctype = chartTypeRef.current;
+        s.update(ctype === "line" || ctype === "area" ? { time: last.time, value: last.close } as any : last);
+      }).catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [tab.id, tf]);
 
 
