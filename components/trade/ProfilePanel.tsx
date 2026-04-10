@@ -84,6 +84,7 @@ export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
     if (label === "Depositar fundos") { onClose(); onDepositClick(); return; }
     if (label === "Retirar fundos") { window.location.href = "/withdraw"; return; }
     if (label === "Verificar documentos") { window.location.href = "/verify"; return; }
+    if (label === "Histórico de trading") { window.location.href = "/history"; return; }
     if (label === "Configurações") { setShowSettings(true); return; }
     if (label === "Sair") {
       fetch("/api/auth/logout", { method: "POST" }).finally(() => {

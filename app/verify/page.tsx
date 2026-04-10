@@ -61,6 +61,7 @@ function ProfileDropdown({ onClose }: { onClose: () => void }) {
     if (label === "Sair") { fetch("/api/auth/logout", { method: "POST" }).finally(() => { window.location.href = "/"; }); return; }
     if (label === "Retirar fundos") { window.location.href = "/withdraw"; return; }
     if (label === "Carregar foto") { fileRef.current?.click(); return; }
+    if (label === "Histórico de trading") { window.location.href = "/history"; return; }
     onClose();
   };
 

@@ -100,6 +100,7 @@ function ProfilePanel({ onClose }: { onClose: () => void }) {
     if (label === "Retirar fundos") { onClose(); return; }
     if (label === "Verificação") { window.location.href = "/verify"; return; }
     if (label === "Depositar") { window.location.href = "/traderoom"; return; }
+    if (label === "Histórico de trading") { window.location.href = "/history"; return; }
     onClose();
   };
 

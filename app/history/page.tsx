@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Calendar, FileText, Download } from "lucide-react";
+import { ChevronDown, Calendar, FileText, Download, ArrowDownCircle, ArrowUpCircle, DollarSign, HelpCircle, LogOut, Clock } from "lucide-react";
 import ZyroLogo from "@/components/ZyroLogo";
 import UserAvatar from "@/components/UserAvatar";
 
@@ -37,6 +37,80 @@ function fmtDate(ms: number) {
   return `${dd}.${mm}.${yy}, ${hh}:${mi}:${ss}`;
 }
 
+function ProfilePanel({ onClose }: { onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [user, setUser] = useState<any>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isVipL, setIsVipL] = useState(false);
+  const [kycL, setKycL] = useState("none");
+
+  useEffect(() => {
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (d.user) { setUser(d.user); setAvatarUrl(d.user.avatar_url ? `${d.user.avatar_url}?t=${Date.now()}` : null); setIsVipL(!!d.user.is_marketing); setKycL(d.user.kyc_status || "none"); }
+    });
+  }, []);
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [onClose]);
+
+  const handleAvatarUpload = async (file: File) => {
+    const fd = new FormData(); fd.append("avatar", file);
+    const res = await fetch("/api/user/avatar", { method: "POST", body: fd });
+    if (res.ok) { const d = await res.json(); setAvatarUrl(`${d.avatar_url}?t=${Date.now()}`); }
+  };
+
+  const items = [
+    { icon: FileText,        label: "Verificação" },
+    { icon: ArrowDownCircle, label: "Depositar" },
+    { icon: ArrowUpCircle,   label: "Retirar fundos" },
+    { icon: DollarSign,      label: "Histórico do saldo" },
+    { icon: Clock,           label: "Histórico de trading" },
+    { icon: HelpCircle,      label: "Serviço de suporte" },
+    { icon: LogOut,          label: "Sair", danger: true },
+  ];
+
+  const handleClick = (label: string) => {
+    if (label === "Sair") { fetch("/api/auth/logout", { method: "POST" }).finally(() => { window.location.href = "/"; }); return; }
+    if (label === "Retirar fundos") { window.location.href = "/withdraw"; return; }
+    if (label === "Verificação") { window.location.href = "/verify"; return; }
+    if (label === "Depositar") { window.location.href = "/traderoom"; return; }
+    if (label === "Histórico de trading") { window.location.href = "/history"; return; }
+    onClose();
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.15)" }} onMouseDown={onClose} />
+      <div ref={ref} className="fixed right-0 top-0 h-full overflow-y-auto z-50 shadow-2xl" style={{ width: 300, background: "#fff", borderLeft: "1px solid #e5e7eb" }}>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); e.target.value = ""; }} />
+        <div className="flex items-center gap-3 px-4 py-4 border-b" style={{ borderColor: "#f3f4f6" }}>
+          <UserAvatar avatarUrl={avatarUrl} isVip={isVipL} kycStatus={kycL} size={40} />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-gray-800 truncate">{user?.first_name} {user?.last_name}</div>
+            <div className="text-xs text-gray-500">{user?.email}</div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+        </div>
+        <div className="py-2">
+          {items.map(({ icon: Icon, label, danger }: any) => (
+            <button key={label} onClick={() => handleClick(label)}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50 transition-colors"
+              style={{ color: danger ? "#ef4444" : "#374151" }}>
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function HistoryPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("trading");
@@ -48,6 +122,7 @@ export default function HistoryPage() {
   const [kycStatus, setKycStatus] = useState("none");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [showProfile, setShowProfile] = useState(false);
   const perPage = 10;
 
   useEffect(() => {
@@ -100,13 +175,17 @@ export default function HistoryPage() {
             <img src="https://flagcdn.com/20x15/br.png" alt="PT" />
             <span className="hidden sm:block">Pt</span>
           </button>
-          <UserAvatar avatarUrl={avatarUrl} isVip={isVip} kycStatus={kycStatus} size={36} />
+          <button onClick={() => setShowProfile(v => !v)}>
+            <UserAvatar avatarUrl={avatarUrl} isVip={isVip} kycStatus={kycStatus} size={36} />
+          </button>
           <button onClick={() => router.push("/traderoom")}
             className="px-4 py-1.5 rounded-lg text-sm font-bold text-white" style={{ background: "#f97316" }}>
             Negociar
           </button>
         </div>
       </header>
+
+      {showProfile && <ProfilePanel onClose={() => setShowProfile(false)} />}
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {/* Title + tabs */}
@@ -202,6 +281,7 @@ export default function HistoryPage() {
                   <tr className="bg-gray-50" style={{ borderBottom: "1px solid #e5e7eb" }}>
                     <th className="text-left py-3 px-4 text-xs text-gray-500 font-medium">Hora da compra (fechamento) UTC(-03:00)</th>
                     <th className="text-left py-3 px-4 text-xs text-gray-500 font-medium">Ativo</th>
+                    <th className="text-left py-3 px-4 text-xs text-gray-500 font-medium">Conta</th>
                     <th className="text-right py-3 px-4 text-xs text-gray-500 font-medium">Investimento</th>
                     <th className="text-right py-3 px-4 text-xs text-gray-500 font-medium">L/P Bruto</th>
                     <th className="text-right py-3 px-4 text-xs text-gray-500 font-medium">Patrimônio</th>
@@ -210,9 +290,9 @@ export default function HistoryPage() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={6} className="text-center py-10 text-gray-400">Carregando...</td></tr>
+                    <tr><td colSpan={7} className="text-center py-10 text-gray-400">Carregando...</td></tr>
                   ) : paginated.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-10 text-gray-400">Nenhuma operação encontrada.</td></tr>
+                    <tr><td colSpan={7} className="text-center py-10 text-gray-400">Nenhuma operação encontrada.</td></tr>
                   ) : paginated.map(t => {
                     const patrim = t.amount + t.net_profit;
                     const pctStr = t.result === "win" ? `${t.payout.toFixed(2)}%` : "-100.00%";
@@ -226,6 +306,15 @@ export default function HistoryPage() {
                           <div className="text-xs text-gray-400">{fmtDate(t.resolved_at)}</div>
                         </td>
                         <td className="py-3 px-4 font-semibold text-gray-900">{t.asset_name}</td>
+                        <td className="py-3 px-4">
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                            style={{
+                              background: t.account_type === "real" ? "rgba(16,185,129,0.1)" : "rgba(249,115,22,0.1)",
+                              color: t.account_type === "real" ? "#10b981" : "#f97316",
+                            }}>
+                            {t.account_type === "real" ? "Real" : "Demo"}
+                          </span>
+                        </td>
                         <td className="py-3 px-4 text-right text-gray-700">R${fmt(t.amount)}</td>
                         <td className="py-3 px-4 text-right">
                           <div style={{ color: t.result === "win" ? "#22c55e" : "#ef4444" }} className="font-medium">
