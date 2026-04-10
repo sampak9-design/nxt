@@ -25,6 +25,161 @@ type Trade = {
 type Tab = "trading" | "saldo";
 type AccountFilter = "all" | "practice" | "real";
 
+// ── DateRangePicker ─────────────────────────────────────────────────────
+const MONTHS_PT = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const DAYS_PT = ["2\u00aa","3\u00aa","4\u00aa","5\u00aa","6\u00aa","S\u00e1","Do"];
+
+function daysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDate(); }
+function startDay(y: number, m: number) { return (new Date(y, m, 1).getDay() + 6) % 7; } // Mon=0
+
+function DateRangePicker({ from, to, onChange }: {
+  from: Date; to: Date; onChange: (f: Date, t: Date) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selecting, setSelecting] = useState<"from" | "to">("from");
+  const [tmpFrom, setTmpFrom] = useState(from);
+  const [tmpTo, setTmpTo] = useState(to);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Two months: left = previous month, right = current month relative to `to`
+  const rightMonth = tmpTo.getMonth();
+  const rightYear  = tmpTo.getFullYear();
+  const leftMonth  = rightMonth === 0 ? 11 : rightMonth - 1;
+  const leftYear   = rightMonth === 0 ? rightYear - 1 : rightYear;
+  const [viewYear, setViewYear] = useState(rightYear);
+  const [viewMonth, setViewMonth] = useState(rightMonth);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
+  };
+  const leftM = viewMonth === 0 ? 11 : viewMonth - 1;
+  const leftY = viewMonth === 0 ? viewYear - 1 : viewYear;
+
+  const handleDay = (d: Date) => {
+    if (selecting === "from") {
+      setTmpFrom(d);
+      if (d > tmpTo) setTmpTo(d);
+      setSelecting("to");
+    } else {
+      if (d < tmpFrom) { setTmpFrom(d); }
+      else { setTmpTo(d); setSelecting("from"); }
+    }
+  };
+
+  const apply = () => { onChange(tmpFrom, tmpTo); setOpen(false); };
+
+  const setPreset = (name: string) => {
+    const now = new Date(); now.setHours(0,0,0,0);
+    let f = new Date(now), t = new Date(now);
+    if (name === "hoje") { /* already today */ }
+    else if (name === "ontem") { f.setDate(f.getDate() - 1); t = new Date(f); }
+    else if (name === "semana") { f.setDate(f.getDate() - 7); }
+    else if (name === "mes") { f.setMonth(f.getMonth() - 1); }
+    setTmpFrom(f); setTmpTo(t);
+  };
+
+  const isInRange = (d: Date) => d >= tmpFrom && d <= tmpTo;
+  const isStart   = (d: Date) => d.toDateString() === tmpFrom.toDateString();
+  const isEnd     = (d: Date) => d.toDateString() === tmpTo.toDateString();
+
+  const renderMonth = (y: number, m: number) => {
+    const days = daysInMonth(y, m);
+    const start = startDay(y, m);
+    const cells: (Date | null)[] = [];
+    for (let i = 0; i < start; i++) cells.push(null);
+    for (let i = 1; i <= days; i++) cells.push(new Date(y, m, i));
+    return (
+      <div className="flex-1">
+        <div className="text-center font-bold text-gray-800 mb-2">{MONTHS_PT[m]} {y}</div>
+        <div className="grid grid-cols-7 text-center text-[10px] text-gray-400 mb-1">
+          {DAYS_PT.map(d => <div key={d}>{d}</div>)}
+        </div>
+        <div className="grid grid-cols-7 gap-y-1 text-center text-sm">
+          {cells.map((d, i) => {
+            if (!d) return <div key={`e${i}`} />;
+            const inR = isInRange(d);
+            const isS = isStart(d);
+            const isE = isEnd(d);
+            const today = d.toDateString() === new Date().toDateString();
+            return (
+              <button key={d.toISOString()} onClick={() => handleDay(d)}
+                className="w-8 h-8 mx-auto rounded-full flex items-center justify-center text-sm transition-colors"
+                style={{
+                  background: isS || isE ? "#f97316" : inR ? "rgba(249,115,22,0.15)" : "transparent",
+                  color: isS || isE ? "#fff" : today ? "#f97316" : inR ? "#f97316" : "#374151",
+                  fontWeight: isS || isE || today ? 700 : 400,
+                  outline: today && !isS && !isE ? "2px solid #f97316" : "none",
+                  outlineOffset: -2,
+                }}>
+                {d.getDate()}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const fmtShort = (d: Date) => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
+  const fmtTop   = (d: Date) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => { setOpen(v => !v); setViewYear(to.getFullYear()); setViewMonth(to.getMonth()); }}
+        className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2 text-sm hover:border-orange-300 transition-colors"
+        style={{ borderColor: open ? "#f97316" : "#d1d5db" }}>
+        <Calendar className="w-4 h-4 text-gray-400" />
+        <span className="text-gray-700">{fmtShort(from)} — {fmtShort(to)}</span>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 z-50 bg-white border rounded-xl shadow-2xl p-5" style={{ borderColor: "#e5e7eb", width: 620 }}>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm text-gray-500">Selecione um período</span>
+            <span className="text-sm font-semibold" style={{ color: "#f97316" }}>
+              {fmtTop(tmpFrom)} — {fmtTop(tmpTo)}
+            </span>
+          </div>
+
+          {/* Calendars */}
+          <div className="flex gap-6 mb-4">
+            <button onClick={prevMonth} className="text-gray-400 hover:text-gray-700 text-lg px-1">←</button>
+            {renderMonth(leftY, leftM)}
+            {renderMonth(viewYear, viewMonth)}
+            <button onClick={nextMonth} className="text-gray-400 hover:text-gray-700 text-lg px-1">→</button>
+          </div>
+
+          {/* Presets + apply */}
+          <div className="flex items-center justify-between border-t pt-3" style={{ borderColor: "#f3f4f6" }}>
+            <div className="flex gap-4">
+              {[["hoje","Hoje"],["ontem","Ontem"],["semana","Semana"],["mes","Mês"]].map(([k,l]) => (
+                <button key={k} onClick={() => setPreset(k)} className="text-sm text-gray-600 hover:text-gray-900 font-medium">{l}</button>
+              ))}
+            </div>
+            <button onClick={apply}
+              className="px-5 py-2 rounded-lg text-sm font-bold text-white" style={{ background: "#f97316" }}>
+              Aplicar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function fmt(n: number) { return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtDate(ms: number) {
   const d = new Date(ms);
@@ -123,6 +278,8 @@ export default function HistoryPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [showProfile, setShowProfile] = useState(false);
+  const [dateFrom, setDateFrom] = useState<Date>(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); d.setHours(0,0,0,0); return d; });
+  const [dateTo, setDateTo]     = useState<Date>(() => { const d = new Date(); d.setHours(23,59,59,999); return d; });
   const perPage = 10;
 
   useEffect(() => {
@@ -145,12 +302,16 @@ export default function HistoryPage() {
       .finally(() => setLoading(false));
   }, [accountFilter]);
 
-  const totalInvest  = trades.reduce((s, t) => s + t.amount, 0);
-  const totalProfit  = trades.reduce((s, t) => s + t.net_profit, 0);
+  const filtered = trades.filter(t => {
+    const ts = t.started_at;
+    return ts >= dateFrom.getTime() && ts <= dateTo.getTime() + 86400000;
+  });
+  const totalInvest  = filtered.reduce((s, t) => s + t.amount, 0);
+  const totalProfit  = filtered.reduce((s, t) => s + t.net_profit, 0);
   const totalPatrim  = totalInvest + totalProfit;
 
-  const totalPages   = Math.max(1, Math.ceil(trades.length / perPage));
-  const paginated    = trades.slice((page - 1) * perPage, page * perPage);
+  const totalPages   = Math.max(1, Math.ceil(filtered.length / perPage));
+  const paginated    = filtered.slice((page - 1) * perPage, page * perPage);
 
   const exportCSV = () => {
     const header = "Data,Ativo,Investimento,L/P Bruto,Patrimônio,Resultado\n";
@@ -235,10 +396,7 @@ export default function HistoryPage() {
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-gray-500 font-medium">Data</span>
-                <div className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2 text-sm" style={{ borderColor: "#d1d5db" }}>
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-700">Último mês</span>
-                </div>
+                <DateRangePicker from={dateFrom} to={dateTo} onChange={(f, t) => { setDateFrom(f); setDateTo(t); setPage(1); }} />
               </div>
             </div>
 
@@ -335,7 +493,7 @@ export default function HistoryPage() {
 
             {/* Pagination */}
             <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
-              <span>Mostrando {(page - 1) * perPage + 1}–{Math.min(page * perPage, trades.length)} de {trades.length}</span>
+              <span>Mostrando {filtered.length ? (page - 1) * perPage + 1 : 0}–{Math.min(page * perPage, filtered.length)} de {filtered.length}</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
