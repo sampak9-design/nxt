@@ -6,7 +6,10 @@ export async function GET(req: NextRequest) {
   const nowMs = Date.now();
   const sinceMs = nowMs - days * 86400 * 1000;
 
-  const q = (sql: string, params: any[] = []) => (db.prepare(sql).get(...params) as any);
+  const q = (sql: string, params: any[] = []) => {
+    try { return db.prepare(sql).get(...params) as any; }
+    catch { return { n: 0 }; }
+  };
 
   // Deposits & Withdrawals
   const totalDeposits    = q("SELECT COALESCE(SUM(amount),0) AS n FROM deposits WHERE status='approved' AND created_at >= ?", [sinceMs]).n;
@@ -46,7 +49,7 @@ export async function GET(req: NextRequest) {
            COALESCE((SELECT SUM(amount) FROM deposits WHERE user_id=u.id AND status='approved'), 0) AS deposited,
            COALESCE((SELECT SUM(net_profit) FROM trades WHERE user_id=u.id AND account_type='real'), 0) AS net_profit
     FROM users u
-    HAVING net_profit > 0
+    WHERE (SELECT COALESCE(SUM(net_profit),0) FROM trades WHERE user_id=u.id AND account_type='real') > 0
     ORDER BY net_profit DESC
     LIMIT 20
   `).all();
