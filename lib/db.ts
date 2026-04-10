@@ -79,6 +79,36 @@ db.exec(`
 `);
 try { db.exec(`CREATE INDEX IF NOT EXISTS idx_otc_final_at ON otc_final (asset, time DESC)`); } catch {}
 
+// Deposits table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS deposits (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    amount      REAL NOT NULL,
+    method      TEXT NOT NULL DEFAULT 'pix',
+    status      TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+    pix_txid    TEXT,
+    created_at  INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000),
+    reviewed_at INTEGER
+  );
+`);
+
+// Withdrawals table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS withdrawals (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    amount      REAL NOT NULL,
+    method      TEXT NOT NULL DEFAULT 'pix',
+    pix_key     TEXT,
+    name        TEXT,
+    cpf         TEXT,
+    status      TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+    created_at  INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000),
+    reviewed_at INTEGER
+  );
+`);
+
 // Migrations — safe to run multiple times
 try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN is_marketing INTEGER NOT NULL DEFAULT 0`); } catch {}
