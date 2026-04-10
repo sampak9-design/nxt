@@ -296,21 +296,24 @@ export default function TradeHeader({
                   <X className="w-2.5 h-2.5 text-gray-400" strokeWidth={3} />
                 </button>
                 <div className="relative flex-shrink-0" style={{ width: 28, height: 28 }}>
-                  <div
-                    className="w-7 h-7 rounded overflow-hidden flex items-center justify-center"
-                    style={{ background: "rgba(255,255,255,0.06)" }}
-                  >
-                    {tab.icon_url
-                      ? <img src={tab.icon_url} alt={tab.name} className="w-full h-full object-contain p-0.5" />
-                      : <span className="text-[10px] font-bold text-gray-400">{tab.id.replace("-OTC","").slice(0,3)}</span>
-                    }
-                  </div>
                   {(() => {
                     const trade = activeTrades.find(t => t.tabId === tab.id && !t.result);
-                    if (!trade) return null;
+                    if (trade) {
+                      return (
+                        <div className="flex items-center justify-center w-full h-full">
+                          <TabCountdown expiresAt={trade.expiresAt} size={28} />
+                        </div>
+                      );
+                    }
                     return (
-                      <div className="absolute -top-1 -left-1 flex items-center justify-center" style={{ width: 30, height: 30 }}>
-                        <TabCountdown expiresAt={trade.expiresAt} size={28} />
+                      <div
+                        className="w-7 h-7 rounded overflow-hidden flex items-center justify-center"
+                        style={{ background: "rgba(255,255,255,0.06)" }}
+                      >
+                        {tab.icon_url
+                          ? <img src={tab.icon_url} alt={tab.name} className="w-full h-full object-contain p-0.5" />
+                          : <span className="text-[10px] font-bold text-gray-400">{tab.id.replace("-OTC","").slice(0,3)}</span>
+                        }
                       </div>
                     );
                   })()}
