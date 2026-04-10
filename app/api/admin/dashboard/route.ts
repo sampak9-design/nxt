@@ -1,61 +1,62 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 
-export async function GET() {
-  // KPIs
-  const activeUsers = (db.prepare("SELECT COUNT(*) AS n FROM users").get() as any).n;
-  const totalDeposited = (db.prepare("SELECT COALESCE(SUM(real_balance), 0) AS n FROM users").get() as any).n;
-  const totalTrades = (db.prepare("SELECT COUNT(*) AS n FROM trades").get() as any).n;
+export async function GET(req: NextRequest) {
+  const days = parseInt(new URL(req.url).searchParams.get("days") || "30", 10);
+  const nowMs = Date.now();
+  const sinceMs = nowMs - days * 86400 * 1000;
 
-  // Revenue: sum of losses (net_profit < 0 means house earned)
-  const revenue = (db.prepare("SELECT COALESCE(SUM(ABS(net_profit)), 0) AS n FROM trades WHERE result = 'lose'").get() as any).n;
+  const q = (sql: string, params: any[] = []) => (db.prepare(sql).get(...params) as any);
 
-  // Pending counts
-  const pendingKyc = (db.prepare("SELECT COUNT(*) AS n FROM kyc_documents WHERE status = 'pending'").get() as any).n;
+  // Deposits & Withdrawals
+  const totalDeposits    = q("SELECT COALESCE(SUM(amount),0) AS n FROM deposits WHERE status='approved' AND created_at >= ?", [sinceMs]).n;
+  const totalWithdrawals = q("SELECT COALESCE(SUM(amount),0) AS n FROM withdrawals WHERE status='approved' AND created_at >= ?", [sinceMs]).n;
+  const avgTicket        = q("SELECT COALESCE(AVG(amount),0) AS n FROM deposits WHERE status='approved' AND created_at >= ?", [sinceMs]).n;
+  const fluxoLiquido     = totalDeposits - totalWithdrawals;
 
-  // Recent trades (last 10)
-  const recentTrades = db.prepare(`
-    SELECT t.id, t.asset_name AS asset, t.direction, t.amount, t.result,
-           t.net_profit AS profit, u.first_name || ' ' || u.last_name AS userName
-    FROM trades t
-    LEFT JOIN users u ON u.id = t.user_id
-    ORDER BY t.resolved_at DESC
-    LIMIT 10
-  `).all();
+  // User balances
+  const saldoTotal       = q("SELECT COALESCE(SUM(real_balance),0) AS n FROM users").n;
+  const bonusTotal       = 0; // No bonus system yet
+  const totalUsers       = q("SELECT COUNT(*) AS n FROM users").n;
+  const newUsersToday    = q("SELECT COUNT(*) AS n FROM users WHERE created_at >= datetime('now','start of day')").n;
 
-  // Top users by total deposited (real_balance + what they traded)
-  const topUsers = db.prepare(`
-    SELECT id, first_name || ' ' || last_name AS name,
-           real_balance + COALESCE((SELECT SUM(amount) FROM trades WHERE user_id = users.id AND account_type = 'real'), 0) AS totalDeposited
-    FROM users
-    ORDER BY totalDeposited DESC
-    LIMIT 5
-  `).all();
+  // Trades in period (real account only for house stats)
+  const valorApostado    = q("SELECT COALESCE(SUM(amount),0) AS n FROM trades WHERE account_type='real' AND started_at >= ?", [sinceMs]).n;
+  const ganhosPlat       = q("SELECT COALESCE(SUM(ABS(net_profit)),0) AS n FROM trades WHERE account_type='real' AND result='lose' AND started_at >= ?", [sinceMs]).n;
+  const perdasPlat       = q("SELECT COALESCE(SUM(net_profit),0) AS n FROM trades WHERE account_type='real' AND result='win' AND started_at >= ?", [sinceMs]).n;
+  const resultadoPlat    = ganhosPlat + perdasPlat; // perdasPlat is negative
 
-  // Chart: last 14 days of trade activity
-  const chart = db.prepare(`
-    SELECT date(resolved_at / 1000, 'unixepoch') AS date,
-           COALESCE(SUM(CASE WHEN result = 'lose' THEN amount ELSE 0 END), 0) AS deposits,
-           COALESCE(SUM(CASE WHEN result = 'win' THEN net_profit ELSE 0 END), 0) AS payouts,
-           COALESCE(SUM(CASE WHEN result = 'lose' THEN ABS(net_profit) ELSE 0 END), 0) AS revenue,
-           COUNT(*) AS trades
-    FROM trades
-    WHERE resolved_at > (strftime('%s', 'now') - 14 * 86400) * 1000
-    GROUP BY date
-    ORDER BY date
+  // Win/Lose counts (for pie chart)
+  const wins  = q("SELECT COUNT(*) AS n FROM trades WHERE account_type='real' AND result='win' AND started_at >= ?", [sinceMs]).n;
+  const loses = q("SELECT COUNT(*) AS n FROM trades WHERE account_type='real' AND result='lose' AND started_at >= ?", [sinceMs]).n;
+
+  // Last 7 days chart
+  const chart7d = db.prepare(`
+    SELECT date(started_at / 1000, 'unixepoch') AS date,
+           COALESCE(SUM(CASE WHEN result='win' THEN net_profit ELSE 0 END), 0) AS ganhos,
+           COALESCE(SUM(CASE WHEN result='lose' THEN ABS(net_profit) ELSE 0 END), 0) AS perdas
+    FROM trades WHERE account_type='real' AND started_at >= ?
+    GROUP BY date ORDER BY date
+  `).all(nowMs - 7 * 86400 * 1000);
+
+  // Profitable users (deposited vs current balance + winnings)
+  const profitableUsers = db.prepare(`
+    SELECT u.id, u.first_name || ' ' || u.last_name AS name, u.email,
+           u.real_balance,
+           COALESCE((SELECT SUM(amount) FROM deposits WHERE user_id=u.id AND status='approved'), 0) AS deposited,
+           COALESCE((SELECT SUM(net_profit) FROM trades WHERE user_id=u.id AND account_type='real'), 0) AS net_profit
+    FROM users u
+    HAVING net_profit > 0
+    ORDER BY net_profit DESC
+    LIMIT 20
   `).all();
 
   return NextResponse.json({
-    active_users: activeUsers,
-    total_deposited: totalDeposited,
-    revenue,
-    total_trades: totalTrades,
-    pending_deposits: 0,
-    pending_withdrawals: 0,
-    pending_kyc: pendingKyc,
-    open_disputes: 0,
-    chart,
-    top_users: topUsers,
-    recent_trades: recentTrades,
+    totalDeposits, totalWithdrawals, avgTicket, fluxoLiquido,
+    saldoTotal, bonusTotal, totalUsers, newUsersToday,
+    valorApostado, ganhosPlat, perdasPlat: Math.abs(perdasPlat), resultadoPlat,
+    wins, loses,
+    chart7d,
+    profitableUsers,
   });
 }
