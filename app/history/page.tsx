@@ -148,7 +148,7 @@ function DateRangePicker({ from, to, onChange }: {
         <div className="fixed inset-0 z-50 flex items-end sm:items-start sm:justify-end sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2">
           {/* Mobile backdrop */}
           <div className="fixed inset-0 bg-black/20 sm:hidden" onClick={() => setOpen(false)} />
-          <div className="relative w-full sm:w-auto bg-white border rounded-t-xl sm:rounded-xl shadow-2xl p-4 sm:p-5 max-h-[85vh] overflow-y-auto" style={{ borderColor: "#e5e7eb", maxWidth: 620 }}>
+          <div className="relative w-full sm:w-[620px] bg-white border rounded-t-xl sm:rounded-xl shadow-2xl p-4 sm:p-5 max-h-[85vh] overflow-y-auto" style={{ borderColor: "#e5e7eb" }}>
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm text-gray-500">Selecione um período</span>

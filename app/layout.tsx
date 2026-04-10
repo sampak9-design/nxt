@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import ClickSound from "@/components/ClickSound";
 
 export const metadata: Metadata = {
   title: "ZyroOption",
@@ -31,7 +30,6 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col antialiased">
-        <ClickSound />
         {children}
       </body>
     </html>

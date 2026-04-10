@@ -1,6 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import type { ApiAsset } from "@/components/trade/TradeLayout";
+import ClickSound from "@/components/ClickSound";
 
 // SSR disabled — TradeLayout reads localStorage in useState initializers;
 // running on the server causes a hydration mismatch and a blank first load.
@@ -75,5 +76,5 @@ const ASSETS: ApiAsset[] = [
 ];
 
 export default function TradePage() {
-  return <TradeLayout assets={ASSETS} />;
+  return <><ClickSound /><TradeLayout assets={ASSETS} /></>;
 }
