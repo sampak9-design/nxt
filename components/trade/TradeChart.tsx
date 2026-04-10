@@ -1366,6 +1366,14 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     setPrice(null);
     setLoading(true);
 
+    // Auto-reload page if chart doesn't load within 5s (mobile stale fix)
+    const autoReloadTimer = setTimeout(() => {
+      if (activeKeyRef.current === activeKey && candles.current.length === 0) {
+        console.warn(`[chart] auto-reload: ${tab.id} didn't load in 5s`);
+        window.location.reload();
+      }
+    }, 5000);
+
     const cacheKey = `xd_candles_v7:${tab.id}:${tf}`;
     const BRT_OFFSET = -3 * 3600;
 
@@ -1414,13 +1422,23 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
     };
 
+    // Deterministic seed: same asset+time always produces the same candles
     const buildSeed = (seedP: number): Candle[] => {
       const period = TF_SEC[tf] ?? 60;
       const nowBRT = Math.floor(Date.now() / 1000) - 3 * 3600;
       const currentCt = Math.floor(nowBRT / period) * period;
+      // Deterministic PRNG based on asset name hash
+      let hash = 0;
+      for (let i = 0; i < tab.id.length; i++) hash = ((hash << 5) - hash + tab.id.charCodeAt(i)) | 0;
+      const seededRandom = (idx: number) => {
+        let s = (hash + idx * 2654435761) >>> 0;
+        s = Math.imul(s ^ (s >>> 16), 0x45d9f3b);
+        s = Math.imul(s ^ (s >>> 13), 0x45d9f3b);
+        return ((s ^ (s >>> 16)) >>> 0) / 4294967296;
+      };
       const path: number[] = [seedP];
       for (let i = 0; i < 99; i++)
-        path.unshift(+(path[0] * (1 + (Math.random() - 0.5) * 0.0006)).toFixed(5));
+        path.unshift(+(path[0] * (1 + (seededRandom(i) - 0.5) * 0.0006)).toFixed(5));
       return path.slice(0, 100).map((open, i) => {
         const t = (currentCt - (99 - i) * period) as UTCTimestamp;
         const close = +(path[i + 1] ?? open).toFixed(5);
@@ -1438,11 +1456,18 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       const isOtcLoad = SERVER_OTC.has(tab.id);
 
       if (isOtcLoad) {
-        // OTC: server-driven, no seed, no localStorage
+        // OTC: seed warmup so chart is never empty + fetch real data
+        const otcSeedP = FOREX_SEED[tab.id.replace("-OTC", "")] ?? 1000;
+        applySource(buildSeed(otcSeedP), otcSeedP, true);
+
         const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
         if (activeKeyRef.current !== activeKey) return;
         if (realP && realP > 0) realPriceRef.current = realP;
-        if (isUsable(data)) applySource(data, realP, false);
+        if (isUsable(data)) {
+          applySource(data, realP, false);
+        } else {
+          console.warn(`[chart] OTC ${tab.id} isUsable failed, keeping seed candles`);
+        }
         setLoading(false);
 
       } else if (isCrypto) {
@@ -1450,7 +1475,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         const [data, realP] = await Promise.all([fetchCandles(tab.id, tf), fetchPrice(tab.id)]);
         if (activeKeyRef.current !== activeKey) return;
         const source = isUsable(data) ? data : null;
-        if (!source) { if (realP && realP > 0) realPriceRef.current = realP; setLoading(false); return; }
+        if (!source) { console.warn(`[chart] crypto ${tab.id} isUsable failed, data=${Array.isArray(data) ? data.length : 'null'}`); if (realP && realP > 0) realPriceRef.current = realP; setLoading(false); return; }
         const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
         try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
         applySource(source, realP, false);
@@ -1477,6 +1502,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
             const brtSource = data.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
             try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
             applySource(data, realPriceRef.current, false);
+          } else {
+            console.warn(`[chart] forex ${tab.id} isUsable failed, data=${Array.isArray(data) ? (data as any[]).length : 'null'}`);
           }
           setLoading(false);
         }).catch(() => {
@@ -1489,6 +1516,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     load();
     return () => {
       activeKeyRef.current = "";
+      clearTimeout(autoReloadTimer);
     };
   }, [tab.id, tf]);
 
@@ -1530,7 +1558,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
           const d = JSON.parse(e.data);
           const q = d?.tick?.quote;
           const now = Date.now();
-          if (q && q > 0 && now - lastDerivUpdate >= 4000) {
+          if (q && q > 0 && now - lastDerivUpdate >= 1000) {
             lastDerivUpdate = now;
             realPriceRef.current = q;
           }
