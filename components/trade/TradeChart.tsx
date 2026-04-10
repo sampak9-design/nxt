@@ -1427,14 +1427,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       setCandlesVersion(v => v + 1);
 
       const applyView = () => {
-        // Force resize in case container changed (mobile tab switch)
         const wrap = wrapRef.current;
         if (wrap) chart.resize(wrap.clientWidth, wrap.clientHeight);
         chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, patched.length - 30), to: patched.length + 3 });
       };
-      requestAnimationFrame(() => requestAnimationFrame(applyView));
-      setTimeout(applyView, 200);
-      setTimeout(applyView, 500);
+      requestAnimationFrame(applyView);
 
       const lc = patched[patched.length - 1];
       if (lc) {
@@ -1444,22 +1441,6 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         setPrice(startPrice);
         onPriceChange(startPrice, lc.time);
       }
-    };
-
-    // ── buildSeed: synthetic candles for micro-tick warm-up ──────────────
-    const buildSeed = (seedP: number): Candle[] => {
-      const period    = TF_SEC[tf] ?? 60;
-      const nowBRT    = Math.floor(Date.now() / 1000) - 3 * 3600;
-      const currentCt = Math.floor(nowBRT / period) * period;
-      const path: number[] = [seedP];
-      for (let i = 0; i < 99; i++)
-        path.unshift(+(path[0] * (1 + (Math.random() - 0.5) * 0.0006)).toFixed(5));
-      return path.slice(0, 100).map((open, i) => {
-        const t     = (currentCt - (99 - i) * period) as UTCTimestamp;
-        const close = +(path[i + 1] ?? open).toFixed(5);
-        const move  = Math.abs(close - open) + open * 0.00008;
-        return { time: t, open, high: +(Math.max(open, close) + move * 0.6).toFixed(5), low: +(Math.min(open, close) - move * 0.6).toFixed(5), close };
-      });
     };
 
     const load = async () => {
@@ -1500,15 +1481,13 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         console.log(`[chart] ${tab.id} price=${realP}`);
         if (realP && realP > 0) realPriceRef.current = realP;
 
-        try {
-          if (activeKeyRef.current !== activeKey) return;
-          if (isUsable(data)) {
-            const brtSource = data!.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
-            try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
-            applySource(data!, realPriceRef.current, false);
-          }
-        } catch {}
-        if (activeKeyRef.current === activeKey) setLoading(false);
+        if (activeKeyRef.current !== activeKey) return;
+        const source = isUsable(data) ? data : null;
+        if (!source) { setLoading(false); return; }
+        const brtSource = source.map((c) => ({ ...c, time: (c.time + BRT_OFFSET) as UTCTimestamp }));
+        try { localStorage.setItem(cacheKey, JSON.stringify(brtSource.slice(-500))); } catch {}
+        applySource(source, realPriceRef.current, false);
+        setLoading(false);
       }
     };
 
@@ -1541,6 +1520,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       if (retryTimer) clearTimeout(retryTimer);
       console.log(`[chart] cleanup ${tab.id}:${tf}`);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab.id, tf, loadTrigger]);
 
 
@@ -1630,22 +1610,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   /* ── micro-tick every 100ms for fluid movement ───────────────────── */
   useEffect(() => {
     const period = TF_SEC[tf] ?? 60;
-    let lastTickMs = Date.now();
-    const STALE_THRESHOLD = 5000; // 5s without tick = browser was frozen
 
     const microTick = () => {
-      const tickNow = Date.now();
-      const gap = tickNow - lastTickMs;
-      lastTickMs = tickNow;
-
-      // Detect browser freeze (mobile background, sleep, etc.)
-      // If gap > 5s, force a full reload of the chart data
-      if (gap > STALE_THRESHOLD && candles.current.length > 0) {
-        console.log(`[chart] detected ${Math.round(gap / 1000)}s freeze, reloading ${tab.id}`);
-        setLoadTrigger(v => v + 1); // triggers the load useEffect
-        return;
-      }
-
       const series = seriesRef.current;
       const list   = candles.current;
       if (!series || !list.length || !lastPrice.current) return;
@@ -1769,7 +1735,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     // 2. Window resize fallback
     window.addEventListener("resize", scheduleResize);
 
-    // 3. Visibility change — redraw + reload if stale
+    // 3. Visibility change — redraw chart with existing data + refresh price
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       const chart = chartRef.current;
@@ -1785,11 +1751,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
           series.setData(list);
         }
       }
-      // If data is stale (no updates for 5s+), trigger full reload
-      if (!list.length || (lastTime.current > 0 && Math.abs(Math.floor(Date.now() / 1000) - 3 * 3600 - lastTime.current) > 120)) {
-        console.log("[chart] stale data on visibility return, reloading");
-        setLoadTrigger(v => v + 1);
-      }
+      // Refresh the live price so microTick can resume smoothly
+      fetchPrice(tab.id).then(p => { if (p && p > 0) realPriceRef.current = p; }).catch(() => {});
     };
     document.addEventListener("visibilitychange", onVisible);
 
