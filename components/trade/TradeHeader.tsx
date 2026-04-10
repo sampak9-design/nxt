@@ -421,7 +421,12 @@ export default function TradeHeader({
               >
                 {avatarUrl
                   ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center text-xs font-bold text-white" style={{ background: "linear-gradient(135deg,#f97316,#ea6c0a)" }}>{initials}</div>
+                  : <div className="w-full h-full flex items-center justify-center" style={{ background: "#c4c4c4" }}>
+                      <svg viewBox="0 0 24 24" fill="#9a9a9a" className="w-[70%] h-[70%]" style={{ marginTop: 4 }}>
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 20c0-4 4-7 8-7s8 3 8 7" />
+                      </svg>
+                    </div>
                 }
               </div>
               {/* VIP badge — left side overlapping the circle edge */}

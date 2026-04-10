@@ -98,14 +98,17 @@ export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
   const displayName = user ? `${user.first_name} ${user.last_name}` : "";
   const initials    = user ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase() : "Z";
 
-  const Avatar = ({ size = 40, textSize = "text-lg" }: { size?: number; textSize?: string }) => (
+  const Avatar = ({ size = 40 }: { size?: number; textSize?: string }) => (
     <div
       className={`rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden`}
-      style={{ width: size, height: size, background: avatarUrl ? "transparent" : "linear-gradient(135deg,#f97316,#ea6c0a)", border: "2px solid rgba(255,255,255,0.15)" }}
+      style={{ width: size, height: size, background: avatarUrl ? "transparent" : "#c4c4c4", border: "2px solid rgba(255,255,255,0.15)" }}
     >
       {avatarUrl
         ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-        : <span className={`${textSize} font-bold text-white`}>{initials}</span>
+        : <svg viewBox="0 0 24 24" fill="#9a9a9a" style={{ width: "70%", height: "70%", marginTop: 4 }}>
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c0-4 4-7 8-7s8 3 8 7" />
+          </svg>
       }
     </div>
   );
