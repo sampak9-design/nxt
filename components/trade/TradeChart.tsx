@@ -874,6 +874,8 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
   const [price, setPrice]     = useState<number | null>(null);
   const [, setUp]             = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryTrigger, setRetryTrigger] = useState(0);
   const [tool, setTool]       = useState<Tool>("cursor");
   const [color, setColor]     = useState(COLORS[0]);
   const [showDrawMenu, setShowDrawMenu] = useState(false);
@@ -1365,6 +1367,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     series.setData([]);
     setPrice(null);
     setLoading(true);
+    setLoadError(false);
 
     const cacheKey = `xd_candles_v7:${tab.id}:${tf}`;
     const BRT_OFFSET = -3 * 3600;
@@ -1499,11 +1502,43 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
       }
     };
 
-    load();
+    // Retry wrapper: up to 5 attempts, 2s apart. Cancels if asset changes.
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
+    const MAX_ATTEMPTS = 5;
+
+    const tryLoad = async () => {
+      attempt++;
+      await load();
+      if (activeKeyRef.current !== activeKey) return; // asset changed, stop
+      if (candles.current.length > 0) {
+        // Success — data loaded
+        setLoadError(false);
+        // fitContent after render so Y axis scales correctly
+        requestAnimationFrame(() => chart.timeScale().fitContent());
+        return;
+      }
+      // No data — retry or give up
+      if (attempt < MAX_ATTEMPTS) {
+        console.warn(`[chart] ${tab.id} attempt ${attempt}/${MAX_ATTEMPTS} empty, retrying in 2s`);
+        setLoading(true);
+        retryTimer = setTimeout(() => {
+          if (activeKeyRef.current === activeKey) tryLoad();
+        }, 2000);
+      } else {
+        console.warn(`[chart] ${tab.id} failed after ${MAX_ATTEMPTS} attempts`);
+        setLoading(false);
+        setLoadError(true);
+      }
+    };
+
+    tryLoad();
     return () => {
       activeKeyRef.current = "";
+      if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [tab.id, tf]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab.id, tf, retryTrigger]);
 
 
   /* ── real-time price feed ─────────────────────────────────────────── */
@@ -2267,18 +2302,30 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
           <div ref={wrapRef} style={{ width: "100%", height: "100%", position: "absolute", inset: 0, zIndex: 1 }} />
 
           {/* Loading overlay */}
-          {loading && (
+          {(loading || loadError) && (
             <div style={{
               position: "absolute", inset: 0, zIndex: 10,
               background: "#111622",
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14,
             }}>
-              <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"
-                style={{ animation: "zyro-spin 1s linear infinite" }}>
-                <circle cx="20" cy="20" r="20" fill="#f97316" />
-                <path d="M11 12h18l-14 16h14" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace" }}>carregando...</span>
+              {loadError ? (
+                <>
+                  <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>Não foi possível carregar o gráfico</span>
+                  <button
+                    onClick={() => { setLoadError(false); setLoading(true); setRetryTrigger(v => v + 1); }}
+                    style={{ padding: "8px 20px", borderRadius: 8, background: "#f97316", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none" }}
+                  >Tentar novamente</button>
+                </>
+              ) : (
+                <>
+                  <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"
+                    style={{ animation: "zyro-spin 1s linear infinite" }}>
+                    <circle cx="20" cy="20" r="20" fill="#f97316" />
+                    <path d="M11 12h18l-14 16h14" stroke="white" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "monospace" }}>carregando...</span>
+                </>
+              )}
               <style>{`@keyframes zyro-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
             </div>
           )}
