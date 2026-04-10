@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import UserAvatar from "@/components/UserAvatar";
 import {
   CheckCircle2, Clock, XCircle, Upload, ChevronDown,
   ArrowDownCircle, ArrowUpCircle, FileText, HelpCircle,
@@ -17,10 +18,17 @@ function ProfileDropdown({ onClose }: { onClose: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [user, setUser] = useState<any>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isVipLocal, setIsVipLocal] = useState(false);
+  const [kycLocal, setKycLocal] = useState("none");
 
   useEffect(() => {
     fetch("/api/auth/me").then(r => r.json()).then(d => {
-      if (d.user) { setUser(d.user); setAvatarUrl(d.user.avatar_url ? `${d.user.avatar_url}?t=${Date.now()}` : null); }
+      if (d.user) {
+        setUser(d.user);
+        setAvatarUrl(d.user.avatar_url ? `${d.user.avatar_url}?t=${Date.now()}` : null);
+        setIsVipLocal(!!d.user.is_marketing);
+        setKycLocal(d.user.kyc_status || "none");
+      }
     });
   }, []);
 
@@ -69,11 +77,7 @@ function ProfileDropdown({ onClose }: { onClose: () => void }) {
 
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "#f3f4f6" }}>
-        <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-          style={{ background: avatarUrl ? "transparent" : "#c4c4c4" }}>
-          {avatarUrl ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-            : <svg viewBox="0 0 24 24" fill="#9a9a9a" style={{ width: "70%", height: "70%", marginTop: 3 }}><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-7 8-7s8 3 8 7" /></svg>}
-        </div>
+        <UserAvatar avatarUrl={avatarUrl} isVip={isVipLocal} kycStatus={kycLocal} size={36} />
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-gray-800 truncate">{user?.email}</div>
           <div className="text-xs text-gray-500">Conta real <span className="font-bold text-green-600">R${(user?.real_balance ?? 0).toFixed(2)}</span></div>
@@ -169,6 +173,7 @@ export default function VerifyPage() {
   const [back, setBack]           = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]         = useState("");
+  const [isVip, setIsVip]         = useState(false);
   const frontRef = useRef<HTMLInputElement>(null);
   const backRef  = useRef<HTMLInputElement>(null);
 
@@ -182,6 +187,7 @@ export default function VerifyPage() {
         setAvatarUrl(me.user.avatar_url ? `${me.user.avatar_url}?t=${Date.now()}` : null);
         setFirstName(me.user.first_name ?? "");
         setLastName(me.user.last_name ?? "");
+        setIsVip(!!me.user.is_marketing);
       }
       const s: KycStatus = kyc.status ?? "none";
       setKycStatus(s);
@@ -265,13 +271,8 @@ export default function VerifyPage() {
 
           {/* Avatar + dropdown */}
           <div className="relative">
-            <button
-              onClick={() => setShowMenu(v => !v)}
-              className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center border-2"
-              style={{ border: "2px solid #f97316", background: avatarUrl ? "transparent" : "#c4c4c4" }}>
-              {avatarUrl
-                ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                : <svg viewBox="0 0 24 24" fill="#9a9a9a" style={{ width: "70%", height: "70%", marginTop: 3 }}><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-7 8-7s8 3 8 7" /></svg>}
+            <button onClick={() => setShowMenu(v => !v)}>
+              <UserAvatar avatarUrl={avatarUrl} isVip={isVip} kycStatus={kycStatus} size={36} />
             </button>
             {showMenu && <ProfileDropdown onClose={() => setShowMenu(false)} />}
           </div>

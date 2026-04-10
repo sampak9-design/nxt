@@ -6,6 +6,7 @@ import type { Tab, ApiAsset, AccountType } from "./TradeLayout";
 import AssetPicker from "./AssetPicker";
 import ProfilePanel from "./ProfilePanel";
 import ZyroLogo from "@/components/ZyroLogo";
+import UserAvatar from "@/components/UserAvatar";
 
 interface Props {
   tabs: Tab[];
@@ -414,45 +415,7 @@ export default function TradeHeader({
             }}
             className="flex items-center gap-1 flex-shrink-0 hover:brightness-125 transition-all"
           >
-            <div className="relative">
-              <div
-                className="rounded-full overflow-hidden hover:ring-2 hover:ring-white/20 transition-all"
-                style={{ width: 34, height: 34 }}
-              >
-                {avatarUrl
-                  ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center" style={{ background: "#c4c4c4" }}>
-                      <svg viewBox="0 0 24 24" fill="#9a9a9a" className="w-[70%] h-[70%]" style={{ marginTop: 4 }}>
-                        <circle cx="12" cy="8" r="4" />
-                        <path d="M4 20c0-4 4-7 8-7s8 3 8 7" />
-                      </svg>
-                    </div>
-                }
-              </div>
-              {/* VIP badge — left side overlapping the circle edge */}
-              {isVip && (
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center rounded px-1"
-                  style={{ left: -8, background: "#facc15", fontSize: 7, fontWeight: 800, color: "#000", lineHeight: "12px", letterSpacing: "0.03em", whiteSpace: "nowrap" }}
-                >
-                  VIP
-                </div>
-              )}
-              {/* Verification status */}
-              <div
-                className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
-                style={{
-                  background: kycStatus === "approved" ? "#22c55e" : "#f97316",
-                  border: "2px solid var(--color-third)",
-                }}
-              >
-                {kycStatus === "approved" ? (
-                  <svg width="8" height="8" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                ) : (
-                  <span style={{ fontSize: 9, fontWeight: 800, color: "#fff", lineHeight: 1 }}>!</span>
-                )}
-              </div>
-            </div>
+            <UserAvatar avatarUrl={avatarUrl} isVip={isVip} kycStatus={kycStatus} size={34} />
             <svg width="10" height="7" viewBox="0 0 10 7" fill="#6b7280">
               <path d="M0 0 L10 0 L5 7 Z" />
             </svg>
