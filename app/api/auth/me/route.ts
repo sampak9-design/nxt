@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const payload = await verifyToken(token);
   if (!payload) return NextResponse.json({ user: null });
 
-  const user = db.prepare("SELECT id, first_name, last_name, email, demo_balance, real_balance, avatar_url, is_marketing FROM users WHERE id = ?").get(payload.userId) as any;
+  const user = db.prepare("SELECT id, first_name, last_name, email, demo_balance, real_balance, avatar_url, is_marketing, kyc_status FROM users WHERE id = ?").get(payload.userId) as any;
   if (!user) return NextResponse.json({ user: null });
 
   return NextResponse.json({ user });
