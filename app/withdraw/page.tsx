@@ -113,9 +113,9 @@ function ProfilePanel({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "#f3f4f6" }}>
           <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-            style={{ background: avatarUrl ? "transparent" : "linear-gradient(135deg,#f97316,#ea6c0a)" }}>
+            style={{ background: avatarUrl ? "transparent" : "#c4c4c4" }}>
             {avatarUrl ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-              : <span className="text-sm font-bold text-white">{initials}</span>}
+              : <svg viewBox="0 0 24 24" fill="#9a9a9a" style={{ width: "70%", height: "70%", marginTop: 3 }}><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-7 8-7s8 3 8 7" /></svg>}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold text-gray-800 truncate">{user?.email}</div>
@@ -316,10 +316,10 @@ export default function WithdrawPage() {
           <div className="relative">
             <button onClick={() => setShowProfile(v => !v)}
               className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center"
-              style={{ border: "2px solid #f97316", background: avatarUrl ? "transparent" : "linear-gradient(135deg,#f97316,#ea6c0a)" }}>
+              style={{ border: "2px solid #f97316", background: avatarUrl ? "transparent" : "#c4c4c4" }}>
               {avatarUrl
                 ? <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                : <span className="text-sm font-bold text-white">{initials}</span>}
+                : <svg viewBox="0 0 24 24" fill="#9a9a9a" style={{ width: "70%", height: "70%", marginTop: 3 }}><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-7 8-7s8 3 8 7" /></svg>}
             </button>
           </div>
           <button onClick={() => window.location.href = "/traderoom"}
