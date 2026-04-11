@@ -1356,6 +1356,11 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     const chart  = chartRef.current;
     if (!series || !chart) return;
 
+    // Skip load if container is invisible (e.g. desktop chart hidden on mobile)
+    // This avoids wasting WS connections (browsers limit ~6 per origin)
+    const el = wrapRef.current;
+    if (el && (el.offsetWidth === 0 || el.offsetHeight === 0)) return;
+
     // Mark this tab+tf as the active load — any stale async op checks this ref
     const activeKey = `${tab.id}:${tf}`;
     activeKeyRef.current = activeKey;
@@ -1502,6 +1507,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
   /* ── real-time price feed ─────────────────────────────────────────── */
   useEffect(() => {
+    // Skip if container is invisible (hidden layout) — save WS connections
+    const el = wrapRef.current;
+    if (el && (el.offsetWidth === 0 || el.offsetHeight === 0)) return;
+
     const base = tab.id.replace("-OTC", "");
     const isServerOtc = SERVER_OTC.has(tab.id);
     const derivSym = isServerOtc ? null : DERIV_SYMBOL[base];
@@ -1585,6 +1594,10 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
 
   /* ── micro-tick every 100ms for fluid movement ───────────────────── */
   useEffect(() => {
+    // Skip if container is invisible
+    const el = wrapRef.current;
+    if (el && (el.offsetWidth === 0 || el.offsetHeight === 0)) return;
+
     const period = TF_SEC[tf] ?? 60;
 
     const microTick = () => {
