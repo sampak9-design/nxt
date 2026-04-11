@@ -240,20 +240,7 @@ async function fetchCandles(symbol: string, tf: string): Promise<Candle[] | null
     } catch {}
   }
 
-  // ALL assets → try our server cache first (instant, no external dependency)
-  try {
-    const r = await fetch(`/api/market/candles?symbol=${base}&tf=${tf}&count=500`);
-    if (r.ok) {
-      const data = await r.json();
-      if (Array.isArray(data) && data.length > 5) {
-        return data.map((c: any) => ({
-          time: c.time as UTCTimestamp, open: c.open, high: c.high, low: c.low, close: c.close,
-        }));
-      }
-    }
-  } catch {}
-
-  // Fallback: Crypto → Binance directly from browser
+  // Crypto → Binance directly from browser
   if (binanceSym) {
     try {
       const limit = tf === "4h" ? 500 : 1000;
@@ -326,16 +313,7 @@ async function fetchPrice(symbol: string): Promise<number | null> {
     } catch {}
   }
 
-  // ALL assets → try our server cache first
-  try {
-    const r = await fetch(`/api/market/price?symbol=${base}`);
-    if (r.ok) {
-      const d = await r.json();
-      if (d.price > 0) return d.price;
-    }
-  } catch {}
-
-  // Fallback: Crypto → Binance directly from browser
+  // Crypto → Binance directly from browser
   if (binanceSym) {
     try {
       const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSym}`);
