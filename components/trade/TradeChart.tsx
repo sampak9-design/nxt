@@ -1699,34 +1699,7 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     };
 
     const iv = setInterval(microTick, 100);
-
-    // BUG 1 FIX: When tab becomes visible again after being hidden,
-    // the browser throttled our setInterval so high/low may be stale.
-    // Refetch the current price and patch the active candle.
-    const onVisibilityChange = () => {
-      if (document.visibilityState !== "visible") return;
-      const list = candles.current;
-      const s = seriesRef.current;
-      if (!list.length || !s) return;
-      // Immediately refetch live price to patch the current candle
-      fetchPrice(tab.id).then((p) => {
-        if (!p || p <= 0) return;
-        realPriceRef.current = p;
-        lastPrice.current = p;
-        const last = list[list.length - 1];
-        last.high  = Math.max(last.high, p);
-        last.low   = Math.min(last.low, p);
-        last.close = p;
-        const ctype = chartTypeRef.current;
-        s.update(ctype === "line" || ctype === "area" ? { time: last.time, value: last.close } as any : last);
-      }).catch(() => {});
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    return () => {
-      clearInterval(iv);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
+    return () => clearInterval(iv);
   }, [tab.id, tf]);
 
 
