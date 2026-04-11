@@ -90,6 +90,10 @@ export default function TradeHeader({
   const [isVip, setIsVip] = useState(false);
   const [kycStatus, setKycStatus] = useState<string>("none");
   const [unreadTickets, setUnreadTickets] = useState(0);
+  const [notifTickets, setNotifTickets] = useState<{ id: number; subject: string; last_admin_msg: string }[]>([]);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
   const btnRef     = useRef<HTMLButtonElement>(null);
   const avatarRef  = useRef<HTMLButtonElement>(null);
   const panelRef   = useRef<HTMLDivElement>(null);
@@ -98,13 +102,31 @@ export default function TradeHeader({
   useEffect(() => {
     const poll = () => {
       fetch("/api/tickets").then(r => r.json()).then(d => {
-        if (d.tickets) setUnreadTickets(d.tickets.reduce((s: number, t: any) => s + (t.unread_admin ?? 0), 0));
+        if (d.tickets) {
+          setUnreadTickets(d.tickets.reduce((s: number, t: any) => s + (t.unread_admin ?? 0), 0));
+          setNotifTickets(d.tickets.filter((t: any) => (t.unread_admin ?? 0) > 0).map((t: any) => ({
+            id: t.id, subject: t.subject, last_admin_msg: t.last_admin_msg ?? "",
+          })));
+        }
       }).catch(() => {});
     };
     poll();
     const iv = setInterval(poll, 15000);
     return () => clearInterval(iv);
   }, []);
+
+  // Close notif popup on outside click
+  useEffect(() => {
+    if (!showNotifs) return;
+    const h = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node) &&
+          bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setShowNotifs(false);
+      }
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [showNotifs]);
 
   // Load avatar on mount and when profile closes (avatar may have changed)
   const loadAvatar = () => {
@@ -485,16 +507,66 @@ export default function TradeHeader({
             )}
           </div>
 
-          <button
-            onClick={onSupportClick}
-            className="hidden md:flex relative w-8 h-8 items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
-            style={{ background: "rgba(255,255,255,0.06)" }}
-          >
-            <Bell className="w-4 h-4 text-gray-400" />
-            {unreadTickets > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-red-500 flex items-center justify-center text-[9px] font-bold text-white px-1">{unreadTickets}</span>
+          <div className="hidden md:block relative">
+            <button
+              ref={bellRef}
+              onClick={() => { setShowNotifs(v => !v); setShowBalancePanel(false); setShowProfile(false); }}
+              className="relative w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+              style={{ background: "rgba(255,255,255,0.06)" }}
+            >
+              <Bell className="w-4 h-4 text-gray-400" />
+              {unreadTickets > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-red-500 flex items-center justify-center text-[9px] font-bold text-white px-1">{unreadTickets}</span>
+              )}
+            </button>
+
+            {/* Notification popup */}
+            {showNotifs && (
+              <div ref={notifRef} className="absolute top-full right-0 mt-2 w-72 rounded-xl overflow-hidden shadow-2xl z-[100]"
+                style={{ background: "#161c2c", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <span className="text-xs font-bold text-white">Notificações</span>
+                  {unreadTickets > 0 && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-400">{unreadTickets} nova{unreadTickets > 1 ? "s" : ""}</span>
+                  )}
+                </div>
+                {notifTickets.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-xs text-gray-600">Nenhuma notificação</div>
+                ) : (
+                  <div className="max-h-64 overflow-y-auto">
+                    {notifTickets.map(t => (
+                      <button key={t.id}
+                        onClick={async () => {
+                          await fetch("/api/tickets", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "mark_read", ticketId: t.id }),
+                          });
+                          setNotifTickets(prev => prev.filter(x => x.id !== t.id));
+                          setUnreadTickets(prev => Math.max(0, prev - 1));
+                          setShowNotifs(false);
+                          onSupportClick?.();
+                        }}
+                        className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-white/[0.03] transition-colors"
+                        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                      >
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                          style={{ background: "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.05))" }}>
+                          <span className="text-[11px] font-bold text-emerald-400">S</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[11px] font-bold text-orange-400">Suporte</div>
+                          <div className="text-[12px] text-white font-medium truncate">{t.subject}</div>
+                          <div className="text-[11px] text-gray-500 truncate mt-0.5">{t.last_admin_msg}</div>
+                        </div>
+                        <div className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0 mt-2" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
-          </button>
+          </div>
 
           <button
             onClick={onDepositClick}

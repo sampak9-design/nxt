@@ -17,8 +17,11 @@ export async function GET(req: NextRequest) {
   const tickets = db.prepare(`
     SELECT t.*,
       (SELECT COUNT(*) FROM ticket_messages WHERE ticket_id = t.id AND sender = 'admin'
-       AND created_at > COALESCE((SELECT MAX(created_at) FROM ticket_messages WHERE ticket_id = t.id AND sender = 'user'), 0)
-      ) as unread_admin
+       AND created_at > t.user_read_at
+      ) as unread_admin,
+      (SELECT message FROM ticket_messages WHERE ticket_id = t.id AND sender = 'admin'
+       AND created_at > t.user_read_at ORDER BY created_at DESC LIMIT 1
+      ) as last_admin_msg
     FROM tickets t WHERE t.user_id = ? ORDER BY t.updated_at DESC
   `).all(userId);
 
@@ -70,6 +73,16 @@ export async function POST(req: NextRequest) {
 
     const messages = db.prepare("SELECT * FROM ticket_messages WHERE ticket_id = ? ORDER BY created_at ASC").all(ticketId);
     return NextResponse.json({ messages });
+  }
+
+  // Mark ticket as read by user
+  if (body.action === "mark_read") {
+    const ticketId = body.ticketId;
+    const ticket = db.prepare("SELECT id FROM tickets WHERE id = ? AND user_id = ?").get(ticketId, userId) as any;
+    if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    db.prepare("UPDATE tickets SET user_read_at = ? WHERE id = ?").run(Date.now(), ticketId);
+    return NextResponse.json({ ok: true });
   }
 
   return NextResponse.json({ error: "Invalid action" }, { status: 400 });
