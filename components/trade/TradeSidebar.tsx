@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   BriefcaseBusiness, History, BellRing, Users,
-  Medal, Newspaper, Zap, LifeBuoy, Cog, ChevronRight,
+  Medal, Newspaper, LifeBuoy, Cog, ChevronRight,
 } from "lucide-react";
 import SettingsModal from "./SettingsModal";
 
@@ -62,7 +62,6 @@ export default function TradeSidebar({ activePanel, setActivePanel, openTradeCou
           { icon: Users,     label: "CHATS E\nSUPORTE" },
           { icon: Medal,     label: "TABELA\nDE\nLÍDERES" },
           { icon: Newspaper, label: "Notícias" },
-          { icon: Zap,       label: "Boosters" },
         ].map(({ icon: Icon, label }) => (
           <button
             key={label}
