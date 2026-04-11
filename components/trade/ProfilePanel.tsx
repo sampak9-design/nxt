@@ -29,7 +29,7 @@ const MENU_ITEMS = [
   { icon: ArrowDownCircle, label: "Depositar fundos" },
   { icon: ArrowUpCircle,   label: "Retirar fundos" },
   { icon: FileText,        label: "Verificar documentos",  badge: "__KYC__", badgeColor: "#f97316" },
-  { icon: HelpCircle,      label: "Ajuda" },
+  { icon: HelpCircle,      label: "Contactar o suporte" },
   { icon: DollarSign,      label: "Histórico do saldo" },
   { icon: Clock,           label: "Histórico de trading" },
   { icon: Key,             label: "Trocar senha" },
@@ -86,7 +86,7 @@ export default function ProfilePanel({ pos, onClose, onDepositClick, onSupportCl
     if (label === "Retirar fundos") { window.location.href = "/withdraw"; return; }
     if (label === "Verificar documentos") { window.location.href = "/verify"; return; }
     if (label === "Histórico de trading") { window.location.href = "/history"; return; }
-    if (label === "Ajuda") { onClose(); onSupportClick?.(); return; }
+    if (label === "Contactar o suporte") { onClose(); onSupportClick?.(); return; }
     if (label === "Configurações") { setShowSettings(true); return; }
     if (label === "Sair") {
       fetch("/api/auth/logout", { method: "POST" }).finally(() => {
