@@ -1408,8 +1408,13 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
         series.setData(patched);
       }
       setCandlesVersion(v => v + 1);
-      const applyView = () =>
+      // Force price scale (Y axis) to auto-fit to new asset's price range
+      chart.priceScale("right").applyOptions({ autoScale: true });
+      const applyView = () => {
         chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, patched.length - 30), to: patched.length + 3 });
+        // Re-trigger autoScale after visible range changes so Y axis fits the visible candles
+        chart.priceScale("right").applyOptions({ autoScale: true });
+      };
       requestAnimationFrame(() => requestAnimationFrame(applyView));
       setTimeout(applyView, 200);
       const lc = patched[patched.length - 1];
