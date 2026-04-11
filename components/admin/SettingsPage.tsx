@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, Trash2, Image as ImageIcon, Save } from "lucide-react";
+import { Upload, Trash2, Image as ImageIcon, Save, Settings } from "lucide-react";
+
+const glowCard = {
+  background: "linear-gradient(135deg, rgba(17,24,39,0.9), rgba(17,24,39,0.7))",
+  border: "1px solid rgba(255,255,255,0.07)",
+  boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+};
 
 export default function SettingsPage() {
   const [mapUrl, setMapUrl] = useState<string | null>(null);
@@ -9,6 +15,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const saveSettings = async () => {
@@ -60,39 +67,70 @@ export default function SettingsPage() {
     }
   };
 
-  return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-xl font-bold text-white mb-1">Configurações</h1>
-      <p className="text-sm text-gray-500 mb-6">Personalização visual do gráfico</p>
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f && f.type.startsWith("image/")) handleUpload(f);
+  };
 
-      <div
-        className="rounded-xl p-5"
-        style={{ background: "#161c2c", border: "1px solid rgba(255,255,255,0.06)" }}
-      >
-        <div className="flex items-center gap-2 mb-1">
-          <ImageIcon className="w-4 h-4 text-orange-500" />
-          <h2 className="text-sm font-semibold text-white">Mapa-múndi do fundo do gráfico</h2>
+  return (
+    <div className="flex flex-col gap-6 max-w-3xl">
+      {/* Page title */}
+      <div>
+        <div className="flex items-center gap-2.5 mb-1">
+          <Settings className="w-6 h-6 text-orange-400" />
+          <h1 className="text-2xl font-extrabold tracking-tight text-white">Configurações</h1>
         </div>
-        <p className="text-xs text-gray-500 mb-4">
-          Faça upload de uma imagem (PNG, SVG, JPG, WEBP — máx. 10 MB) para usar como
-          plano de fundo da área do gráfico no traderoom.
+        <p className="text-[10px] uppercase tracking-widest text-gray-500 mt-1 ml-8">
+          Personalização visual do gráfico
+        </p>
+      </div>
+
+      <div className="rounded-2xl p-6" style={glowCard}>
+        <div className="flex items-center gap-2.5 mb-1">
+          <ImageIcon className="w-5 h-5 text-orange-400" />
+          <h2 className="text-sm font-extrabold text-white">Mapa-múndi do fundo do gráfico</h2>
+        </div>
+        <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-5 ml-7">
+          PNG, SVG, JPG, WEBP — máx. 10 MB
         </p>
 
+        {/* Drop zone / Preview */}
         <div
-          className="rounded-lg overflow-hidden mb-4 flex items-center justify-center"
-          style={{ background: "#0d1117", border: "1px dashed rgba(255,255,255,0.08)", minHeight: 220 }}
+          className="rounded-2xl overflow-hidden mb-5 flex items-center justify-center transition-all duration-300 cursor-pointer"
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: dragOver
+              ? "2px dashed rgba(249,115,22,0.6)"
+              : "2px dashed rgba(255,255,255,0.08)",
+            boxShadow: dragOver ? "0 0 24px rgba(249,115,22,0.15)" : "none",
+            minHeight: 240,
+          }}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => !mapUrl && fileRef.current?.click()}
         >
           {mapUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={mapUrl} alt="World map" className="max-w-full max-h-[260px] object-contain" />
+            <img src={mapUrl} alt="World map" className="max-w-full max-h-[280px] object-contain p-4" />
           ) : (
-            <span className="text-xs text-gray-600">Nenhuma imagem definida</span>
+            <div className="flex flex-col items-center gap-2 py-8">
+              <Upload className="w-8 h-8 text-gray-600" />
+              <span className="text-xs text-gray-600">Arraste uma imagem ou clique para selecionar</span>
+            </div>
           )}
         </div>
 
-        {error && <div className="text-xs text-red-400 mb-3">{error}</div>}
+        {error && (
+          <div className="text-xs text-red-400 mb-4 px-3 py-2 rounded-lg"
+            style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}>
+            {error}
+          </div>
+        )}
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <input
             ref={fileRef}
             type="file"
@@ -107,22 +145,29 @@ export default function SettingsPage() {
           <button
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-extrabold text-white transition-all duration-200 hover:-translate-y-[1px] disabled:opacity-50 disabled:hover:translate-y-0"
             style={{
-              background: uploading ? "rgba(255,255,255,0.04)" : "#f97316",
+              background: uploading
+                ? "rgba(255,255,255,0.05)"
+                : "linear-gradient(135deg, #f97316, #ea580c)",
+              boxShadow: uploading ? "none" : "0 0 16px rgba(249,115,22,0.3)",
               color: uploading ? "#64748b" : "#fff",
-              cursor: uploading ? "not-allowed" : "pointer",
             }}
           >
             <Upload className="w-4 h-4" />
-            {uploading ? "Enviando…" : "Enviar imagem"}
+            {uploading ? "Enviando..." : "Enviar imagem"}
           </button>
 
           {mapUrl && (
             <button
               onClick={() => setMapUrl(null)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
-              style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-extrabold transition-all duration-200 hover:-translate-y-[1px]"
+              style={{
+                background: "rgba(239,68,68,0.1)",
+                color: "#ef4444",
+                border: "1px solid rgba(239,68,68,0.25)",
+                boxShadow: "0 0 12px rgba(239,68,68,0.1)",
+              }}
             >
               <Trash2 className="w-4 h-4" />
               Remover
@@ -132,17 +177,25 @@ export default function SettingsPage() {
           <button
             onClick={saveSettings}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ml-auto"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-extrabold text-white transition-all duration-200 hover:-translate-y-[1px] ml-auto disabled:opacity-50 disabled:hover:translate-y-0"
             style={{
-              background: saving ? "rgba(255,255,255,0.04)" : "#22c55e",
+              background: saving
+                ? "rgba(255,255,255,0.05)"
+                : "linear-gradient(135deg, #22c55e, #16a34a)",
+              boxShadow: saving ? "none" : "0 0 16px rgba(34,197,94,0.3)",
               color: saving ? "#64748b" : "#fff",
-              cursor: saving ? "not-allowed" : "pointer",
             }}
           >
             <Save className="w-4 h-4" />
-            {saving ? "Salvando…" : "Salvar"}
+            {saving ? "Salvando..." : "Salvar"}
           </button>
-          {savedFlash && <span className="text-xs text-emerald-400">✓ Salvo</span>}
+
+          {savedFlash && (
+            <span className="text-xs font-extrabold text-emerald-400"
+              style={{ textShadow: "0 0 8px rgba(34,197,94,0.3)" }}>
+              Salvo
+            </span>
+          )}
         </div>
       </div>
     </div>
