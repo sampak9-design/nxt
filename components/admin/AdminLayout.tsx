@@ -4,10 +4,10 @@ import { useState } from "react";
 import {
   LayoutDashboard, Users, ArrowDownCircle, ArrowUpCircle,
   Activity, BarChart2, Layers, LogOut, ChevronLeft, Bell, Plug, ShieldCheck, Settings, Zap,
-  Menu, X,
+  Menu, X, MessageSquare,
 } from "lucide-react";
 
-export type AdminPage = "dashboard" | "users" | "deposits" | "withdrawals" | "kyc" | "trades" | "assets" | "reports" | "integration" | "otc_manip" | "settings";
+export type AdminPage = "dashboard" | "users" | "deposits" | "withdrawals" | "kyc" | "tickets" | "trades" | "assets" | "reports" | "integration" | "otc_manip" | "settings";
 
 const NAV_SECTIONS: { title?: string; items: { id: AdminPage; label: string; icon: React.ReactNode }[] }[] = [
   {
@@ -23,6 +23,7 @@ const NAV_SECTIONS: { title?: string; items: { id: AdminPage; label: string; ico
       { id: "deposits",    label: "Depósitos",   icon: <ArrowDownCircle className="w-[18px] h-[18px]" /> },
       { id: "withdrawals", label: "Saques",       icon: <ArrowUpCircle className="w-[18px] h-[18px]" /> },
       { id: "kyc",         label: "KYC",           icon: <ShieldCheck className="w-[18px] h-[18px]" /> },
+      { id: "tickets",     label: "Tickets",       icon: <MessageSquare className="w-[18px] h-[18px]" /> },
     ],
   },
   {

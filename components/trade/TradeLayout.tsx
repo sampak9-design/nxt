@@ -9,6 +9,7 @@ import TradePanel from "./TradePanel";
 import TradeChart, { prefetchAsset } from "./TradeChart";
 import TradeFooter from "./TradeFooter";
 import DepositModal from "./DepositModal";
+import SupportChat from "./SupportChat";
 import { playOrderOpen, playWin, playLose } from "@/lib/sounds";
 
 export type ApiAsset = {
@@ -171,6 +172,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryEntry[]>([]);
   const [hoverDirection, setHoverDirection] = useState<"up" | "down" | null>(null);
   const [chartGrid, setChartGrid] = useState<number>(1);
+  const [showSupport, setShowSupport] = useState(false);
 
   // Load user info (balance + marketing flag) on mount
   useEffect(() => {
@@ -465,6 +467,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           activePanel={sidebarPanel}
           setActivePanel={setSidebarPanel}
           openTradeCount={activeTrades.filter((t) => !t.result).length}
+          onSupportClick={() => setShowSupport(true)}
         />
         {sidebarPanel === "portfolio" && (
           <PortfolioPanel activeTrades={activeTrades} onClose={() => setSidebarPanel(null)} />
@@ -610,7 +613,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         style={{ background: "#0f1320", borderColor: "rgba(255,255,255,0.06)", color: "#94a3b8", zIndex: 30 }}
       >
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold text-white" style={{ background: "#dc2626" }}>
+          <button onClick={() => setShowSupport(true)} className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold text-white cursor-pointer hover:opacity-80 transition-opacity" style={{ background: "#dc2626" }}>
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
             SUPORTE
           </button>
@@ -633,6 +636,8 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           isMarketing={isMarketing}
         />
       )}
+
+      <SupportChat open={showSupport} onClose={() => setShowSupport(false)} />
     </div>
   );
 }

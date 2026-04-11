@@ -13,6 +13,7 @@ import IntegrationPage from "@/components/admin/IntegrationPage";
 import KycPage        from "@/components/admin/KycPage";
 import SettingsPage   from "@/components/admin/SettingsPage";
 import OtcManipPage   from "@/components/admin/OtcManipPage";
+import TicketsPage    from "@/components/admin/TicketsPage";
 
 export default function AdminPage() {
   const [page, setPage] = useState<AdminPage>("dashboard");
@@ -23,6 +24,7 @@ export default function AdminPage() {
     deposits:    <DepositsPage />,
     withdrawals: <WithdrawalsPage />,
     kyc:         <KycPage />,
+    tickets:     <TicketsPage />,
     trades:      <TradesPage />,
     assets:      <AssetsPage />,
     reports:     <ReportsPage />,

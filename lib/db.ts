@@ -132,6 +132,28 @@ db.exec(`
   );
 `);
 
+// Support tickets
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tickets (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    subject     TEXT    NOT NULL,
+    status      TEXT    NOT NULL DEFAULT 'open' CHECK(status IN ('open','answered','closed')),
+    created_at  INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000),
+    updated_at  INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ticket_messages (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id   INTEGER NOT NULL REFERENCES tickets(id),
+    sender      TEXT    NOT NULL CHECK(sender IN ('user','admin')),
+    message     TEXT    NOT NULL,
+    created_at  INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
+  );
+`);
+
 // Migrations — safe to run multiple times
 try { db.exec(`ALTER TABLE users ADD COLUMN avatar_url TEXT`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN is_marketing INTEGER NOT NULL DEFAULT 0`); } catch {}

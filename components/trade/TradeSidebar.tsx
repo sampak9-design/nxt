@@ -13,9 +13,10 @@ interface Props {
   activePanel: SidebarPanel;
   setActivePanel: (p: SidebarPanel) => void;
   openTradeCount: number;
+  onSupportClick?: () => void;
 }
 
-export default function TradeSidebar({ activePanel, setActivePanel, openTradeCount }: Props) {
+export default function TradeSidebar({ activePanel, setActivePanel, openTradeCount, onSupportClick }: Props) {
   const toggle = (p: SidebarPanel) => setActivePanel(activePanel === p ? null : p);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -58,14 +59,15 @@ export default function TradeSidebar({ activePanel, setActivePanel, openTradeCou
         </button>
 
         {[
-          { icon: BellRing,  label: "MEU\nDESEMPENHO" },
-          { icon: Users,     label: "CHATS E\nSUPORTE" },
-          { icon: Medal,     label: "TABELA\nDE\nLÍDERES" },
-          { icon: Newspaper, label: "Notícias" },
-        ].map(({ icon: Icon, label }) => (
+          { icon: BellRing,  label: "MEU\nDESEMPENHO", onClick: undefined as (() => void) | undefined },
+          { icon: Users,     label: "CHATS E\nSUPORTE", onClick: onSupportClick },
+          { icon: Medal,     label: "TABELA\nDE\nLÍDERES", onClick: undefined },
+          { icon: Newspaper, label: "Notícias", onClick: undefined },
+        ].map(({ icon: Icon, label, onClick }) => (
           <button
             key={label}
             title={label.replace(/\n/g, " ")}
+            onClick={onClick}
             className="flex flex-col items-center gap-1 w-full px-2 py-2.5 rounded text-xs transition-colors"
             style={{ color: "var(--color-icons)" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text)")}
