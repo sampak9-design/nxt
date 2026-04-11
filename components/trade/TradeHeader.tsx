@@ -89,9 +89,22 @@ export default function TradeHeader({
   const [initials, setInitials] = useState("Z");
   const [isVip, setIsVip] = useState(false);
   const [kycStatus, setKycStatus] = useState<string>("none");
+  const [unreadTickets, setUnreadTickets] = useState(0);
   const btnRef     = useRef<HTMLButtonElement>(null);
   const avatarRef  = useRef<HTMLButtonElement>(null);
   const panelRef   = useRef<HTMLDivElement>(null);
+
+  // Poll unread ticket replies every 15s
+  useEffect(() => {
+    const poll = () => {
+      fetch("/api/tickets").then(r => r.json()).then(d => {
+        if (d.tickets) setUnreadTickets(d.tickets.reduce((s: number, t: any) => s + (t.unread_admin ?? 0), 0));
+      }).catch(() => {});
+    };
+    poll();
+    const iv = setInterval(poll, 15000);
+    return () => clearInterval(iv);
+  }, []);
 
   // Load avatar on mount and when profile closes (avatar may have changed)
   const loadAvatar = () => {
@@ -473,10 +486,14 @@ export default function TradeHeader({
           </div>
 
           <button
-            className="hidden md:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+            onClick={onSupportClick}
+            className="hidden md:flex relative w-8 h-8 items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
             style={{ background: "rgba(255,255,255,0.06)" }}
           >
             <Bell className="w-4 h-4 text-gray-400" />
+            {unreadTickets > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-red-500 flex items-center justify-center text-[9px] font-bold text-white px-1">{unreadTickets}</span>
+            )}
           </button>
 
           <button

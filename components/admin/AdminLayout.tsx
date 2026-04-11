@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, ArrowDownCircle, ArrowUpCircle,
   Activity, BarChart2, Layers, LogOut, ChevronLeft, Bell, Plug, ShieldCheck, Settings, Zap,
@@ -55,6 +55,19 @@ interface Props {
 export default function AdminLayout({ children, page, setPage }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openTickets, setOpenTickets] = useState(0);
+
+  // Poll open tickets count every 10s
+  useEffect(() => {
+    const load = () => {
+      fetch("/api/admin/tickets").then(r => r.json()).then(d => {
+        if (d.tickets) setOpenTickets(d.tickets.filter((t: any) => t.status === "open").length);
+      }).catch(() => {});
+    };
+    load();
+    const iv = setInterval(load, 10000);
+    return () => clearInterval(iv);
+  }, []);
 
   const sidebar = (
     <>
@@ -110,9 +123,17 @@ export default function AdminLayout({ children, page, setPage }: Props) {
                       color:      active ? "#f97316" : "#8b95a5",
                     }}
                   >
-                    <span className="flex-shrink-0" style={{ opacity: active ? 1 : 0.7 }}>{item.icon}</span>
+                    <span className="flex-shrink-0 relative" style={{ opacity: active ? 1 : 0.7 }}>
+                      {item.icon}
+                      {item.id === "tickets" && openTickets > 0 && collapsed && (
+                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center text-[9px] font-bold text-white">{openTickets}</span>
+                      )}
+                    </span>
                     {!collapsed && <span>{item.label}</span>}
-                    {active && !collapsed && (
+                    {item.id === "tickets" && openTickets > 0 && !collapsed && (
+                      <span className="ml-auto w-5 h-5 rounded-full bg-red-500 flex items-center justify-center text-[10px] font-bold text-white">{openTickets}</span>
+                    )}
+                    {active && !collapsed && item.id !== "tickets" && (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full bg-orange-500" />
                     )}
                   </button>
@@ -186,9 +207,11 @@ export default function AdminLayout({ children, page, setPage }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors">
+            <button onClick={() => setPage("tickets")} className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors">
               <Bell className="w-[18px] h-[18px] text-gray-500" />
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-orange-500" />
+              {openTickets > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 rounded-full bg-red-500 flex items-center justify-center text-[9px] font-bold text-white px-1">{openTickets}</span>
+              )}
             </button>
             <div className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-white"
               style={{ background: "linear-gradient(135deg, #f97316, #ea580c)" }}>
