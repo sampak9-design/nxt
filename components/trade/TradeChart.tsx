@@ -1699,7 +1699,72 @@ export default function TradeChart({ tab, activeTrades, onPriceChange, expiryMs,
     };
 
     const iv = setInterval(microTick, 100);
-    return () => clearInterval(iv);
+
+    // When browser was minimized, setInterval is throttled and ticks are lost.
+    // On restore, fetch real candles from Deriv/Binance/OTC to fill the gap
+    // so velas that passed while minimized have proper OHLC with wicks.
+    let lastVisibleTime = Date.now();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        lastVisibleTime = Date.now();
+        return;
+      }
+      // Only refetch if we were hidden for more than 3 seconds
+      const hiddenMs = Date.now() - lastVisibleTime;
+      if (hiddenMs < 3000) return;
+
+      const list = candles.current;
+      const s = seriesRef.current;
+      const c = chartRef.current;
+      if (!list.length || !s || !c) return;
+
+      // Fetch real candles and price, then merge
+      Promise.all([fetchCandles(tab.id, tfRef.current), fetchPrice(tab.id)]).then(([data, price]) => {
+        if (!data || data.length < 5) return;
+        if (price && price > 0) realPriceRef.current = price;
+
+        const BRT = -3 * 3600;
+        const fresh = data
+          .map((cd) => ({ ...cd, time: (cd.time + BRT) as UTCTimestamp }))
+          .filter((cd) => cd.open > 0 && cd.high > 0 && cd.low > 0 && cd.close > 0 && cd.high >= cd.low);
+        if (!fresh.length) return;
+
+        // Keep old candles that are before the fresh data range, then append fresh
+        const freshFirstTime = fresh[0].time as number;
+        const kept = list.filter((cd) => (cd.time as number) < freshFirstTime);
+        const merged = [...kept, ...fresh];
+
+        // Update refs
+        candles.current = merged;
+        const lastC = merged[merged.length - 1];
+        if (lastC) {
+          lastPrice.current = price && price > 0 ? price : lastC.close;
+          lastTime.current = lastC.time;
+        }
+
+        // Re-render
+        const ctype = chartTypeRef.current;
+        if (ctype === "line" || ctype === "area") {
+          (s as any).setData(merged.map((cd: Candle) => ({ time: cd.time, value: cd.close })));
+        } else {
+          s.setData(merged);
+        }
+
+        // Keep the same view position (don't jump)
+        c.priceScale("right").applyOptions({ autoScale: true });
+        const applyView = () => {
+          c.timeScale().setVisibleLogicalRange({ from: Math.max(0, merged.length - 30), to: merged.length + 3 });
+          c.priceScale("right").applyOptions({ autoScale: true });
+        };
+        requestAnimationFrame(applyView);
+      }).catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [tab.id, tf]);
 
 
