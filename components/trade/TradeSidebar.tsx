@@ -7,16 +7,15 @@ import {
 } from "lucide-react";
 import SettingsModal from "./SettingsModal";
 
-type SidebarPanel = "portfolio" | "history" | null;
+type SidebarPanel = "portfolio" | "history" | "support" | null;
 
 interface Props {
   activePanel: SidebarPanel;
   setActivePanel: (p: SidebarPanel) => void;
   openTradeCount: number;
-  onSupportClick?: () => void;
 }
 
-export default function TradeSidebar({ activePanel, setActivePanel, openTradeCount, onSupportClick }: Props) {
+export default function TradeSidebar({ activePanel, setActivePanel, openTradeCount }: Props) {
   const toggle = (p: SidebarPanel) => setActivePanel(activePanel === p ? null : p);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -59,17 +58,17 @@ export default function TradeSidebar({ activePanel, setActivePanel, openTradeCou
         </button>
 
         {[
-          { icon: BellRing,  label: "MEU\nDESEMPENHO", onClick: undefined as (() => void) | undefined },
-          { icon: Users,     label: "CHATS E\nSUPORTE", onClick: onSupportClick },
-          { icon: Medal,     label: "TABELA\nDE\nLÍDERES", onClick: undefined },
-          { icon: Newspaper, label: "Notícias", onClick: undefined },
-        ].map(({ icon: Icon, label, onClick }) => (
+          { icon: BellRing,  label: "MEU\nDESEMPENHO", panel: null as SidebarPanel },
+          { icon: Users,     label: "CHATS E\nSUPORTE", panel: "support" as SidebarPanel },
+          { icon: Medal,     label: "TABELA\nDE\nLÍDERES", panel: null as SidebarPanel },
+          { icon: Newspaper, label: "Notícias", panel: null as SidebarPanel },
+        ].map(({ icon: Icon, label, panel }) => (
           <button
             key={label}
             title={label.replace(/\n/g, " ")}
-            onClick={onClick}
+            onClick={panel ? () => toggle(panel) : undefined}
             className="flex flex-col items-center gap-1 w-full px-2 py-2.5 rounded text-xs transition-colors"
-            style={{ color: "var(--color-icons)" }}
+            style={{ color: panel && activePanel === panel ? "var(--color-primary)" : "var(--color-icons)" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text)")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-icons)")}
           >

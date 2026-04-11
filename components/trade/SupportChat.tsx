@@ -131,16 +131,9 @@ export default function SupportChat({ open, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[9998] flex">
-      {/* Panel — left side */}
-      <div
-        className="relative flex flex-col h-full w-full sm:w-[380px] flex-shrink-0"
-        style={{
-          background: "#0f1320",
-          borderRight: "1px solid rgba(255,255,255,0.06)",
-          animation: "support-slide-in 0.25s ease-out",
-        }}
-      >
+    <div className="flex flex-col h-full border-r flex-shrink-0 overflow-hidden"
+      style={{ width: "100%", maxWidth: 360, background: "#0f1320", borderColor: "rgba(255,255,255,0.06)" }}>
+
         {/* Header */}
         <div className="flex items-center gap-3 px-4 h-14 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "#111827" }}>
           {view !== "list" && (
@@ -319,17 +312,6 @@ export default function SupportChat({ open, onClose }: Props) {
             )}
           </>
         )}
-      </div>
-
-      {/* Backdrop — click to close */}
-      <div className="flex-1 hidden sm:block" style={{ background: "rgba(0,0,0,0.5)" }} onClick={onClose} />
-
-      <style>{`
-        @keyframes support-slide-in {
-          from { transform: translateX(-100%); }
-          to   { transform: translateX(0); }
-        }
-      `}</style>
     </div>
   );
 }
