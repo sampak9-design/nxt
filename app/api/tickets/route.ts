@@ -11,7 +11,7 @@ async function getUserId(req: NextRequest): Promise<number | null> {
 
 // GET /api/tickets — list user's tickets
 export async function GET(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const tickets = db.prepare(`
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/tickets — create ticket or send message
 export async function POST(req: NextRequest) {
-  const userId = getUserId(req);
+  const userId = await getUserId(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();

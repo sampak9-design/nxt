@@ -11,6 +11,7 @@ interface Props {
   pos: { top: number; right: number };
   onClose: () => void;
   onDepositClick: () => void;
+  onSupportClick?: () => void;
 }
 
 type User = {
@@ -28,7 +29,7 @@ const MENU_ITEMS = [
   { icon: ArrowDownCircle, label: "Depositar fundos" },
   { icon: ArrowUpCircle,   label: "Retirar fundos" },
   { icon: FileText,        label: "Verificar documentos",  badge: "__KYC__", badgeColor: "#f97316" },
-  { icon: HelpCircle,      label: "Contactar o suporte" },
+  { icon: HelpCircle,      label: "Ajuda" },
   { icon: DollarSign,      label: "Histórico do saldo" },
   { icon: Clock,           label: "Histórico de trading" },
   { icon: Key,             label: "Trocar senha" },
@@ -36,7 +37,7 @@ const MENU_ITEMS = [
   { icon: LogOut,          label: "Sair",                  danger: true },
 ];
 
-export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
+export default function ProfilePanel({ pos, onClose, onDepositClick, onSupportClick }: Props) {
   const ref      = useRef<HTMLDivElement>(null);
   const fileRef  = useRef<HTMLInputElement>(null);
   const [user, setUser]         = useState<User | null>(null);
@@ -85,6 +86,7 @@ export default function ProfilePanel({ pos, onClose, onDepositClick }: Props) {
     if (label === "Retirar fundos") { window.location.href = "/withdraw"; return; }
     if (label === "Verificar documentos") { window.location.href = "/verify"; return; }
     if (label === "Histórico de trading") { window.location.href = "/history"; return; }
+    if (label === "Ajuda") { onClose(); onSupportClick?.(); return; }
     if (label === "Configurações") { setShowSettings(true); return; }
     if (label === "Sair") {
       fetch("/api/auth/logout", { method: "POST" }).finally(() => {

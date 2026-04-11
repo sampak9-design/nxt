@@ -20,6 +20,7 @@ interface Props {
   demoBalance: number;
   realBalance: number;
   onDepositClick: () => void;
+  onSupportClick?: () => void;
   onReloadDemo: () => void;
   chartGrid: number;
   setChartGrid: (n: number) => void;
@@ -61,7 +62,7 @@ export default function TradeHeader({
   allAssets, addTab,
   accountType, setAccountType,
   demoBalance, realBalance,
-  onDepositClick, onReloadDemo,
+  onDepositClick, onSupportClick, onReloadDemo,
   chartGrid, setChartGrid,
   reorderTabs,
   activeTrades,
@@ -512,6 +513,7 @@ export default function TradeHeader({
           pos={profilePos}
           onClose={() => { setShowProfile(false); loadAvatar(); }}
           onDepositClick={onDepositClick}
+          onSupportClick={onSupportClick}
         />
       )}
 
