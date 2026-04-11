@@ -132,7 +132,7 @@ export default function SupportChat({ open, onClose }: Props) {
 
   return (
     <div className="flex flex-col h-full border-r flex-shrink-0 overflow-hidden"
-      style={{ width: "100%", maxWidth: 360, background: "#0f1320", borderColor: "rgba(255,255,255,0.06)" }}>
+      style={{ width: "85vw", maxWidth: 340, background: "#0f1320", borderColor: "rgba(255,255,255,0.06)" }}>
 
         {/* Header */}
         <div className="flex items-center gap-3 px-4 h-14 flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "#111827" }}>
