@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Eye, DollarSign, Users, UserPlus, TrendingUp, X, Shield, ShieldOff, UserCircle, Calendar, Hash, Wallet, Coins } from "lucide-react";
+import { Search, Eye, Pencil, Ban, Unlock, Trash2, DollarSign, Users, UserPlus, TrendingUp, X, Shield, ShieldOff, UserCircle, Calendar, Hash, Wallet, Coins } from "lucide-react";
 
 type DbUser = {
   id: number;
@@ -255,131 +255,121 @@ export default function UsersPage() {
           )}
         </GlowCard>
 
-        {/* Detail panel */}
+        {/* User detail modal */}
         {selected && (
-          <div className="w-80 flex-shrink-0 animate-fade-up">
-            <GlowCard glow="#f97316">
-              <div className="flex flex-col gap-5">
-                {/* Panel header */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-white tracking-tight">Detalhes</span>
-                  <button onClick={() => setSelected(null)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center transition-all text-gray-500 hover:text-white hover:bg-white/5"
-                    style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
+            <div className="w-full max-w-2xl rounded-2xl overflow-hidden animate-fade-up"
+              style={{ background: "linear-gradient(135deg, rgba(17,24,39,0.98), rgba(10,15,30,0.95))", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 48px rgba(0,0,0,0.5)" }}>
 
-                {/* Avatar + name */}
-                <div className="flex flex-col items-center gap-3 py-3">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-extrabold text-white transition-transform duration-200 hover:scale-105"
-                    style={{
-                      background: selected.is_marketing
-                        ? "linear-gradient(135deg, #f97316, #ea580c)"
-                        : "linear-gradient(135deg, #334155, #1e293b)",
-                      boxShadow: selected.is_marketing
-                        ? "0 4px 16px rgba(249,115,22,0.35)"
-                        : "0 4px 16px rgba(0,0,0,0.3)",
-                    }}>
-                    {selected.first_name[0]}
-                  </div>
-                  <div className="text-center">
-                    <div className="text-white font-extrabold text-[15px] tracking-tight">{selected.first_name} {selected.last_name}</div>
-                    <div className="text-gray-500 text-[11px] mt-0.5">{selected.email}</div>
-                  </div>
-                  {selected.is_marketing ? (
-                    <span className="text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider"
-                      style={{ background: "rgba(249,115,22,0.12)", color: "#fb923c", border: "1px solid rgba(249,115,22,0.2)", boxShadow: "0 0 12px rgba(249,115,22,0.08)" }}>
-                      Conta Marketing
-                    </span>
-                  ) : (
-                    <span className="text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider"
-                      style={{ background: "rgba(255,255,255,0.04)", color: "#64748b", border: "1px solid rgba(255,255,255,0.06)" }}>
-                      Conta Normal
-                    </span>
-                  )}
-                </div>
-
-                {/* Balance info cards */}
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: "Saldo Real", value: `R$ ${selected.real_balance.toFixed(2)}`, icon: <Wallet className="w-3 h-3" />, color: "#10b981" },
-                    { label: "Saldo Demo", value: `R$ ${selected.demo_balance.toFixed(2)}`, icon: <Coins className="w-3 h-3" />, color: "#6366f1" },
-                    { label: "ID", value: String(selected.id), icon: <Hash className="w-3 h-3" />, color: "#f97316" },
-                    { label: "Criado", value: selected.created_at.slice(0, 10), icon: <Calendar className="w-3 h-3" />, color: "#3b82f6" },
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-xl p-3 flex flex-col gap-1.5 transition-all duration-200 hover:translate-y-[-1px]"
-                      style={{
-                        background: `linear-gradient(135deg, ${item.color}08, ${item.color}03)`,
-                        border: `1px solid ${item.color}12`,
-                      }}>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-5 h-5 rounded-md flex items-center justify-center"
-                          style={{ background: `${item.color}18`, color: item.color, boxShadow: `0 0 8px ${item.color}10` }}>
-                          {item.icon}
-                        </div>
-                        <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">{item.label}</span>
-                      </div>
-                      <span className="text-[13px] text-white font-extrabold tracking-tight">{item.value}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Marketing toggle */}
-                <button
-                  onClick={() => toggleMarketing(selected)}
-                  disabled={saving}
-                  className="w-full py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+              {/* Header */}
+              <div className="flex items-center gap-4 px-6 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-extrabold text-white"
                   style={{
-                    background: selected.is_marketing
-                      ? "linear-gradient(135deg, rgba(239,68,68,0.12), rgba(239,68,68,0.06))"
-                      : "linear-gradient(135deg, rgba(249,115,22,0.12), rgba(249,115,22,0.06))",
-                    color: selected.is_marketing ? "#f87171" : "#fb923c",
-                    border: `1px solid ${selected.is_marketing ? "rgba(239,68,68,0.2)" : "rgba(249,115,22,0.2)"}`,
-                    boxShadow: `0 0 12px ${selected.is_marketing ? "rgba(239,68,68,0.08)" : "rgba(249,115,22,0.08)"}`,
-                  }}
-                >
-                  {selected.is_marketing ? <ShieldOff className="w-3.5 h-3.5" /> : <Shield className="w-3.5 h-3.5" />}
-                  {selected.is_marketing ? "Remover Conta Marketing" : "Ativar Conta Marketing"}
+                    background: selected.is_marketing ? "linear-gradient(135deg, #f97316, #ea580c)" : "linear-gradient(135deg, #334155, #1e293b)",
+                    boxShadow: selected.is_marketing ? "0 4px 16px rgba(249,115,22,0.3)" : "0 4px 16px rgba(0,0,0,0.3)",
+                  }}>
+                  {selected.first_name[0]}
+                </div>
+                <div className="flex-1">
+                  <div className="text-white font-extrabold text-lg tracking-tight">{selected.first_name} {selected.last_name}</div>
+                  <div className="text-gray-500 text-xs">{selected.email} · ID: {selected.id}</div>
+                </div>
+                <span className="text-[10px] px-3 py-1 rounded-full font-bold uppercase"
+                  style={selected.is_marketing
+                    ? { background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }
+                    : { background: "rgba(59,130,246,0.1)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.2)" }
+                  }>
+                  {selected.is_marketing ? "Fake" : "Usuário"}
+                </span>
+                <button onClick={() => setSelected(null)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 transition-all"
+                  style={{ border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Info cards */}
+              <div className="grid grid-cols-4 gap-3 px-6 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                {[
+                  { label: "Saldo Real", value: `R$ ${selected.real_balance.toFixed(2)}`, color: "#10b981", icon: <Wallet className="w-4 h-4" /> },
+                  { label: "Saldo Demo", value: `R$ ${selected.demo_balance.toFixed(2)}`, color: "#6366f1", icon: <Coins className="w-4 h-4" /> },
+                  { label: "ID", value: String(selected.id), color: "#f97316", icon: <Hash className="w-4 h-4" /> },
+                  { label: "Criado em", value: selected.created_at.slice(0, 10), color: "#3b82f6", icon: <Calendar className="w-4 h-4" /> },
+                ].map(c => (
+                  <div key={c.label} className="rounded-xl p-3"
+                    style={{ background: `${c.color}08`, border: `1px solid ${c.color}12` }}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span style={{ color: c.color }}>{c.icon}</span>
+                      <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">{c.label}</span>
+                    </div>
+                    <div className="text-[15px] text-white font-extrabold tracking-tight">{c.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Balance adjustment */}
+              <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <span className="text-xs text-gray-500 font-semibold flex items-center gap-1.5">
+                  <DollarSign className="w-3.5 h-3.5" /> Ajustar saldo real:
+                </span>
+                <input type="number" placeholder="Novo valor" value={editBalance} onChange={e => setEditBalance(e.target.value)}
+                  className="w-40 rounded-lg px-3 py-2 text-white text-xs outline-none transition-all placeholder:text-gray-600"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  onFocus={e => e.target.style.borderColor = "rgba(249,115,22,0.4)"}
+                  onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.08)"}
+                />
+                <button onClick={applyBalance} disabled={saving}
+                  className="px-4 py-2 rounded-lg text-xs font-bold text-white transition-all hover:opacity-90 disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #10b981, #059669)", boxShadow: "0 0 12px rgba(16,185,129,0.2)" }}>
+                  Aplicar
+                </button>
+              </div>
+
+              {/* Actions */}
+              <div className="px-6 py-5 flex items-center gap-3 flex-wrap">
+                <span className="text-xs text-gray-500 font-semibold uppercase tracking-wider mr-2">Ações:</span>
+
+                {/* Visualizar */}
+                <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all hover:-translate-y-[1px]"
+                  style={{ background: "rgba(59,130,246,0.1)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.2)" }}
+                  title="Visualizar">
+                  <Eye className="w-4 h-4" /> Visualizar
                 </button>
 
-                {/* Balance adjustment */}
-                <div className="flex flex-col gap-2.5" style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "16px" }}>
-                  <span className="text-[10px] text-gray-500 flex items-center gap-1.5 font-semibold uppercase tracking-wider">
-                    <DollarSign className="w-3 h-3" /> Ajustar saldo real
-                  </span>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      placeholder="Novo saldo"
-                      value={editBalance}
-                      onChange={e => setEditBalance(e.target.value)}
-                      className="flex-1 rounded-xl px-3 py-2 text-white text-xs font-medium outline-none transition-all focus:border-gray-600 placeholder:text-gray-600"
-                      style={{
-                        background: "rgba(255,255,255,0.02)",
-                        border: "1px solid rgba(255,255,255,0.06)",
-                      }}
-                    />
-                    <button onClick={applyBalance} disabled={saving}
-                      className="px-4 py-2 rounded-xl text-[11px] font-bold text-white transition-all hover:opacity-90 disabled:opacity-50 uppercase tracking-wider"
-                      style={{
-                        background: "linear-gradient(135deg, rgba(16,185,129,0.8), rgba(5,150,105,0.8))",
-                        border: "1px solid rgba(16,185,129,0.3)",
-                        boxShadow: "0 0 12px rgba(16,185,129,0.15)",
-                      }}>
-                      OK
-                    </button>
-                  </div>
-                </div>
+                {/* Editar */}
+                <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all hover:-translate-y-[1px]"
+                  style={{ background: "rgba(249,115,22,0.1)", color: "#fb923c", border: "1px solid rgba(249,115,22,0.2)" }}
+                  title="Editar">
+                  <Pencil className="w-4 h-4" /> Editar
+                </button>
 
-                {/* Footer info */}
-                <div className="text-[10px] text-gray-600 flex items-center gap-1.5 pt-1"
-                  style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                  <UserCircle className="w-3 h-3" />
-                  ID: {selected.id} · {selected.email}
-                </div>
+                {/* Marketing toggle */}
+                <button onClick={() => toggleMarketing(selected)} disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all hover:-translate-y-[1px] disabled:opacity-50"
+                  style={selected.is_marketing
+                    ? { background: "rgba(34,197,94,0.1)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }
+                    : { background: "rgba(168,85,247,0.1)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.2)" }
+                  }
+                  title={selected.is_marketing ? "Tornar Usuário" : "Tornar Fake"}>
+                  {selected.is_marketing ? <Unlock className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                  {selected.is_marketing ? "Tornar Usuário" : "Tornar Fake"}
+                </button>
+
+                {/* Bloquear */}
+                <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all hover:-translate-y-[1px]"
+                  style={{ background: "rgba(234,179,8,0.1)", color: "#fbbf24", border: "1px solid rgba(234,179,8,0.2)" }}
+                  title="Bloquear">
+                  <Ban className="w-4 h-4" /> Bloquear
+                </button>
+
+                {/* Deletar */}
+                <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all hover:-translate-y-[1px]"
+                  style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}
+                  title="Deletar">
+                  <Trash2 className="w-4 h-4" /> Deletar
+                </button>
               </div>
-            </GlowCard>
+            </div>
           </div>
         )}
       </div>
