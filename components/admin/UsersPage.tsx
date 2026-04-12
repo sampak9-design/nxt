@@ -361,9 +361,9 @@ export default function UsersPage() {
                     ? { background: "rgba(34,197,94,0.1)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }
                     : { background: "rgba(168,85,247,0.1)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.2)" }
                   }
-                  title={selected.is_marketing ? "Tornar Usuário" : "Tornar Fake"}>
+                  title={selected.is_marketing ? "Tornar Usuário" : "Tornar Admin"}>
                   {selected.is_marketing ? <Unlock className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
-                  {selected.is_marketing ? "Tornar Usuário" : "Tornar Fake"}
+                  {selected.is_marketing ? "Tornar Usuário" : "Tornar Admin"}
                 </button>
 
                 {/* Bloquear */}
