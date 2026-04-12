@@ -174,5 +174,6 @@ try { db.exec(`
 `); } catch {}
 
 try { db.exec(`ALTER TABLE tickets ADD COLUMN user_read_at INTEGER NOT NULL DEFAULT 0`); } catch {}
+try { db.exec(`ALTER TABLE users ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0`); } catch {}
 
 export default db;

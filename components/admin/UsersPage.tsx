@@ -11,6 +11,7 @@ type DbUser = {
   real_balance: number;
   demo_balance: number;
   is_marketing: number;
+  is_blocked: number;
   created_at: string;
 };
 
@@ -175,8 +176,8 @@ export default function UsersPage() {
               <table className="w-full text-xs" style={{ minWidth: 600 }}>
                 <thead>
                   <tr>
-                    {["Usuário", "Email", "Saldo Real", "Saldo Demo", "Conta Marketing", "Ações"].map((h, i) => (
-                      <th key={h} className={`${i === 0 ? "text-left" : i === 5 ? "text-center" : "text-left"} py-3 px-4 text-[10px] text-gray-500 font-semibold uppercase tracking-widest`}
+                    {["Usuário", "Email", "Saldo Real", "Saldo Demo", "Conta Marketing", "Status", "Ações"].map((h, i) => (
+                      <th key={h} className={`${i === 0 ? "text-left" : i === 6 ? "text-center" : "text-left"} py-3 px-4 text-[10px] text-gray-500 font-semibold uppercase tracking-widest`}
                         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>{h}</th>
                     ))}
                   </tr>
@@ -233,6 +234,16 @@ export default function UsersPage() {
                           {u.is_marketing ? "Marketing" : "+ Marketing"}
                         </button>
                       </td>
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full"
+                          style={u.is_blocked
+                            ? { background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }
+                            : { background: "rgba(34,197,94,0.1)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }
+                          }>
+                          <span className={`w-1.5 h-1.5 rounded-full ${u.is_blocked ? "bg-red-400" : "bg-green-400"}`} />
+                          {u.is_blocked ? "Bloqueado" : "Ativo"}
+                        </span>
+                      </td>
                       <td className="py-3.5 px-4 text-center">
                         <button onClick={() => setSelected(u)}
                           className="w-8 h-8 rounded-lg flex items-center justify-center transition-all text-gray-500 hover:text-white hover:scale-110"
@@ -247,7 +258,7 @@ export default function UsersPage() {
                     </tr>
                   ))}
                   {filtered.length === 0 && !loading && (
-                    <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-600 text-sm">Nenhum usuário encontrado</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-600 text-sm">Nenhum usuário encontrado</td></tr>
                   )}
                 </tbody>
               </table>
