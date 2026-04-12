@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Eye, DollarSign, Users, X, Shield, ShieldOff, UserCircle, Calendar, Hash, Wallet, Coins } from "lucide-react";
+import { Search, Eye, DollarSign, Users, UserPlus, TrendingUp, X, Shield, ShieldOff, UserCircle, Calendar, Hash, Wallet, Coins } from "lucide-react";
 
 type DbUser = {
   id: number;
@@ -114,7 +114,50 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="flex gap-4 animate-fade-up" style={{ animationDelay: "100ms" }}>
+      {/* Stat cards */}
+      {(() => {
+        const now = Date.now();
+        const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+        const d7 = now - 7 * 86400000;
+        const d30 = now - 30 * 86400000;
+        const toMs = (d: string) => new Date(d).getTime();
+        const today = users.filter(u => toMs(u.created_at) >= todayStart.getTime()).length;
+        const week = users.filter(u => toMs(u.created_at) >= d7).length;
+        const month = users.filter(u => toMs(u.created_at) >= d30).length;
+        const cards = [
+          { label: "Total de Usuários", value: users.length, color: "#f97316", icon: <Users className="w-5 h-5" /> },
+          { label: "Cadastros Hoje", value: today, color: "#f97316", icon: <UserPlus className="w-5 h-5" /> },
+          { label: "Novos (7 dias)", value: week, color: "#22c55e", icon: <UserPlus className="w-5 h-5" /> },
+          { label: "Novos (30 dias)", value: month, color: "#3b82f6", icon: <TrendingUp className="w-5 h-5" /> },
+        ];
+        return (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-fade-up" style={{ animationDelay: "80ms" }}>
+            {cards.map((c, i) => (
+              <div key={c.label} className="relative group">
+                <div className="absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-500"
+                  style={{ background: `linear-gradient(135deg, ${c.color}30, transparent 60%, ${c.color}15)`, filter: "blur(1px)" }} />
+                <div className="relative rounded-2xl p-4 h-full overflow-hidden transition-transform duration-300 group-hover:translate-y-[-2px]"
+                  style={{ background: "linear-gradient(145deg, rgba(17,24,39,0.95), rgba(10,15,30,0.9))", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
+                  <div className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-[0.04]"
+                    style={{ background: `radial-gradient(circle, ${c.color}, transparent)`, transform: "translate(30%, -30%)" }} />
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: `linear-gradient(135deg, ${c.color}20, ${c.color}10)`, boxShadow: `0 0 16px ${c.color}15` }}>
+                      <span style={{ color: c.color }}>{c.icon}</span>
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-gray-500 font-medium">{c.label}</div>
+                      <div className="text-xl font-extrabold text-white tracking-tight">{c.value}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      <div className="flex gap-4 animate-fade-up" style={{ animationDelay: "160ms" }}>
         {/* Table */}
         <GlowCard glow="#3b82f6" className="flex-1">
           {loading ? (
