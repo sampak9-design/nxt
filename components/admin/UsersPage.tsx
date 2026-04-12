@@ -12,6 +12,9 @@ type DbUser = {
   demo_balance: number;
   is_marketing: number;
   created_at: string;
+  wins: number;
+  loses: number;
+  total_trades: number;
 };
 
 function GlowCard({ children, glow, className = "" }: { children: React.ReactNode; glow?: string; className?: string }) {
@@ -172,82 +175,79 @@ export default function UsersPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs" style={{ minWidth: 600 }}>
+              <table className="w-full text-xs" style={{ minWidth: 900 }}>
                 <thead>
                   <tr>
-                    {["Usuário", "Email", "Saldo Real", "Saldo Demo", "Conta Marketing", "Ações"].map((h, i) => (
-                      <th key={h} className={`${i === 0 ? "text-left" : i === 5 ? "text-center" : "text-left"} py-3 px-4 text-[10px] text-gray-500 font-semibold uppercase tracking-widest`}
+                    {["ID", "Nome", "Sobrenome", "Email", "Tipo", "Saldo", "Bônus", "Trades", "Status", "Ações"].map((h) => (
+                      <th key={h} className="text-left py-3 px-3 text-[10px] text-gray-500 font-semibold uppercase tracking-widest"
                         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((u, i) => (
-                    <tr key={u.id}
-                      className="hover:bg-white/[0.02] transition-colors cursor-pointer group"
-                      style={{ borderBottom: i < filtered.length - 1 ? "1px solid rgba(255,255,255,0.03)" : "none" }}
-                    >
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 transition-transform duration-200 group-hover:scale-105"
-                            style={{
-                              background: u.is_marketing
-                                ? "linear-gradient(135deg, #f97316, #ea580c)"
-                                : "linear-gradient(135deg, #334155, #1e293b)",
-                              boxShadow: u.is_marketing
-                                ? "0 2px 8px rgba(249,115,22,0.3)"
-                                : "0 2px 8px rgba(0,0,0,0.2)",
-                            }}>
-                            {u.first_name[0]}
-                          </div>
-                          <span className="text-white font-semibold text-[13px]">{u.first_name} {u.last_name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-[12px] text-gray-400">{u.email}</td>
-                      <td className="py-3.5 px-4">
-                        <span className="text-[13px] text-white font-extrabold font-mono tracking-tight">R$ {u.real_balance.toFixed(2)}</span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="text-[12px] text-gray-400 font-mono">R$ {u.demo_balance.toFixed(2)}</span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <button
-                          onClick={() => toggleMarketing(u)}
-                          disabled={saving}
-                          className="px-3 py-1.5 rounded-full text-[11px] font-bold transition-all hover:opacity-80 disabled:opacity-40 uppercase tracking-wide"
-                          style={u.is_marketing
-                            ? {
-                                background: "rgba(249,115,22,0.15)",
-                                color: "#fb923c",
-                                border: "1px solid rgba(249,115,22,0.25)",
-                                boxShadow: "0 0 12px rgba(249,115,22,0.08)",
-                              }
-                            : {
-                                background: "rgba(255,255,255,0.03)",
-                                color: "#64748b",
-                                border: "1px solid rgba(255,255,255,0.06)",
-                                boxShadow: "0 0 12px rgba(255,255,255,0.02)",
-                              }
-                          }
-                        >
-                          {u.is_marketing ? "Marketing" : "+ Marketing"}
-                        </button>
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <button onClick={() => setSelected(u)}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-all text-gray-500 hover:text-white hover:scale-110"
-                          style={{
-                            background: "rgba(255,255,255,0.03)",
-                            border: "1px solid rgba(255,255,255,0.06)",
-                            boxShadow: "0 0 12px rgba(99,102,241,0.05)",
-                          }}>
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {filtered.map((u, i) => {
+                    const isFake = !!u.is_marketing;
+                    const totalTr = u.total_trades ?? 0;
+                    return (
+                      <tr key={u.id}
+                        className="hover:bg-white/[0.02] transition-colors cursor-pointer group"
+                        style={{ borderBottom: i < filtered.length - 1 ? "1px solid rgba(255,255,255,0.03)" : "none" }}
+                      >
+                        <td className="py-3 px-3">
+                          <span className="text-[11px] text-gray-500 font-mono">{String(u.id).slice(0, 8)}...</span>
+                        </td>
+                        <td className="py-3 px-3 text-white font-semibold text-[13px]">{u.first_name}</td>
+                        <td className="py-3 px-3 text-gray-300 text-[13px]">{u.last_name}</td>
+                        <td className="py-3 px-3 text-[12px] text-gray-400">{u.email}</td>
+                        <td className="py-3 px-3">
+                          <span className="text-[10px] font-bold px-2 py-1 rounded-md"
+                            style={isFake
+                              ? { background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }
+                              : { background: "rgba(59,130,246,0.1)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.2)" }
+                            }>
+                            {isFake ? "Fake" : "Usuário"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="text-[13px] text-white font-extrabold font-mono">R$ {u.real_balance.toFixed(2)}</span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="text-[12px] text-gray-400 font-mono">R$ {u.demo_balance.toFixed(2)}</span>
+                        </td>
+                        <td className="py-3 px-3">
+                          {totalTr > 0 ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] font-bold text-white">{u.wins ?? 0} / {u.loses ?? 0}</span>
+                              <div className="w-12 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                                <div className="h-full rounded-full" style={{
+                                  width: `${totalTr > 0 ? ((u.wins ?? 0) / totalTr) * 100 : 0}%`,
+                                  background: (u.wins ?? 0) >= (u.loses ?? 0) ? "#22c55e" : "#f97316",
+                                }} />
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-gray-600">0 / 0</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full"
+                            style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                            Ativo
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <button onClick={() => setSelected(u)}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all text-gray-500 hover:text-white hover:scale-110"
+                            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {filtered.length === 0 && !loading && (
-                    <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-600 text-sm">Nenhum usuário encontrado</td></tr>
+                    <tr><td colSpan={10} className="px-4 py-12 text-center text-gray-600 text-sm">Nenhum usuário encontrado</td></tr>
                   )}
                 </tbody>
               </table>
