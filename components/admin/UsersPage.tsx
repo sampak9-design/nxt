@@ -12,6 +12,7 @@ type DbUser = {
   demo_balance: number;
   is_marketing: number;
   is_blocked: number;
+  is_admin: number;
   created_at: string;
 };
 
@@ -361,9 +362,21 @@ export default function UsersPage() {
                     ? { background: "rgba(34,197,94,0.1)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)" }
                     : { background: "rgba(168,85,247,0.1)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.2)" }
                   }
-                  title={selected.is_marketing ? "Tornar Usuário" : "Tornar Admin"}>
-                  {selected.is_marketing ? <Unlock className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
-                  {selected.is_marketing ? "Tornar Usuário" : "Tornar Admin"}
+                  title={selected.is_marketing ? "Remover Marketing" : "Tornar Marketing"}>
+                  {selected.is_marketing ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                  {selected.is_marketing ? "Remover Marketing" : "Tornar Marketing"}
+                </button>
+
+                {/* Admin toggle */}
+                <button onClick={() => patch(selected.id, { is_admin: selected.is_admin ? 0 : 1 })} disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all hover:-translate-y-[1px] disabled:opacity-50"
+                  style={selected.is_admin
+                    ? { background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }
+                    : { background: "rgba(16,185,129,0.1)", color: "#4ade80", border: "1px solid rgba(16,185,129,0.2)" }
+                  }
+                  title={selected.is_admin ? "Remover Admin" : "Tornar Admin"}>
+                  {selected.is_admin ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                  {selected.is_admin ? "Remover Admin" : "Tornar Admin"}
                 </button>
 
                 {/* Bloquear */}

@@ -9,7 +9,8 @@ export async function GET() {
     const users = db.prepare(
       `SELECT id, first_name, last_name, email, real_balance, demo_balance,
               COALESCE(is_marketing, 0) as is_marketing,
-              COALESCE(is_blocked, 0) as is_blocked, created_at
+              COALESCE(is_blocked, 0) as is_blocked,
+              COALESCE(is_admin, 0) as is_admin, created_at
        FROM users ORDER BY created_at DESC`
     ).all();
     return NextResponse.json({ users });
