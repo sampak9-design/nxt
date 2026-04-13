@@ -176,9 +176,11 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                         R$ {entry.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </span>
                     </div>
-                    <div className="text-[11px] font-semibold leading-tight" style={{ color: isWin ? "#4ade80" : "#f87171" }}>
-                      {profitLabel} ({pct})
-                    </div>
+                    {!entry.isCopy && (
+                      <div className="text-[11px] font-semibold leading-tight" style={{ color: isWin ? "#4ade80" : "#f87171" }}>
+                        {profitLabel} ({pct})
+                      </div>
+                    )}
                   </div>
 
                   {/* Chevron */}
