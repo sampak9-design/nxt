@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, Trash2, Image as ImageIcon, Save, Settings } from "lucide-react";
+import { Upload, Trash2, Image as ImageIcon, Save, Settings, ShieldCheck } from "lucide-react";
 
 const glowCard = {
   background: "linear-gradient(135deg, rgba(17,24,39,0.9), rgba(17,24,39,0.7))",
@@ -16,6 +16,8 @@ export default function SettingsPage() {
   const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [devtoolsProtection, setDevtoolsProtection] = useState(false);
+  const [savingProtection, setSavingProtection] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const saveSettings = async () => {
@@ -44,11 +46,24 @@ export default function SettingsPage() {
         const url = d?.settings?.world_map_url;
         if (url) setMapUrl(`${url.split("?")[0]}?v=${Date.now()}`);
         else setMapUrl(null);
+        setDevtoolsProtection(d?.settings?.devtools_protection === "true");
       })
       .catch(() => {});
   };
 
   useEffect(() => { loadCurrent(); }, []);
+
+  const toggleProtection = async () => {
+    const next = !devtoolsProtection;
+    setSavingProtection(true);
+    setDevtoolsProtection(next);
+    await fetch("/api/admin/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ devtools_protection: String(next) }),
+    });
+    setSavingProtection(false);
+  };
 
   const handleUpload = async (file: File) => {
     setError(null);
@@ -196,6 +211,45 @@ export default function SettingsPage() {
               Salvo
             </span>
           )}
+        </div>
+      </div>
+      {/* DevTools Protection */}
+      <div className="rounded-2xl p-6" style={glowCard}>
+        <div className="flex items-center gap-2.5 mb-1">
+          <ShieldCheck className="w-5 h-5 text-orange-400" />
+          <h2 className="text-sm font-extrabold text-white">Proteção do código fonte</h2>
+        </div>
+        <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-5 ml-7">
+          Bloqueia inspeção de elementos, DevTools e cópia de conteúdo
+        </p>
+
+        <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div>
+            <div className="text-sm text-white font-semibold">Proteção anti-DevTools</div>
+            <div className="text-[11px] text-gray-500 mt-0.5">
+              Bloqueia F12, clique direito, Ctrl+U, seleção de texto e console
+            </div>
+          </div>
+          <button
+            onClick={toggleProtection}
+            disabled={savingProtection}
+            className="relative w-12 h-7 rounded-full transition-all duration-300 flex-shrink-0 disabled:opacity-50"
+            style={{
+              background: devtoolsProtection
+                ? "linear-gradient(135deg, #22c55e, #16a34a)"
+                : "rgba(255,255,255,0.1)",
+              boxShadow: devtoolsProtection ? "0 0 12px rgba(34,197,94,0.3)" : "none",
+            }}
+          >
+            <div className="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all duration-300"
+              style={{ left: devtoolsProtection ? 26 : 4 }} />
+          </button>
+        </div>
+
+        <div className="mt-4 text-[11px] text-gray-600 leading-relaxed">
+          Quando ativado, os usuários não conseguem: abrir DevTools (F12), inspecionar elementos (clique direito),
+          ver código fonte (Ctrl+U), selecionar/copiar texto, ou usar o console do navegador.
+          <span className="text-yellow-500/70"> Nota: proteção básica — desenvolvedores experientes podem contornar.</span>
         </div>
       </div>
     </div>
