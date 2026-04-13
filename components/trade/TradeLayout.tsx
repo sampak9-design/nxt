@@ -56,6 +56,7 @@ export type TradeHistoryEntry = {
   exitPrice: number;
   startedAt: number;   // ms when trade was placed (entryTime * 1000)
   resolvedAt: number;  // ms when trade resolved
+  isCopy?: boolean;
 };
 
 // Crypto → CoinGecko small images
@@ -185,29 +186,48 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
     }).catch(() => {});
   }, []);
 
-  // Load trade history from server on mount
+  // Load trade history + active copy trades on mount
   useEffect(() => {
+    // Resolve expired copy trades first
+    fetch("/api/copy-trading/resolve").catch(() => {});
+
     fetch("/api/trades?limit=100")
       .then((r) => r.json())
       .then((data) => {
         if (!Array.isArray(data.trades)) return;
-        const entries: TradeHistoryEntry[] = data.trades.map((t: any) => ({
-          id:          t.id,
-          tabId:       t.asset_id,
-          tabName:     t.asset_name,
-          iconUrl:     null,
-          direction:   t.direction,
-          amount:      t.amount,
-          payout:      t.payout,
-          result:      t.result,
-          netProfit:   t.net_profit,
-          accountType: t.account_type,
-          entryPrice:  t.entry_price,
-          exitPrice:   t.exit_price,
-          startedAt:   t.started_at,
-          resolvedAt:  t.resolved_at,
-        }));
-        setTradeHistory(entries);
+
+        const resolved: TradeHistoryEntry[] = [];
+        const activeCopy: ActiveTrade[] = [];
+
+        for (const t of data.trades) {
+          if (t.result) {
+            resolved.push({
+              id: t.id, tabId: t.asset_id, tabName: t.asset_name, iconUrl: null,
+              direction: t.direction, amount: t.amount, payout: t.payout,
+              result: t.result, netProfit: t.net_profit, accountType: t.account_type,
+              entryPrice: t.entry_price, exitPrice: t.exit_price,
+              startedAt: t.started_at, resolvedAt: t.resolved_at,
+              isCopy: !!t.is_copy,
+            });
+          } else if (t.is_copy && t.expires_at > Date.now()) {
+            // Active copy trade — show in portfolio
+            activeCopy.push({
+              id: t.id, tabId: t.asset_id, tabName: `${t.asset_name} (Copy)`,
+              tabIconUrl: null, direction: t.direction, amount: t.amount,
+              entryPrice: t.entry_price, entryTime: Math.floor(t.started_at / 1000),
+              expiresAt: t.expires_at, accountType: "real", payout: t.payout,
+            });
+          }
+        }
+
+        setTradeHistory(resolved);
+        if (activeCopy.length > 0) {
+          setActiveTrades(prev => {
+            const existingIds = new Set(prev.map(t => t.id));
+            const newCopy = activeCopy.filter(t => !existingIds.has(t.id));
+            return [...prev, ...newCopy];
+          });
+        }
       })
       .catch(() => {});
   }, []);

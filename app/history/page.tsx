@@ -20,6 +20,7 @@ type Trade = {
   exit_price: number;
   started_at: number;
   resolved_at: number;
+  is_copy: number;
 };
 
 type Tab = "trading" | "saldo";
@@ -301,7 +302,7 @@ export default function HistoryPage() {
     const q = accountFilter === "all" ? "" : `&account=${accountFilter}`;
     fetch(`/api/trades?limit=500${q}`)
       .then(r => r.json())
-      .then(d => { setTrades(d.trades ?? []); setPage(1); })
+      .then(d => { setTrades((d.trades ?? []).filter((t: Trade) => t.result)); setPage(1); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [accountFilter]);
@@ -467,7 +468,10 @@ export default function HistoryPage() {
                           <div className="text-xs text-gray-700">{fmtDate(t.started_at)}.000</div>
                           <div className="text-xs text-gray-400">{fmtDate(t.resolved_at)}</div>
                         </td>
-                        <td className="py-3 px-4 font-semibold text-gray-900">{t.asset_name}</td>
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-gray-900">{t.asset_name}</div>
+                          {t.is_copy === 1 && <div className="text-[10px] font-bold text-orange-500">Copy Trading</div>}
+                        </td>
                         <td className="py-3 px-4">
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
                             style={{

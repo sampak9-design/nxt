@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
   const limit   = Math.min(parseInt(searchParams.get("limit") ?? "100"), 500);
 
   const rows = account
-    ? db.prepare("SELECT * FROM trades WHERE user_id = ? AND account_type = ? ORDER BY resolved_at DESC LIMIT ?").all(payload.userId, account, limit)
-    : db.prepare("SELECT * FROM trades WHERE user_id = ? ORDER BY resolved_at DESC LIMIT ?").all(payload.userId, limit);
+    ? db.prepare("SELECT *, COALESCE(is_copy, 0) as is_copy FROM trades WHERE user_id = ? AND account_type = ? ORDER BY resolved_at DESC LIMIT ?").all(payload.userId, account, limit)
+    : db.prepare("SELECT *, COALESCE(is_copy, 0) as is_copy FROM trades WHERE user_id = ? ORDER BY resolved_at DESC LIMIT ?").all(payload.userId, limit);
 
   return NextResponse.json({ trades: rows });
 }
