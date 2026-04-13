@@ -154,9 +154,10 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                   style={{ borderColor: "rgba(255,255,255,0.05)" }}
                 >
                   {/* Time / Date */}
-                  <div className="flex flex-col items-end flex-shrink-0" style={{ minWidth: 36 }}>
+                  <div className="flex flex-col items-end flex-shrink-0" style={{ minWidth: entry.isCopy ? 58 : 36 }}>
                     <span className="text-[12px] font-semibold text-white leading-tight">{fmtTime(entry.resolvedAt)}</span>
                     <span className="text-[10px] text-gray-500 leading-tight">{fmtDateShort(entry.resolvedAt)}</span>
+                    {entry.isCopy && <span className="text-[8px] font-bold text-orange-400 leading-tight mt-0.5">Copy Trading</span>}
                   </div>
 
                   {/* Icon */}
@@ -165,7 +166,6 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                       ? <img src={entry.iconUrl} alt={entry.tabName} className="w-7 h-7 rounded-full object-contain flex-shrink-0" />
                       : <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>{entry.tabId.replace("-OTC","").slice(0,2)}</div>
                     }
-                    {entry.isCopy && <div className="text-[9px] font-bold text-orange-400">Copy Trading</div>}
                   </div>
 
                   {/* Amount + result */}
