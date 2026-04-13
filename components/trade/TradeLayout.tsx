@@ -419,6 +419,21 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         }),
       }).catch(() => {});
     }
+
+    // Notify copy trading system (server copies trade to followers)
+    fetch("/api/copy-trading/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        asset_id: activeTab.id,
+        asset_name: activeTab.name,
+        direction,
+        amount,
+        entry_price: trade.entryPrice,
+        expires_at: trade.expiresAt,
+        payout: activeTab.payout,
+      }),
+    }).catch(() => {});
   };
 
   const handleDeposit = (amount: number) => {

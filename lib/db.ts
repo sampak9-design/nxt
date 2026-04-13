@@ -196,7 +196,7 @@ db.exec(`
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     room_id      INTEGER NOT NULL REFERENCES copy_rooms(id),
     user_id      INTEGER NOT NULL REFERENCES users(id),
-    status       TEXT    NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','active','paused','cancelled')),
+    status       TEXT    NOT NULL DEFAULT 'pending',
     followed_at  INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000),
     UNIQUE(room_id, user_id)
   );
