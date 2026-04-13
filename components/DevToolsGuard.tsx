@@ -97,7 +97,12 @@ export default function DevToolsGuard() {
 
     const onSelect = (e: Event) => { e.preventDefault(); };
     const onCopy = (e: Event) => { e.preventDefault(); };
-    const onDrag = (e: DragEvent) => { e.preventDefault(); };
+    const onDrag = (e: DragEvent) => {
+      // Don't block drag on elements with draggable attribute (e.g. tab reorder)
+      const el = e.target as HTMLElement;
+      if (el?.closest?.("[draggable=true]") || el?.getAttribute?.("draggable") === "true") return;
+      e.preventDefault();
+    };
 
     document.addEventListener("selectstart", onSelect);
     document.addEventListener("copy", onCopy);
