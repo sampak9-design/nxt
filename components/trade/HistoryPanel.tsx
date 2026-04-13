@@ -171,7 +171,7 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                   </div>
 
                   {/* Amount + result */}
-                  <div className="flex flex-col items-end flex-shrink-0">
+                  <div className="flex flex-col items-end flex-shrink-0 ml-auto">
                     <div className="flex items-center gap-1">
                       <span style={{ color: isUp ? "#4ade80" : "#f87171", fontSize: 10 }}>{isUp ? "▲" : "▼"}</span>
                       <span className="text-[12px] font-semibold text-white">
