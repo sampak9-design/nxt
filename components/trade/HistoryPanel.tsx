@@ -82,7 +82,9 @@ interface Props {
 export default function HistoryPanel({ history, accountType, onClose }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const filtered = history.filter((h) => h.accountType === accountType);
+  const filtered = history
+    .filter((h) => h.accountType === accountType)
+    .sort((a, b) => b.resolvedAt - a.resolvedAt);
 
   return (
     <div
