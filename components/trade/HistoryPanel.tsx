@@ -167,7 +167,10 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                     }
                     <div className="min-w-0">
                       <div className="text-[12px] font-semibold text-white truncate leading-tight">{entry.tabName}</div>
-                      <div className="text-[10px] text-gray-500 leading-tight">Binária</div>
+                      {entry.isCopy
+                        ? <div className="text-[9px] font-bold text-orange-400 leading-tight">Copy Trading</div>
+                        : <div className="text-[10px] text-gray-500 leading-tight">Binária</div>
+                      }
                     </div>
                   </div>
 
