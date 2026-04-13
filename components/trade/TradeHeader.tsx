@@ -326,9 +326,8 @@ export default function TradeHeader({
               >
                 <button
                   type="button"
-                  draggable={false}
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); removeTab(tab.id); }}
-                  className="absolute top-0.5 left-0.5 w-3.5 h-3.5 flex items-center justify-center opacity-50 hover:opacity-100 z-10"
+                  onClick={(e) => { e.stopPropagation(); removeTab(tab.id); }}
+                  className="absolute top-0.5 left-0.5 w-3.5 h-3.5 flex items-center justify-center opacity-50 hover:opacity-100"
                 >
                   <X className="w-2.5 h-2.5 text-gray-400" strokeWidth={3} />
                 </button>
