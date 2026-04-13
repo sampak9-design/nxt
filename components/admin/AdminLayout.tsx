@@ -153,10 +153,14 @@ export default function AdminLayout({ children, page, setPage }: Props) {
         </div>
         <button
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-gray-500 hover:text-white hover:bg-white/5 transition-all"
-          onClick={() => window.location.href = "/traderoom"}
+          onClick={() => {
+            fetch("/api/admin/auth", { method: "DELETE" }).finally(() => {
+              window.location.href = "/admin/login";
+            });
+          }}
         >
           <LogOut className="w-[18px] h-[18px]" />
-          {!collapsed && <span>Voltar ao Trade</span>}
+          {!collapsed && <span>Sair</span>}
         </button>
       </div>
     </>
