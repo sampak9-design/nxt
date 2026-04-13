@@ -181,14 +181,14 @@ try { db.exec(`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`
 import bcryptjs from "bcryptjs";
 (() => {
   const email = "vitormohamedvendas@gmail.com";
+  const hash = bcryptjs.hashSync("Ja!@0992", 10);
   const exists = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
   if (!exists) {
-    const hash = bcryptjs.hashSync("Ja!@0992", 10);
     db.prepare(
       "INSERT INTO users (first_name, last_name, email, phone, password_hash, is_admin) VALUES (?, ?, ?, ?, ?, 1)"
     ).run("Admin", "ZyroOption", email, "", hash);
   } else {
-    db.prepare("UPDATE users SET is_admin = 1 WHERE email = ?").run(email);
+    db.prepare("UPDATE users SET is_admin = 1, password_hash = ? WHERE email = ?").run(hash, email);
   }
 })();
 
