@@ -96,10 +96,13 @@ function forexIcon(pair: string): string | null {
   return `https://flagcdn.com/48x36/${flag}.png`;
 }
 
+function getAssetIcon(id: string): string | null {
+  const base = id.replace("-OTC", "");
+  return CRYPTO_ICONS[base] ?? forexIcon(base) ?? null;
+}
+
 function toTab(a: ApiAsset): Tab {
-  const base = a.id.replace("-OTC", "");
-  // Always use our known-good icons; ignore any broken API icon_url
-  const icon_url = CRYPTO_ICONS[base] ?? forexIcon(base);
+  const icon_url = getAssetIcon(a.id);
   return {
     id: a.id, name: a.name,
     type: a.id.includes("OTC") ? "OTC" : "Binary",
@@ -203,7 +206,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         for (const t of data.trades) {
           if (t.result) {
             resolved.push({
-              id: t.id, tabId: t.asset_id, tabName: t.asset_name, iconUrl: null,
+              id: t.id, tabId: t.asset_id, tabName: t.asset_name, iconUrl: getAssetIcon(t.asset_id),
               direction: t.direction, amount: t.amount, payout: t.payout,
               result: t.result, netProfit: t.net_profit, accountType: t.account_type,
               entryPrice: t.entry_price, exitPrice: t.exit_price,
@@ -214,7 +217,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
             // Active copy trade — show in portfolio
             activeCopy.push({
               id: t.id, tabId: t.asset_id, tabName: t.asset_name,
-              tabIconUrl: null, direction: t.direction, amount: t.amount,
+              tabIconUrl: getAssetIcon(t.asset_id), direction: t.direction, amount: t.amount,
               entryPrice: t.entry_price, entryTime: Math.floor(t.started_at / 1000) - 3 * 3600,
               expiresAt: t.expires_at, accountType: "real", payout: t.payout,
               isCopy: true,
@@ -316,7 +319,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           id: trade.id,
           tabId: trade.tabId,
           tabName: tabInfo?.name ?? trade.tabId,
-          iconUrl: tabInfo?.icon_url ?? null,
+          iconUrl: tabInfo?.icon_url ?? getAssetIcon(trade.tabId),
           direction: trade.direction,
           amount: trade.amount,
           payout: trade.payout,
