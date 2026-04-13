@@ -161,7 +161,7 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                   </div>
 
                   {/* Icon */}
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {entry.iconUrl
                       ? <img src={entry.iconUrl} alt={entry.tabName} className="w-7 h-7 rounded-full object-contain flex-shrink-0" />
                       : <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>{entry.tabId.replace("-OTC","").slice(0,2)}</div>
