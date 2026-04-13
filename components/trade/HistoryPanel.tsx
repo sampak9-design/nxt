@@ -157,6 +157,9 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                   <div className="flex flex-col items-end flex-shrink-0" style={{ minWidth: 36 }}>
                     <span className="text-[12px] font-semibold text-white leading-tight">{fmtTime(entry.resolvedAt)}</span>
                     <span className="text-[10px] text-gray-500 leading-tight">{fmtDateShort(entry.resolvedAt)}</span>
+                    {entry.isCopy && (
+                      <span className="text-[7px] font-bold mt-0.5 px-1 py-0.5 rounded" style={{ background: "rgba(249,115,22,0.15)", color: "#fb923c" }}>COPY</span>
+                    )}
                   </div>
 
                   {/* Icon + name */}
@@ -167,10 +170,7 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                     }
                     <div className="min-w-0">
                       <div className="text-[12px] font-semibold text-white truncate leading-tight">{entry.tabName}</div>
-                      {entry.isCopy
-                        ? <span className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(249,115,22,0.15)", color: "#fb923c" }}>Copy Trading</span>
-                        : <div className="text-[10px] text-gray-500 leading-tight">Binária</div>
-                      }
+                      <div className="text-[10px] text-gray-500 leading-tight">Binária</div>
                     </div>
                   </div>
 
