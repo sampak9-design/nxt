@@ -150,47 +150,49 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                 {/* Row */}
                 <button
                   onClick={() => setExpandedId(expanded ? null : entry.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 border-b text-left transition-colors hover:bg-white/5"
+                  className="w-full flex flex-col px-4 py-3 border-b text-left transition-colors hover:bg-white/5"
                   style={{ borderColor: "rgba(255,255,255,0.05)" }}
                 >
-                  {/* Time / Date */}
-                  <div className="flex flex-col items-end flex-shrink-0" style={{ minWidth: 36 }}>
-                    <span className="text-[12px] font-semibold text-white leading-tight">{fmtTime(entry.resolvedAt)}</span>
-                    <span className="text-[10px] text-gray-500 leading-tight">{fmtDateShort(entry.resolvedAt)}</span>
-                  </div>
-
-                  {/* Icon */}
-                  <div className="flex-1 min-w-0">
-                    {entry.iconUrl
-                      ? <img src={entry.iconUrl} alt={entry.tabName} className="w-7 h-7 rounded-full object-contain flex-shrink-0" />
-                      : <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>{entry.tabId.replace("-OTC","").slice(0,2)}</div>
-                    }
-                  </div>
-
-                  {/* Amount + result */}
-                  <div className="flex flex-col items-end flex-shrink-0">
-                    <div className="flex items-center gap-1">
-                      <span style={{ color: isUp ? "#4ade80" : "#f87171", fontSize: 10 }}>{isUp ? "▲" : "▼"}</span>
-                      <span className="text-[12px] font-semibold text-white">
-                        R$ {entry.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </span>
+                  <div className="flex items-center gap-3 w-full">
+                    {/* Time / Date */}
+                    <div className="flex flex-col items-end flex-shrink-0" style={{ minWidth: 36 }}>
+                      <span className="text-[12px] font-semibold text-white leading-tight">{fmtTime(entry.resolvedAt)}</span>
+                      <span className="text-[10px] text-gray-500 leading-tight">{fmtDateShort(entry.resolvedAt)}</span>
                     </div>
-                    <div className="text-[11px] font-semibold leading-tight" style={{ color: isWin ? "#4ade80" : "#f87171" }}>
-                      {profitLabel} ({pct})
-                    </div>
-                  </div>
 
-                  {/* Chevron */}
-                  <ChevronDown
-                    className="w-3.5 h-3.5 text-gray-600 flex-shrink-0 transition-transform"
-                    style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
-                  />
+                    {/* Icon */}
+                    <div className="flex-1 min-w-0">
+                      {entry.iconUrl
+                        ? <img src={entry.iconUrl} alt={entry.tabName} className="w-7 h-7 rounded-full object-contain flex-shrink-0" />
+                        : <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: "rgba(255,255,255,0.1)" }}>{entry.tabId.replace("-OTC","").slice(0,2)}</div>
+                      }
+                    </div>
+
+                    {/* Amount + result */}
+                    <div className="flex flex-col items-end flex-shrink-0">
+                      <div className="flex items-center gap-1">
+                        <span style={{ color: isUp ? "#4ade80" : "#f87171", fontSize: 10 }}>{isUp ? "▲" : "▼"}</span>
+                        <span className="text-[12px] font-semibold text-white">
+                          R$ {entry.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="text-[11px] font-semibold leading-tight" style={{ color: isWin ? "#4ade80" : "#f87171" }}>
+                        {profitLabel} ({pct})
+                      </div>
+                    </div>
+
+                    {/* Chevron */}
+                    <ChevronDown
+                      className="w-3.5 h-3.5 text-gray-600 flex-shrink-0 transition-transform"
+                      style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
+                    />
+                  </div>
+                  {entry.isCopy && (
+                    <div className="mt-1.5 ml-[48px]">
+                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(249,115,22,0.15)", color: "#fb923c" }}>Copy Trading</span>
+                    </div>
+                  )}
                 </button>
-                {entry.isCopy && (
-                  <div className="px-4 pb-1 -mt-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(249,115,22,0.15)", color: "#fb923c" }}>Copy Trading</span>
-                  </div>
-                )}
 
                 {/* Expanded detail */}
                 {expanded && <DetailRows entry={entry} />}
