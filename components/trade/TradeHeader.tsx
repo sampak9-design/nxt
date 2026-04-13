@@ -328,8 +328,8 @@ export default function TradeHeader({
                   className="absolute top-0 left-0 w-5 h-5 flex items-center justify-center z-10 opacity-0 hover:opacity-100 transition-opacity"
                   onClickCapture={(e) => { e.stopPropagation(); removeTab(tab.id); }}
                 >
-                  <div className="w-4 h-4 rounded-full flex items-center justify-center bg-black/50 hover:bg-red-500/80 transition-colors cursor-pointer">
-                    <X className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                  <div className="w-4 h-4 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 transition-colors cursor-pointer">
+                    <X className="w-2.5 h-2.5 text-gray-400" strokeWidth={3} />
                   </div>
                 </div>
                 <div className="relative flex-shrink-0" style={{ width: 28, height: 28 }}>
