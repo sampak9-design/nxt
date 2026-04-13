@@ -157,7 +157,7 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                   <div className="flex flex-col items-end flex-shrink-0" style={{ minWidth: entry.isCopy ? 58 : 36 }}>
                     <span className="text-[12px] font-semibold text-white leading-tight">{fmtTime(entry.resolvedAt)}</span>
                     <span className="text-[10px] text-gray-500 leading-tight">{fmtDateShort(entry.resolvedAt)}</span>
-                    {entry.isCopy && <span className="text-[8px] font-bold text-orange-400 leading-tight mt-0.5">Copy Trading</span>}
+                    {entry.isCopy && <span className="text-[8px] font-bold text-orange-400 leading-tight mt-0.5">Copy</span>}
                   </div>
 
                   {/* Icon */}
