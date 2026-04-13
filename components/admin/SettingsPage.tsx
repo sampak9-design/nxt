@@ -16,8 +16,14 @@ export default function SettingsPage() {
   const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [devtoolsProtection, setDevtoolsProtection] = useState(false);
-  const [savingProtection, setSavingProtection] = useState(false);
+  const [protections, setProtections] = useState<Record<string, boolean>>({
+    prot_block_devtools: false,
+    prot_debugger_trap: false,
+    prot_anti_copy: false,
+    prot_detect_devtools: false,
+    prot_block_print: false,
+  });
+  const [savingProt, setSavingProt] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const saveSettings = async () => {
@@ -46,23 +52,30 @@ export default function SettingsPage() {
         const url = d?.settings?.world_map_url;
         if (url) setMapUrl(`${url.split("?")[0]}?v=${Date.now()}`);
         else setMapUrl(null);
-        setDevtoolsProtection(d?.settings?.devtools_protection === "true");
+        const s = d?.settings ?? {};
+        setProtections({
+          prot_block_devtools: s.prot_block_devtools === "true",
+          prot_debugger_trap: s.prot_debugger_trap === "true",
+          prot_anti_copy: s.prot_anti_copy === "true",
+          prot_detect_devtools: s.prot_detect_devtools === "true",
+          prot_block_print: s.prot_block_print === "true",
+        });
       })
       .catch(() => {});
   };
 
   useEffect(() => { loadCurrent(); }, []);
 
-  const toggleProtection = async () => {
-    const next = !devtoolsProtection;
-    setSavingProtection(true);
-    setDevtoolsProtection(next);
+  const toggleProt = async (key: string) => {
+    const next = !protections[key];
+    setSavingProt(key);
+    setProtections(p => ({ ...p, [key]: next }));
     await fetch("/api/admin/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ devtools_protection: String(next) }),
+      body: JSON.stringify({ [key]: String(next) }),
     });
-    setSavingProtection(false);
+    setSavingProt(null);
   };
 
   const handleUpload = async (file: File) => {
@@ -213,43 +226,52 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
-      {/* DevTools Protection */}
+      {/* Protection toggles */}
       <div className="rounded-2xl p-6" style={glowCard}>
         <div className="flex items-center gap-2.5 mb-1">
           <ShieldCheck className="w-5 h-5 text-orange-400" />
           <h2 className="text-sm font-extrabold text-white">Proteção do código fonte</h2>
         </div>
         <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-5 ml-7">
-          Bloqueia inspeção de elementos, DevTools e cópia de conteúdo
+          Controle individual de cada camada de proteção
         </p>
 
-        <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <div>
-            <div className="text-sm text-white font-semibold">Proteção anti-DevTools</div>
-            <div className="text-[11px] text-gray-500 mt-0.5">
-              Bloqueia F12, clique direito, Ctrl+U, seleção de texto e console
-            </div>
-          </div>
-          <button
-            onClick={toggleProtection}
-            disabled={savingProtection}
-            className="relative w-12 h-7 rounded-full transition-all duration-300 flex-shrink-0 disabled:opacity-50"
-            style={{
-              background: devtoolsProtection
-                ? "linear-gradient(135deg, #22c55e, #16a34a)"
-                : "rgba(255,255,255,0.1)",
-              boxShadow: devtoolsProtection ? "0 0 12px rgba(34,197,94,0.3)" : "none",
-            }}
-          >
-            <div className="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all duration-300"
-              style={{ left: devtoolsProtection ? 26 : 4 }} />
-          </button>
+        <div className="flex flex-col gap-3">
+          {[
+            { key: "prot_block_devtools", label: "Bloquear DevTools", desc: "Bloqueia F12, clique direito, Ctrl+U, Ctrl+Shift+I e limpa o console" },
+            { key: "prot_debugger_trap", label: "Debugger Trap", desc: "Loop infinito de debugger que trava o DevTools se alguém abrir" },
+            { key: "prot_anti_copy", label: "Anti-Cópia", desc: "Desabilita seleção de texto, copiar, colar e arrastar imagens" },
+            { key: "prot_detect_devtools", label: "Detectar DevTools", desc: "Detecta DevTools aberto e mostra tela vermelha de bloqueio" },
+            { key: "prot_block_print", label: "Bloquear Print", desc: "Esconde conteúdo ao imprimir e bloqueia Print Screen" },
+          ].map(({ key, label, desc }) => {
+            const on = protections[key];
+            return (
+              <div key={key} className="flex items-center justify-between p-4 rounded-xl transition-all"
+                style={{ background: on ? "rgba(34,197,94,0.04)" : "rgba(255,255,255,0.02)", border: `1px solid ${on ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.06)"}` }}>
+                <div>
+                  <div className="text-sm text-white font-semibold">{label}</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">{desc}</div>
+                </div>
+                <button
+                  onClick={() => toggleProt(key)}
+                  disabled={savingProt === key}
+                  className="relative w-12 h-7 rounded-full transition-all duration-300 flex-shrink-0 disabled:opacity-50"
+                  style={{
+                    background: on ? "linear-gradient(135deg, #22c55e, #16a34a)" : "rgba(255,255,255,0.1)",
+                    boxShadow: on ? "0 0 12px rgba(34,197,94,0.3)" : "none",
+                  }}
+                >
+                  <div className="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all duration-300"
+                    style={{ left: on ? 26 : 4 }} />
+                </button>
+              </div>
+            );
+          })}
         </div>
 
         <div className="mt-4 text-[11px] text-gray-600 leading-relaxed">
-          Quando ativado, os usuários não conseguem: abrir DevTools (F12), inspecionar elementos (clique direito),
-          ver código fonte (Ctrl+U), selecionar/copiar texto, ou usar o console do navegador.
-          <span className="text-yellow-500/70"> Nota: proteção básica — desenvolvedores experientes podem contornar.</span>
+          Essas proteções não se aplicam no painel admin.
+          <span className="text-yellow-500/70"> Nota: proteções frontend podem ser contornadas por desenvolvedores experientes, mas bloqueiam 90% dos curiosos.</span>
         </div>
       </div>
     </div>
