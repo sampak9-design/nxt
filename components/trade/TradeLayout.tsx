@@ -36,6 +36,7 @@ export type ActiveTrade = {
   accountType: "practice" | "real";
   payout: number;
   result?: "win" | "lose";
+  isCopy?: boolean;
 };
 
 
@@ -212,10 +213,11 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           } else if (t.is_copy && t.expires_at > Date.now()) {
             // Active copy trade — show in portfolio
             activeCopy.push({
-              id: t.id, tabId: t.asset_id, tabName: `${t.asset_name} (Copy)`,
+              id: t.id, tabId: t.asset_id, tabName: t.asset_name,
               tabIconUrl: null, direction: t.direction, amount: t.amount,
               entryPrice: t.entry_price, entryTime: Math.floor(t.started_at / 1000),
               expiresAt: t.expires_at, accountType: "real", payout: t.payout,
+              isCopy: true,
             });
           }
         }
@@ -325,6 +327,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
           exitPrice: price,
           startedAt: trade.entryTime * 1000,
           resolvedAt: Date.now(),
+          isCopy: trade.isCopy,
         });
       });
 

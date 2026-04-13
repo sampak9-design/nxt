@@ -97,6 +97,7 @@ export default function TradeFooter({ activeTrades }: Props) {
                               : <TrendingDown className="w-3 h-3 text-red-400" />}
                           </div>
                           <span className="text-white font-medium">{t.tabName}</span>
+                          {t.isCopy && <span className="text-[9px] font-bold text-orange-400 ml-1">COPY</span>}
                         </div>
                       </td>
                       <td className="py-2 px-3 text-gray-400">Blitz</td>
