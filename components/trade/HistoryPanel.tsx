@@ -182,6 +182,11 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                     <div className="text-[11px] font-semibold leading-tight" style={{ color: isWin ? "#4ade80" : "#f87171" }}>
                       {profitLabel} ({pct})
                     </div>
+                    {entry.isCopy && (
+                      <span className="text-[8px] font-bold mt-0.5 px-1.5 py-0.5 rounded" style={{ background: "rgba(249,115,22,0.15)", color: "#fb923c" }}>
+                        Copy Trading
+                      </span>
+                    )}
                   </div>
 
                   {/* Chevron */}
@@ -190,13 +195,6 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                     style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
                   />
                 </button>
-                {entry.isCopy && (
-                  <div className="px-3 pb-2 -mt-1">
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(249,115,22,0.12)", color: "#fb923c" }}>
-                      Copy Trading
-                    </span>
-                  </div>
-                )}
 
                 {/* Expanded detail */}
                 {expanded && <DetailRows entry={entry} />}
