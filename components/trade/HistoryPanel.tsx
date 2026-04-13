@@ -167,7 +167,10 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                     }
                     <div className="min-w-0">
                       <div className="text-[12px] font-semibold text-white truncate leading-tight">{entry.tabName}</div>
-                      <div className="text-[10px] text-gray-500 leading-tight">Binária</div>
+                      {entry.isCopy
+                        ? <span className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(249,115,22,0.15)", color: "#fb923c" }}>Copy Trading</span>
+                        : <div className="text-[10px] text-gray-500 leading-tight">Binária</div>
+                      }
                     </div>
                   </div>
 
@@ -182,11 +185,6 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                     <div className="text-[11px] font-semibold leading-tight" style={{ color: isWin ? "#4ade80" : "#f87171" }}>
                       {profitLabel} ({pct})
                     </div>
-                    {entry.isCopy && (
-                      <span className="text-[8px] font-bold mt-0.5 px-1.5 py-0.5 rounded" style={{ background: "rgba(249,115,22,0.15)", color: "#fb923c" }}>
-                        Copy Trading
-                      </span>
-                    )}
                   </div>
 
                   {/* Chevron */}
