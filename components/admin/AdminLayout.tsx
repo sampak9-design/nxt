@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, ArrowDownCircle, ArrowUpCircle,
   Activity, BarChart2, Layers, LogOut, ChevronLeft, Bell, Plug, ShieldCheck, Settings, Zap,
-  Menu, X, MessageSquare,
+  Menu, X, MessageSquare, Copy,
 } from "lucide-react";
 
-export type AdminPage = "dashboard" | "users" | "deposits" | "withdrawals" | "kyc" | "tickets" | "trades" | "assets" | "reports" | "integration" | "otc_manip" | "settings";
+export type AdminPage = "dashboard" | "users" | "deposits" | "withdrawals" | "kyc" | "tickets" | "trades" | "assets" | "reports" | "integration" | "otc_manip" | "copy_trading" | "settings";
 
 const NAV_SECTIONS: { title?: string; items: { id: AdminPage; label: string; icon: React.ReactNode }[] }[] = [
   {
@@ -32,6 +32,7 @@ const NAV_SECTIONS: { title?: string; items: { id: AdminPage; label: string; ico
       { id: "trades",      label: "Operações",   icon: <Activity className="w-[18px] h-[18px]" /> },
       { id: "assets",      label: "Ativos",       icon: <Layers className="w-[18px] h-[18px]" /> },
       { id: "otc_manip",   label: "OTC",           icon: <Zap className="w-[18px] h-[18px]" /> },
+      { id: "copy_trading", label: "Copy Trading",  icon: <Copy className="w-[18px] h-[18px]" /> },
     ],
   },
   {

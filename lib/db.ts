@@ -177,6 +177,31 @@ try { db.exec(`ALTER TABLE tickets ADD COLUMN user_read_at INTEGER NOT NULL DEFA
 try { db.exec(`ALTER TABLE users ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0`); } catch {}
 try { db.exec(`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`); } catch {}
 
+// Copy Trading
+db.exec(`
+  CREATE TABLE IF NOT EXISTS copy_rooms (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    name         TEXT    NOT NULL,
+    description  TEXT,
+    trader_id    INTEGER NOT NULL REFERENCES users(id),
+    price        REAL    NOT NULL DEFAULT 0,
+    max_pct      REAL    NOT NULL DEFAULT 10,
+    is_active    INTEGER NOT NULL DEFAULT 1,
+    created_at   INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS copy_followers (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id      INTEGER NOT NULL REFERENCES copy_rooms(id),
+    user_id      INTEGER NOT NULL REFERENCES users(id),
+    status       TEXT    NOT NULL DEFAULT 'active' CHECK(status IN ('active','paused','cancelled')),
+    followed_at  INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000),
+    UNIQUE(room_id, user_id)
+  );
+`);
+
 // Seed admin user
 import bcryptjs from "bcryptjs";
 (() => {

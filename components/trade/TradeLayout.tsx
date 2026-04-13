@@ -10,6 +10,7 @@ import TradeChart, { prefetchAsset } from "./TradeChart";
 import TradeFooter from "./TradeFooter";
 import DepositModal from "./DepositModal";
 import SupportChat from "./SupportChat";
+import CopyTradingPanel from "./CopyTradingPanel";
 import { playOrderOpen, playWin, playLose } from "@/lib/sounds";
 
 export type ApiAsset = {
@@ -168,7 +169,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
   const [livePrice, setLivePrice]     = useState(0);
   const [liveTime, setLiveTime]       = useState(0);
   const [showDeposit, setShowDeposit] = useState(false);
-  const [sidebarPanel, setSidebarPanel] = useState<"portfolio" | "history" | "support" | null>(null);
+  const [sidebarPanel, setSidebarPanel] = useState<"portfolio" | "history" | "support" | "copytrading" | null>(null);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryEntry[]>([]);
   const [hoverDirection, setHoverDirection] = useState<"up" | "down" | null>(null);
   const [chartGrid, setChartGrid] = useState<number>(1);
@@ -477,6 +478,9 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         {sidebarPanel === "support" && (
           <SupportChat open={true} onClose={() => setSidebarPanel(null)} />
         )}
+        {sidebarPanel === "copytrading" && (
+          <CopyTradingPanel onClose={() => setSidebarPanel(null)} />
+        )}
         <div className="flex-1 flex overflow-hidden min-h-0">
           {/* Chart area + portfolio below */}
           <div className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -610,6 +614,11 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         {sidebarPanel === "support" && (
           <div className="absolute inset-0 z-50">
             <SupportChat open={true} onClose={() => setSidebarPanel(null)} />
+          </div>
+        )}
+        {sidebarPanel === "copytrading" && (
+          <div className="absolute inset-0 z-50">
+            <CopyTradingPanel onClose={() => setSidebarPanel(null)} />
           </div>
         )}
       </div>

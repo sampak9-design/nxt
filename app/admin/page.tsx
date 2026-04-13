@@ -14,6 +14,7 @@ import KycPage        from "@/components/admin/KycPage";
 import SettingsPage   from "@/components/admin/SettingsPage";
 import OtcManipPage   from "@/components/admin/OtcManipPage";
 import TicketsPage    from "@/components/admin/TicketsPage";
+import CopyTradingPage from "@/components/admin/CopyTradingPage";
 
 export default function AdminPage() {
   const [page, setPage] = useState<AdminPage>("dashboard");
@@ -29,8 +30,9 @@ export default function AdminPage() {
     assets:      <AssetsPage />,
     reports:     <ReportsPage />,
     integration: <IntegrationPage />,
-    otc_manip:   <OtcManipPage />,
-    settings:    <SettingsPage />,
+    otc_manip:     <OtcManipPage />,
+    copy_trading:  <CopyTradingPage />,
+    settings:      <SettingsPage />,
   }[page];
 
   return (

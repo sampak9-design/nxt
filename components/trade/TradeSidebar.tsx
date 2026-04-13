@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import SettingsModal from "./SettingsModal";
 
-type SidebarPanel = "portfolio" | "history" | "support" | null;
+type SidebarPanel = "portfolio" | "history" | "support" | "copytrading" | null;
 
 interface Props {
   activePanel: SidebarPanel;
@@ -60,7 +60,7 @@ export default function TradeSidebar({ activePanel, setActivePanel, openTradeCou
         {[
           { icon: BellRing,  label: "MEU\nDESEMPENHO", panel: null as SidebarPanel },
           { icon: Users,     label: "CHATS E\nSUPORTE", panel: "support" as SidebarPanel },
-          { icon: Medal,     label: "TABELA\nDE\nLÍDERES", panel: null as SidebarPanel },
+          { icon: Medal,     label: "COPY\nTRADING", panel: "copytrading" as SidebarPanel },
           { icon: Newspaper, label: "Notícias", panel: null as SidebarPanel },
         ].map(({ icon: Icon, label, panel }) => (
           <button
