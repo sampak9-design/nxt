@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Crown, Camera, ArrowDownCircle, ArrowUpCircle,
+  Crown, Camera, ArrowDownCircle, ArrowUpCircle, Users2,
   FileText, HelpCircle, DollarSign, Clock, Key, Settings, LogOut, Copy, X,
 } from "lucide-react";
 import SettingsModal from "./SettingsModal";
@@ -12,6 +12,7 @@ interface Props {
   onClose: () => void;
   onDepositClick: () => void;
   onSupportClick?: () => void;
+  onCopyTradingClick?: () => void;
 }
 
 type User = {
@@ -30,6 +31,7 @@ const MENU_ITEMS = [
   { icon: ArrowUpCircle,   label: "Retirar fundos" },
   { icon: FileText,        label: "Verificar documentos",  badge: "__KYC__", badgeColor: "#f97316" },
   { icon: HelpCircle,      label: "Contactar o suporte" },
+  { icon: Users2,          label: "Copy Trading" },
   { icon: DollarSign,      label: "Histórico do saldo" },
   { icon: Clock,           label: "Histórico de trading" },
   { icon: Key,             label: "Trocar senha" },
@@ -37,7 +39,7 @@ const MENU_ITEMS = [
   { icon: LogOut,          label: "Sair",                  danger: true },
 ];
 
-export default function ProfilePanel({ pos, onClose, onDepositClick, onSupportClick }: Props) {
+export default function ProfilePanel({ pos, onClose, onDepositClick, onSupportClick, onCopyTradingClick }: Props) {
   const ref      = useRef<HTMLDivElement>(null);
   const fileRef  = useRef<HTMLInputElement>(null);
   const [user, setUser]         = useState<User | null>(null);
@@ -87,6 +89,7 @@ export default function ProfilePanel({ pos, onClose, onDepositClick, onSupportCl
     if (label === "Verificar documentos") { window.location.href = "/verify"; return; }
     if (label === "Histórico de trading") { window.location.href = "/history"; return; }
     if (label === "Contactar o suporte") { onClose(); onSupportClick?.(); return; }
+    if (label === "Copy Trading") { onClose(); onCopyTradingClick?.(); return; }
     if (label === "Configurações") { setShowSettings(true); return; }
     if (label === "Sair") {
       fetch("/api/auth/logout", { method: "POST" }).finally(() => {

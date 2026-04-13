@@ -447,6 +447,7 @@ export default function TradeLayout({ assets: rawAssets }: { assets: ApiAsset[] 
         realBalance={realBalance}
         onDepositClick={() => setShowDeposit(true)}
         onSupportClick={() => setSidebarPanel(sidebarPanel === "support" ? null : "support")}
+        onCopyTradingClick={() => setSidebarPanel(sidebarPanel === "copytrading" ? null : "copytrading")}
         onReloadDemo={() => setDemoBalance(10000)}
         chartGrid={chartGrid}
         setChartGrid={setChartGrid}
