@@ -170,8 +170,9 @@ export default function PortfolioPanel({ activeTrades, onClose }: Props) {
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-xs font-bold" style={{ color: "#4ade80" }}>+R$0</div>
-                    <div className="text-[11px] font-semibold" style={{ color: "#4ade80" }}>+0%</div>
+                    <div className="text-xs font-bold text-white">R$ {t.amount.toFixed(2)}</div>
+                    <div className="text-[10px] text-gray-500">+{t.payout}%</div>
+                    {t.isCopy && <div className="text-[8px] font-bold text-orange-400 mt-0.5">COPY</div>}
                   </div>
                 </div>
                 <button className="mt-2 text-[10px] text-gray-500 hover:text-gray-300 transition-colors">
