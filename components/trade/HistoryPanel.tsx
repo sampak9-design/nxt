@@ -177,7 +177,7 @@ export default function HistoryPanel({ history, accountType, onClose }: Props) {
                       </span>
                     </div>
                     <div className="text-[11px] font-semibold leading-tight" style={{ color: isWin ? "#4ade80" : "#f87171" }}>
-                      {entry.isCopy ? profitLabel : `${profitLabel} (${pct})`}
+                      {profitLabel} ({pct})
                     </div>
                   </div>
 
