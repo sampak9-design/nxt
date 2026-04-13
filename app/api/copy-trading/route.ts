@@ -41,12 +41,14 @@ export async function POST(req: NextRequest) {
     const room = db.prepare("SELECT id, price FROM copy_rooms WHERE id = ? AND is_active = 1").get(body.roomId) as any;
     if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
 
-    // Check if already following
+    // Check if already following/pending
     const existing = db.prepare("SELECT id, status FROM copy_followers WHERE room_id = ? AND user_id = ?").get(body.roomId, userId) as any;
     if (existing) {
-      db.prepare("UPDATE copy_followers SET status = 'active', followed_at = ? WHERE id = ?").run(Date.now(), existing.id);
+      if (existing.status === "active") return NextResponse.json({ ok: true, status: "active" });
+      if (existing.status === "pending") return NextResponse.json({ ok: true, status: "pending" });
+      db.prepare("UPDATE copy_followers SET status = 'pending', followed_at = ? WHERE id = ?").run(Date.now(), existing.id);
     } else {
-      db.prepare("INSERT INTO copy_followers (room_id, user_id, followed_at) VALUES (?, ?, ?)").run(body.roomId, userId, Date.now());
+      db.prepare("INSERT INTO copy_followers (room_id, user_id, status, followed_at) VALUES (?, ?, 'pending', ?)").run(body.roomId, userId, Date.now());
     }
     return NextResponse.json({ ok: true });
   }

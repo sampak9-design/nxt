@@ -13,7 +13,7 @@ interface Room {
   followers: number;
   total_trades: number;
   wins: number;
-  follow_status: "none" | "following" | "paid";
+  follow_status: string | null;
 }
 
 interface Props {
@@ -100,10 +100,10 @@ export default function CopyTradingPanel({ onClose }: Props) {
 
   const handleAction = async (room: Room) => {
     if (acting) return;
+    const isFollowing = room.follow_status === "active";
     setActing(room.id);
     try {
-      const action =
-        room.follow_status === "following" ? "unfollow" : "follow";
+      const action = isFollowing ? "unfollow" : "follow";
       const res = await fetch("/api/copy-trading", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -115,14 +115,9 @@ export default function CopyTradingPanel({ onClose }: Props) {
             r.id === room.id
               ? {
                   ...r,
-                  follow_status:
-                    action === "follow"
-                      ? r.price > 0
-                        ? "paid"
-                        : "following"
-                      : "none",
+                  follow_status: action === "follow" ? "pending" : null,
                   followers:
-                    r.followers + (action === "follow" ? 1 : -1),
+                    r.followers + (action === "unfollow" ? -1 : 0),
                 }
               : r
           )
@@ -307,28 +302,30 @@ export default function CopyTradingPanel({ onClose }: Props) {
 
               {/* Action button */}
               <div className="px-4 pb-4 pt-2">
-                {room.follow_status === "following" ? (
+                {room.follow_status === "active" ? (
                   <button
                     onClick={() => handleAction(room)}
                     disabled={acting === room.id}
                     className="w-full py-2 rounded-lg text-xs font-bold transition-colors"
-                    style={{
-                      background: "rgba(255,255,255,0.08)",
-                      color: "#9ca3af",
-                    }}
+                    style={{ background: "rgba(255,255,255,0.08)", color: "#9ca3af" }}
                   >
                     {acting === room.id ? "..." : "Seguindo"}
                   </button>
-                ) : room.price > 0 && room.follow_status === "none" ? (
+                ) : room.follow_status === "pending" ? (
+                  <button disabled
+                    className="w-full py-2 rounded-lg text-xs font-bold"
+                    style={{ background: "rgba(249,115,22,0.15)", color: "#fb923c" }}
+                  >
+                    Aguardando aprovação
+                  </button>
+                ) : room.price > 0 ? (
                   <button
                     onClick={() => handleAction(room)}
                     disabled={acting === room.id}
                     className="w-full py-2 rounded-lg text-xs font-bold transition-colors"
                     style={{ background: "#16a34a", color: "#fff" }}
                   >
-                    {acting === room.id
-                      ? "..."
-                      : `Assinar R$ ${room.price.toFixed(2)}`}
+                    {acting === room.id ? "..." : `Assinar R$ ${room.price.toFixed(2)}`}
                   </button>
                 ) : (
                   <button

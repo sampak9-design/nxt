@@ -7,6 +7,7 @@ export async function GET() {
     SELECT r.*,
       u.first_name || ' ' || u.last_name as trader_name,
       (SELECT COUNT(*) FROM copy_followers WHERE room_id = r.id AND status = 'active') as followers,
+      (SELECT COUNT(*) FROM copy_followers WHERE room_id = r.id AND status = 'pending') as pending_followers,
       (SELECT COUNT(*) FROM trades WHERE user_id = r.trader_id AND result IS NOT NULL) as total_trades,
       (SELECT COUNT(*) FROM trades WHERE user_id = r.trader_id AND result = 'win') as wins
     FROM copy_rooms r
@@ -49,6 +50,30 @@ export async function POST(req: NextRequest) {
   if (body.action === "delete") {
     db.prepare("DELETE FROM copy_followers WHERE room_id = ?").run(body.id);
     db.prepare("DELETE FROM copy_rooms WHERE id = ?").run(body.id);
+    return NextResponse.json({ ok: true });
+  }
+
+  // List followers for a room
+  if (body.action === "followers") {
+    const followers = db.prepare(`
+      SELECT cf.*, u.first_name || ' ' || u.last_name as user_name, u.email
+      FROM copy_followers cf
+      JOIN users u ON u.id = cf.user_id
+      WHERE cf.room_id = ?
+      ORDER BY cf.followed_at DESC
+    `).all(body.roomId);
+    return NextResponse.json({ followers });
+  }
+
+  // Approve follower
+  if (body.action === "approve_follower") {
+    db.prepare("UPDATE copy_followers SET status = 'active' WHERE id = ?").run(body.followerId);
+    return NextResponse.json({ ok: true });
+  }
+
+  // Reject follower
+  if (body.action === "reject_follower") {
+    db.prepare("UPDATE copy_followers SET status = 'cancelled' WHERE id = ?").run(body.followerId);
     return NextResponse.json({ ok: true });
   }
 

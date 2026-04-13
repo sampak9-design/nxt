@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Copy, Search, Plus, Pencil, Eye, Trash2, X, Users, Activity, LayoutGrid } from "lucide-react";
+import { Copy, Search, Plus, Pencil, Eye, Trash2, X, Users, Activity, LayoutGrid, CheckCircle2, XCircle, Clock } from "lucide-react";
 
 type Room = {
   id: number;
@@ -13,6 +13,7 @@ type Room = {
   max_pct: number;
   is_active: boolean;
   followers: number;
+  pending_followers: number;
   total_trades: number;
   wins: number;
   created_at: string;
@@ -55,6 +56,29 @@ export default function CopyTradingPage() {
   const [formPrice, setFormPrice] = useState(0);
   const [formMaxPct, setFormMaxPct] = useState(50);
   const [submitting, setSubmitting] = useState(false);
+
+  // Followers modal
+  type Follower = { id: number; user_id: number; user_name: string; email: string; status: string; followed_at: number };
+  const [followersOpen, setFollowersOpen] = useState(false);
+  const [followersRoom, setFollowersRoom] = useState<Room | null>(null);
+  const [followersList, setFollowersList] = useState<Follower[]>([]);
+  const [loadingFollowers, setLoadingFollowers] = useState(false);
+
+  const openFollowers = async (room: Room) => {
+    setFollowersRoom(room);
+    setFollowersOpen(true);
+    setLoadingFollowers(true);
+    const r = await fetch("/api/admin/copy-trading", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "followers", roomId: room.id }) });
+    const d = await r.json();
+    setFollowersList(d.followers ?? []);
+    setLoadingFollowers(false);
+  };
+
+  const handleFollowerAction = async (followerId: number, action: "approve_follower" | "reject_follower") => {
+    await fetch("/api/admin/copy-trading", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, followerId }) });
+    if (followersRoom) openFollowers(followersRoom);
+    loadRooms();
+  };
 
   const loadRooms = () => {
     fetch("/api/admin/copy-trading")
@@ -318,10 +342,14 @@ export default function CopyTradingPage() {
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors text-gray-400 hover:text-blue-400"
-                            title="Visualizar"
+                            onClick={() => openFollowers(room)}
+                            className="relative w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors text-gray-400 hover:text-blue-400"
+                            title="Seguidores"
                           >
-                            <Eye className="w-3.5 h-3.5" />
+                            <Users className="w-3.5 h-3.5" />
+                            {room.pending_followers > 0 && (
+                              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center text-[8px] font-bold text-white">{room.pending_followers}</span>
+                            )}
                           </button>
                           <button
                             onClick={() => handleDelete(room.id)}
@@ -466,6 +494,70 @@ export default function CopyTradingPage() {
               >
                 {submitting ? "Salvando..." : modalMode === "create" ? "Criar Sala" : "Salvar Alterações"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Followers modal */}
+      {followersOpen && followersRoom && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}>
+          <div className="w-full max-w-lg rounded-2xl overflow-hidden"
+            style={{ background: "linear-gradient(135deg, rgba(17,24,39,0.98), rgba(10,15,30,0.95))", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 24px 48px rgba(0,0,0,0.5)" }}>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div>
+                <h3 className="text-white font-bold text-sm">Seguidores — {followersRoom.name}</h3>
+                <p className="text-[11px] text-gray-500">Aprovar ou rejeitar solicitações</p>
+              </div>
+              <button onClick={() => setFollowersOpen(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              {loadingFollowers ? (
+                <div className="py-10 text-center text-gray-500 text-sm">Carregando...</div>
+              ) : followersList.length === 0 ? (
+                <div className="py-10 text-center text-gray-600 text-sm">Nenhum seguidor</div>
+              ) : (
+                followersList.map(f => (
+                  <div key={f.id} className="flex items-center gap-3 px-6 py-3 hover:bg-white/[0.02] transition-colors"
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold text-white"
+                      style={{ background: "linear-gradient(135deg, #334155, #1e293b)" }}>
+                      {f.user_name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] text-white font-semibold truncate">{f.user_name}</div>
+                      <div className="text-[10px] text-gray-500">{f.email}</div>
+                    </div>
+                    {f.status === "pending" ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(249,115,22,0.1)", color: "#fb923c" }}>
+                          <Clock className="w-3 h-3 inline mr-0.5" />Pendente
+                        </span>
+                        <button onClick={() => handleFollowerAction(f.id, "approve_follower")}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:bg-green-500/20 text-green-400"
+                          title="Aprovar">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleFollowerAction(f.id, "reject_follower")}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:bg-red-500/20 text-red-400"
+                          title="Rejeitar">
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : f.status === "active" ? (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.1)", color: "#4ade80" }}>
+                        <CheckCircle2 className="w-3 h-3 inline mr-0.5" />Aprovado
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(107,114,128,0.1)", color: "#9ca3af" }}>
+                        Cancelado
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
